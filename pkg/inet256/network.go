@@ -19,6 +19,7 @@ type Network interface {
 	SendTo(ctx context.Context, addr Addr, data []byte) error
 	OnRecv(fn RecvFunc)
 	AddrWithPrefix(ctx context.Context, prefix []byte, nbits int) (Addr, error)
+	MinMTU() int
 	Close() error
 }
 
