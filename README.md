@@ -35,7 +35,7 @@ Notably, the discovery services and NAT management provide a way for users to li
 It models friend-to-friend communication, and unreliable messages well, making it better suited for overlay networks than, for example: libp2p, which is more suited for public networks, with reliable communication.
 
 ## Tooling (Help From Above)
-This project will provide tools for using INET256 networks, some of which is not yet implemented
+This project will provide tools for using INET256 networks, some of which are not yet implemented
 
 - [x] INET256 to IPv6 mapping. Inspired by Yggdrasil
 - [ ] A TUN device using the mapping.
