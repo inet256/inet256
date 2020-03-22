@@ -31,7 +31,7 @@ This project encourages use of primitives from the message based p2p networking 
 
 Its `Swarm` abstraction provides transports for INET256 networks.
 The library also provides discovery services, and methods for serializing and creating INET256 addresses.
-Notably, the discovey services and NAT management provide a way for users to link all their devices to INET256 without touching a VPS or DNS entry, or forwarding a port.
+Notably, the discovery services and NAT management provide a way for users to link all their devices to INET256 without touching a VPS or DNS entry, or forwarding a port.
 It models friend-to-friend communication, and unreliable messages well, making it better suited for overlay networks than, for example: libp2p, which is more suited for public networks, with reliable communication.
 
 ## Tooling (Help From Above)
@@ -42,3 +42,28 @@ This project will provide tools for using INET256 networks, some of which is not
 - [ ] NAT Table using the mapping. No port mappings Layer 3 only.
 - [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
 - [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to wireguard.
+
+## Use Cases
+
+#### I Have a Network Protocol. How do I start a Node?
+Assuming you have a package `mynetwork` which contains an INET256 network factory, the entrypoint would look something like this:
+
+```go
+// cmd/mynetwork/main.go
+
+package main
+
+import (
+    "log"
+
+    "github.com/inet256/inet256/pkg/inet256cmd"
+    "mynetwork.org/mynetwork"
+)
+
+func main() {
+    inet256cmd.Register("mynetwork", mynetwork.Factory)
+    if err := inet256cmd.Execute(); err != nil {
+        log.Fatal(err)
+    }
+}
+```

@@ -9,7 +9,11 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func Register(netSpec inet256.NetworkSpec) {
+func Register(name string, factory inet256.NetworkFactory) {
+	netSpec := inet256.NetworkSpec{
+		Name:    name,
+		Factory: factory,
+	}
 	if _, exists := networks[netSpec.Name]; exists {
 		panic("network by that name already exists")
 	}
