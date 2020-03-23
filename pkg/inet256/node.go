@@ -14,7 +14,10 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 )
 
-var ErrAddrUnreachable = errors.New("address is unreachable")
+var (
+	ErrAddrUnreachable  = errors.New("address is unreachable")
+	ErrNoAddrWithPrefix = errors.New("no address found with that prefix")
+)
 
 type Params struct {
 	p2p.PrivateKey
@@ -89,6 +92,18 @@ func (n *Node) LocalAddr() Addr {
 	return NewAddr(n.params.PrivateKey.Public())
 }
 
+// MinMTU returns the minumum which will work for all the peers.
+func (n *Node) MinMTU() int {
+	mtu := 0
+	for _, netw := range n.networks {
+		x := netw.MinMTU()
+		if x < mtu {
+			mtu = x
+		}
+	}
+	return mtu
+}
+
 func (n *Node) NewVirtual() *Node {
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -127,7 +142,7 @@ func (n *Node) Close() error {
 		}
 	}
 	if len(errs) > 0 {
-		fmt.Errorf("%v", errs)
+		return fmt.Errorf("%v", errs)
 	}
 	return nil
 }

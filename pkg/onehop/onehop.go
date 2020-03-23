@@ -55,7 +55,7 @@ func (n *Network) AddrWithPrefix(ctx context.Context, prefix []byte, nbits int) 
 			return addr, nil
 		}
 	}
-	return inet256.Addr{}, inet256.ErrAddrUnreachable
+	return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
 func (n *Network) SendTo(ctx context.Context, dst inet256.Addr, data []byte) error {
@@ -64,6 +64,12 @@ func (n *Network) SendTo(ctx context.Context, dst inet256.Addr, data []byte) err
 
 func (n *Network) OnRecv(fn inet256.RecvFunc) {
 	n.onRecv = fn
+}
+
+func (n *Network) MinMTU() int {
+	ctx, cf := context.WithTimeout(context.Background(), 0)
+	defer cf()
+	return n.peerSwarm.MTU(ctx, p2p.ZeroPeerID())
 }
 
 func (n *Network) Close() error {
