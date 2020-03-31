@@ -38,8 +38,8 @@ func NewNode(params Params) *Node {
 		swarms["virtual"] = memsw
 	}
 
-	s := multiswarm.NewSecure(swarms)
-	mux := simplemux.MultiplexSwarm(s)
+	baseSwarm := multiswarm.NewSecure(swarms)
+	mux := simplemux.MultiplexSwarm(baseSwarm)
 
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {

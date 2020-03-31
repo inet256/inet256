@@ -49,12 +49,27 @@ type Config struct {
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
+<<<<<<< HEAD
 	Discovery []DiscoverySpec `yaml:"discovery"`
 }
 
 func BuildParams(c *Config) (*inet256.Params, error) {
+=======
+	CellTrackers []string   `yaml:"cell_trackers"`
+	Peers        []PeerSpec `yaml:"peers"`
+
+	configPath string
+}
+
+func (c *Config) BuildParams() (*inet256.Params, error) {
+	keyPath := c.PrivateKeyPath
+	if c.configPath != "" {
+		keyPath = filepath.Join(filepath.Dir(c.configPath), c.PrivateKeyPath)
+	}
+
+>>>>>>> 74e8d87 (wip)
 	// private key
-	keyPEMData, err := ioutil.ReadFile(c.PrivateKeyPath)
+	keyPEMData, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +181,7 @@ func LoadConfig(p string) (*Config, error) {
 	if err := yaml.Unmarshal(data, c); err != nil {
 		return nil, err
 	}
+	c.configPath = p
 	return c, nil
 }
 

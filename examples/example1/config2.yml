@@ -1,0 +1,16 @@
+private_key_path: inet256_private2.pem
+
+networks:
+- onehop
+
+transports:
+- type: udp
+  addr: "0.0.0.0:44445"
+  behind_nat: false
+
+peers:
+- id: 9ZAeBq9jdbkwARDIi08nyp7R_jk-kezBn6AqZZNacL4
+  addrs:
+  - dtls+udp://9ZAeBq9jdbkwARDIi08nyp7R_jk-kezBn6AqZZNacL4@127.0.0.1:44444
+
+cell_trackers: []

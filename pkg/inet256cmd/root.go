@@ -23,8 +23,6 @@ func Register(name string, factory inet256.NetworkFactory) {
 var (
 	configPath string
 	networks   = map[string]inet256.NetworkSpec{}
-
-	node *inet256.Node
 )
 
 func init() {

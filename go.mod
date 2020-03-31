@@ -13,3 +13,5 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
+
+replace github.com/brendoncarroll/go-p2p => ../../brendoncarroll/go-p2p
