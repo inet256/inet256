@@ -2,11 +2,10 @@ package inet256
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
-	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/simplemux"
@@ -66,12 +65,12 @@ func NewNode(params Params) *Node {
 	}
 }
 
-func (n *Node) SendTo(ctx context.Context, dst Addr, data []byte) error {
+func (n *Node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	network := n.whichNetwork(ctx, dst)
 	if network == nil {
 		return ErrAddrUnreachable
 	}
-	return network.SendTo(ctx, dst, data)
+	return network.Tell(ctx, dst, data)
 }
 
 func (n *Node) OnRecv(fn RecvFunc) {
@@ -89,12 +88,7 @@ func (n *Node) LocalAddr() Addr {
 	return NewAddr(n.params.PrivateKey.Public())
 }
 
-func (n *Node) NewVirtual() *Node {
-	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-
+func (n *Node) NewVirtual(privateKey p2p.PrivateKey) *Node {
 	mems := n.memrealm.NewSwarmWithKey(privateKey)
 	swarms := map[string]p2p.SecureSwarm{
 		"virtual": mems,
@@ -127,7 +121,7 @@ func (n *Node) Close() error {
 		}
 	}
 	if len(errs) > 0 {
-		fmt.Errorf("%v", errs)
+		return errors.Errorf("%v", errs)
 	}
 	return nil
 }
@@ -166,7 +160,6 @@ func (n *Node) whichNetwork(ctx context.Context, addr Addr) Network {
 	if exists {
 		return x.(Network)
 	}
-
 	_, network, err := n.addrWithPrefix(ctx, addr[:], len(addr)*8)
 	if err != nil {
 		return nil

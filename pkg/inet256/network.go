@@ -16,8 +16,10 @@ type PeerStore interface {
 }
 
 type Network interface {
-	SendTo(ctx context.Context, addr Addr, data []byte) error
+	Tell(ctx context.Context, addr Addr, data []byte) error
 	OnRecv(fn RecvFunc)
+
+	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
 	AddrWithPrefix(ctx context.Context, prefix []byte, nbits int) (Addr, error)
 	Close() error
 }

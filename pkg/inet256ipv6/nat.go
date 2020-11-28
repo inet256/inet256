@@ -1,6 +1,8 @@
 package inet256ipv6
 
 import (
+	"crypto/ed25519"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	log "github.com/sirupsen/logrus"
 )
@@ -27,7 +29,11 @@ func NewNATTable(node *inet256.Node) *NATTable {
 func (nt *NATTable) AddClient(ipv6 IPv6Addr) inet256.Addr {
 	inside := ipv6
 
-	vnode := nt.node.NewVirtual()
+	_, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		panic(err)
+	}
+	vnode := nt.node.NewVirtual(priv)
 	outside := vnode.LocalAddr()
 
 	nt.inbound[outside] = inside

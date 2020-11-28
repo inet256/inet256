@@ -6,6 +6,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,7 +59,19 @@ func (n *Network) AddrWithPrefix(ctx context.Context, prefix []byte, nbits int) 
 	return inet256.Addr{}, inet256.ErrAddrUnreachable
 }
 
-func (n *Network) SendTo(ctx context.Context, dst inet256.Addr, data []byte) error {
+func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
+	for _, id := range n.peers.ListPeers() {
+		if id == target {
+			pubKey := n.peerSwarm.LookupPublicKey(id)
+			if pubKey == nil {
+				return nil, errors.Errorf("unable to lookup public key")
+			}
+		}
+	}
+	return nil, inet256.ErrAddrUnreachable
+}
+
+func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
 	return n.peerSwarm.TellPeer(ctx, dst, data)
 }
 

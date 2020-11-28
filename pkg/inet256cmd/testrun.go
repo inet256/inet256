@@ -24,10 +24,10 @@ var testRunCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("ADDR: %v\n", node.LocalAddr())
-		fmt.Printf("LISTENERS: %v\n", params.Swarms)
+		cmd.Printf("ADDR: %v\n", node.LocalAddr())
+		cmd.Printf("LISTENERS: %v\n", params.Swarms)
 		node.OnRecv(func(src, dst inet256.Addr, data []byte) {
-			fmt.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
+			cmd.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
 		})
 
 		ctx := context.Background()

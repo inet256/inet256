@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package inet256;
+
+option go_package = "github.com/inet256/inet256/pkg/inet256grpc";
+
+import "google/protobuf/empty.proto";
+
+message GenerateKeyRes {
+    bytes private_key = 1;
+}
+
+message LookupSelfReq {
+    bytes private_key = 1;
+}
+
+message LookupReq {
+    bytes target_addr = 1;
+}
+
+message PeerInfo {
+    bytes addr = 1;
+    bytes public_key = 2;
+}
+
+message ConnectMsg {
+    bytes private_key = 1;
+    Datagram datagram = 2;
+}
+
+message Datagram {
+    bytes src = 1;
+    bytes dst = 2;
+    bytes payload = 3;
+}
+
+service INET256 {
+    rpc GenerateKey(google.protobuf.Empty) returns (GenerateKeyRes) {}
+    rpc LookupSelf(LookupSelfReq) returns (PeerInfo) {}
+    rpc Lookup(LookupReq) returns (PeerInfo) {}
+
+    // Connect starts a session for sending and receiving messages
+    // The first message must contain a private key. The corresponding public key will
+    // be used to derive an address
+    rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
+}
