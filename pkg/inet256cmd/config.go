@@ -5,16 +5,17 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/d/celltracker"
 	"github.com/brendoncarroll/go-p2p/s/dtlsswarm"
 	"github.com/brendoncarroll/go-p2p/s/natswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,16 +37,22 @@ type TransportSpec struct {
 	BehindNAT bool   `yaml:"behind_nat"`
 }
 
+type DiscoverySpec struct {
+	CellTracker *CellTrackerSpec `yaml:"cell_tracker"`
+}
+
+type CellTrackerSpec = string
+
 type Config struct {
 	PrivateKeyPath string          `yaml:"private_key_path"`
 	Networks       []string        `yaml:"networks"`
 	Transports     []TransportSpec `yaml:"transports"`
+	Peers          []PeerSpec      `yaml:"peers"`
 
-	CellTrackers []string   `yaml:"cell_trackers"`
-	Peers        []PeerSpec `yaml:"peers"`
+	Discovery []DiscoverySpec `yaml:"discovery"`
 }
 
-func (c *Config) BuildParams() (*inet256.Params, error) {
+func BuildParams(c *Config) (*inet256.Params, error) {
 	// private key
 	keyPEMData, err := ioutil.ReadFile(c.PrivateKeyPath)
 	if err != nil {
@@ -109,6 +116,18 @@ func (c *Config) BuildParams() (*inet256.Params, error) {
 	return params, nil
 }
 
+func DefaultConfig() Config {
+	return Config{
+		Networks: []string{"onehop"},
+		Transports: []TransportSpec{
+			{
+				Type: "udp",
+				Addr: "0.0.0.0:",
+			},
+		},
+	}
+}
+
 func SaveDefaultConfig(p string) error {
 	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -133,17 +152,8 @@ func SaveDefaultConfig(p string) error {
 		nspecs = append(nspecs, nspec)
 	}
 
-	c := &Config{
-		PrivateKeyPath: keyPath,
-		Networks:       []string{"onehop"},
-		Transports: []TransportSpec{
-			{
-				Type: "udp",
-				Addr: "0.0.0.0:",
-			},
-		},
-	}
-
+	c := DefaultConfig()
+	c.PrivateKeyPath = keyPath
 	return SaveConfig(p, c)
 }
 
@@ -159,10 +169,19 @@ func LoadConfig(p string) (*Config, error) {
 	return c, nil
 }
 
-func SaveConfig(p string, c *Config) error {
+func SaveConfig(p string, c Config) error {
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err
 	}
 	return ioutil.WriteFile(p, data, 0644)
+}
+
+func setupDiscovery(spec DiscoverySpec) (p2p.DiscoveryService, error) {
+	switch {
+	case spec.CellTracker != nil:
+		return celltracker.NewClient(*spec.CellTracker)
+	default:
+		return nil, errors.Errorf("empty spec")
+	}
 }

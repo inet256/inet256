@@ -34,7 +34,7 @@ var testRunCmd = &cobra.Command{
 		data := []byte("ping")
 		for {
 			for _, addr := range params.Peers.ListPeers() {
-				if err := node.SendTo(ctx, addr, data); err != nil {
+				if err := node.Tell(ctx, addr, data); err != nil {
 					log.Error(err)
 					continue
 				} else {
@@ -59,7 +59,7 @@ func setupNode(cmd *cobra.Command, args []string) (*inet256.Node, *inet256.Param
 	if err != nil {
 		return nil, nil, err
 	}
-	params, err := config.BuildParams()
+	params, err := BuildParams(config)
 	if err != nil {
 		return nil, nil, err
 	}

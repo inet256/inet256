@@ -1,9 +1,11 @@
 package inet256
 
 import (
+	"crypto/x509"
 	"math/bits"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -15,12 +17,34 @@ func NewAddr(pubKey PublicKey) Addr {
 	return p2p.NewPeerID(pubKey)
 }
 
+func AddrFromBytes(x []byte) Addr {
+	y := Addr{}
+	copy(y[:], x)
+	return y
+}
+
 func ParsePublicKey(data []byte) (PublicKey, error) {
 	return p2p.ParsePublicKey(data)
 }
 
 func MarshalPublicKey(pubKey PublicKey) []byte {
 	return p2p.MarshalPublicKey(pubKey)
+}
+
+func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
+	privKey, err := x509.ParsePKCS8PrivateKey(data)
+	if err != nil {
+		return nil, err
+	}
+	privKey2, ok := privKey.(p2p.PrivateKey)
+	if !ok {
+		return nil, errors.Errorf("unsupported private key type")
+	}
+	return privKey2, nil
+}
+
+func MarshalPrivateKey(privKey p2p.PrivateKey) ([]byte, error) {
+	return x509.MarshalPKCS8PrivateKey(privKey)
 }
 
 func HasPrefix(addr Addr, prefix []byte, nbits int) bool {

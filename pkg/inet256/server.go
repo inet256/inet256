@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/ed25519"
-	"crypto/x509"
 	"io"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -62,11 +61,7 @@ func (s *Server) LookupSelf(ctx context.Context, req *inet256grpc.LookupSelfReq)
 func (s *Server) Lookup(ctx context.Context, req *inet256grpc.LookupReq) (*inet256grpc.PeerInfo, error) {
 	target := Addr{}
 	copy(target[:], req.TargetAddr)
-	nwk := s.n.whichNetwork(ctx, target)
-	if nwk == nil {
-		return nil, ErrAddrUnreachable
-	}
-	pubKey, err := nwk.LookupPublicKey(ctx, target)
+	pubKey, err := s.n.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
@@ -76,12 +71,24 @@ func (s *Server) Lookup(ctx context.Context, req *inet256grpc.LookupReq) (*inet2
 	}, nil
 }
 
+func (s *Server) MTU(ctx context.Context, req *inet256grpc.MTUReq) (*inet256grpc.MTURes, error) {
+	target := AddrFromBytes(req.Target)
+	mtu := s.n.MTU(ctx, target)
+	return &inet256grpc.MTURes{
+		Mtu: int64(mtu),
+	}, nil
+}
+
 func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 	msg, err := srv.Recv()
 	if err != nil {
 		return err
 	}
-	privKey, err := ParsePrivateKey(msg.PrivateKey)
+	if msg.ConnectInit == nil {
+		return errors.Errorf("first message must contain ConnectInit")
+	}
+	cinit := msg.ConnectInit
+	privKey, err := ParsePrivateKey(cinit.PrivateKey)
 	if err != nil {
 		return err
 	}
@@ -115,7 +122,13 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 			continue
 		}
 		dst := Addr{}
-		copy(dst[:], msg.Datagram.Dst)
+		if len(msg.Datagram.Dst) < 32 {
+			if dst, err = s.findAddr(ctx, msg.Datagram.Dst); err != nil {
+				return err
+			}
+		} else {
+			copy(dst[:], msg.Datagram.Dst)
+		}
 		if err := n.Tell(ctx, dst, msg.Datagram.Payload); err != nil {
 			return err
 		}
@@ -123,18 +136,6 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 	return n.Close()
 }
 
-func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
-	privKey, err := x509.ParsePKCS8PrivateKey(data)
-	if err != nil {
-		return nil, err
-	}
-	privKey2, ok := privKey.(p2p.PrivateKey)
-	if !ok {
-		return nil, errors.Errorf("unsupported private key type")
-	}
-	return privKey2, nil
-}
-
-func MarshalPrivateKey(privKey p2p.PrivateKey) ([]byte, error) {
-	return x509.MarshalPKCS8PrivateKey(privKey)
+func (s *Server) findAddr(ctx context.Context, prefix []byte) (Addr, error) {
+	return s.n.FindAddr(ctx, prefix, len(prefix)*8)
 }

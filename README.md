@@ -1,7 +1,14 @@
 # INET256
 
-A unified 256 bit address space for peer-to-peer hosts.
+A unified 256 bit address space for peer-to-peer hosts/applications.
 
+> **The value proposition**:
+>
+> All you have to do to send messages to another process is know its address (hash of public key).
+>
+> All you have to do to recieve messages is generate a private, public key pair and connect to the inet256 daemon
+
+## Background
 There are now a few projects/networks which use the hash of a public key, as a mechanism for assigning addresses.
 
 - [CJDNS](https://github.com/cjdelisle/cjdns)
@@ -18,7 +25,7 @@ The space would benefit from some standardization, in particular if users who ca
 
 Creating a single target for application and service developers will hopefully inspire more development, and nudge these networks to assimilate their address schemes.
 
-INET256 aims to provide tooling in the form of NATs, DHCPv6, TUN devices, VPNs, secure transports, and trackers, which can be leveraged for all compatible networks.
+INET256 aims to provide tooling in the form of NATs, DHCPv6, TUN devices, VPNs, secure transports, and discovery services, which can be leveraged for all compatible networks.
 
 ## Spec
 Addresses are determined by the `SHA3-256` of the `PKIX ASN.1 DER` encoding of the public key.

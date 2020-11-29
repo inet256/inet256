@@ -2,6 +2,7 @@ package onehop
 
 import (
 	"context"
+	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
@@ -21,6 +22,7 @@ type Network struct {
 	peers     inet256.PeerStore
 	peerSwarm *peerswarm.Swarm
 
+	mu     sync.RWMutex
 	onRecv inet256.RecvFunc
 }
 
@@ -44,12 +46,15 @@ func New(sw p2p.SecureSwarm, peers inet256.PeerStore) *Network {
 	n.peerSwarm.OnTell(func(msg *p2p.Message) {
 		dst := msg.Dst.(p2p.PeerID)
 		src := msg.Src.(p2p.PeerID)
-		n.onRecv(src, dst, msg.Payload)
+		n.mu.RLock()
+		onRecv := n.onRecv
+		n.mu.RUnlock()
+		onRecv(src, dst, msg.Payload)
 	})
 	return n
 }
 
-func (n *Network) AddrWithPrefix(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
+func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
 	for _, id := range n.peers.ListPeers() {
 		addr := id
 		if inet256.HasPrefix(addr, prefix, nbits) {
@@ -76,7 +81,16 @@ func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data []byte) error
 }
 
 func (n *Network) OnRecv(fn inet256.RecvFunc) {
+	if fn == nil {
+		fn = inet256.NoOpRecvFunc
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.onRecv = fn
+}
+
+func (n *Network) MTU(ctx context.Context, addr inet256.Addr) int {
+	return n.swarm.MTU(ctx, addr)
 }
 
 func (n *Network) Close() error {

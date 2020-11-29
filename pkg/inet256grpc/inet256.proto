@@ -24,14 +24,26 @@ message PeerInfo {
 }
 
 message ConnectMsg {
-    bytes private_key = 1;
+    ConnectInit ConnectInit = 1;
     Datagram datagram = 2;
+}
+
+message ConnectInit {
+    bytes private_key = 1;
 }
 
 message Datagram {
     bytes src = 1;
     bytes dst = 2;
     bytes payload = 3;
+}
+
+message MTUReq {
+    bytes target = 1;
+}
+
+message MTURes {
+    int64 mtu = 1;
 }
 
 service INET256 {
@@ -43,4 +55,5 @@ service INET256 {
     // The first message must contain a private key. The corresponding public key will
     // be used to derive an address
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
+    rpc MTU(MTUReq) returns (MTURes) {}
 }
