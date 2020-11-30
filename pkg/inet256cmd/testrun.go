@@ -3,7 +3,6 @@ package inet256cmd
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -19,7 +18,7 @@ var testRunCmd = &cobra.Command{
 	Use:   "testrun",
 	Short: "run an inet256 node with logging",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, params, err := setupNode(cmd, args)
+		node, params, _, err := setupNode(cmd, args)
 		if err != nil {
 			return err
 		}
@@ -38,7 +37,7 @@ var testRunCmd = &cobra.Command{
 					log.Error(err)
 					continue
 				} else {
-					fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
+					// fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
 				}
 			}
 			time.Sleep(time.Second)
@@ -47,22 +46,22 @@ var testRunCmd = &cobra.Command{
 	},
 }
 
-func setupNode(cmd *cobra.Command, args []string) (*inet256.Node, *inet256.Params, error) {
+func setupNode(cmd *cobra.Command, args []string) (*inet256.Node, *inet256.Params, *Config, error) {
 	if err := cmd.ParseFlags(args); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if configPath == "" {
-		return nil, nil, errors.New("must provide config path")
+		return nil, nil, nil, errors.New("must provide config path")
 	}
 	log.Infof("using config path: %v", configPath)
 	config, err := LoadConfig(configPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	params, err := BuildParams(config)
+	params, err := BuildParams(configPath, config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	node := inet256.NewNode(*params)
-	return node, params, nil
+	return node, params, config, nil
 }

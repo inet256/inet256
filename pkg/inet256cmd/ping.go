@@ -3,6 +3,7 @@ package inet256cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -17,13 +18,20 @@ var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "ping an inet256 node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, _, err := setupNode(cmd, args)
+		node, _, _, err := setupNode(cmd, args)
 		if err != nil {
 			return err
 		}
+		if len(args) < 1 {
+			return errors.New("must provide target addr")
+		}
 
 		dst := inet256.Addr{}
-		base64.RawURLEncoding.Decode(dst[:], []byte(args[0]))
+		if n, err := base64.RawURLEncoding.Decode(dst[:], []byte(args[0])); err != nil {
+			return err
+		} else if n != len(dst) {
+			return errors.New("arg not long enough to be address")
+		}
 
 		ctx := context.Background()
 		fmt.Println("pinging", dst)
