@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/simplemux"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 )
 
 var ErrAddrUnreachable = errors.New("address is unreachable")
@@ -47,8 +48,9 @@ func NewNode(params Params) *Node {
 		if err != nil {
 			panic(err)
 		}
+		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
-			Swarm: s.(p2p.SecureSwarm),
+			Swarm: ps,
 			Peers: params.Peers,
 		})
 	}
@@ -57,7 +59,7 @@ func NewNode(params Params) *Node {
 		params:   params,
 		memrealm: memrealm,
 		memswarm: memsw,
-		network:  NewMultiNetwork(networks),
+		network:  newMultiNetwork(networks),
 	}
 }
 

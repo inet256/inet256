@@ -6,18 +6,32 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
 )
 
+// PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
+type PeerSwarm = peerswarm.Swarm
+
+// RecvFunc can be passed to Network.OnRecv as a callback to receive messages
 type RecvFunc func(src, dst Addr, data []byte)
 
+// NoOpRecvFunc does nothing
 func NoOpRecvFunc(src, dst Addr, data []byte) {}
 
+// PeerSet stores information about peers
+type PeerSet interface {
+	ListPeers() []p2p.PeerID
+	Contains(id p2p.PeerID) bool
+}
+
+// PeerStore stores information about peers
 type PeerStore interface {
 	ListPeers() []p2p.PeerID
 	ListAddrs(p2p.PeerID) []string
 }
 
+// Network is a network for sending messages between peers
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
 	OnRecv(fn RecvFunc)
@@ -29,13 +43,18 @@ type Network interface {
 	Close() error
 }
 
+// NetworkParams are passed to a NetworkFactory to create a Network.
+// This type really defines the problem domain quite well. Essentially
+// it is a list of one-hop peers and a means to send messages to them.
 type NetworkParams struct {
-	Swarm p2p.SecureSwarm
+	Swarm PeerSwarm
 	Peers PeerStore
 }
 
+// NetworkFactory is a constructor for a network
 type NetworkFactory func(NetworkParams) Network
 
+// NetworkSpec is a name associated with a network factory
 type NetworkSpec struct {
 	Name    string
 	Factory NetworkFactory
@@ -48,7 +67,7 @@ type multiNetwork struct {
 	addrMap sync.Map
 }
 
-func NewMultiNetwork(networks []Network) Network {
+func newMultiNetwork(networks []Network) Network {
 	return &multiNetwork{
 		networks: networks,
 	}
