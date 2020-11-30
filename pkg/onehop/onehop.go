@@ -20,7 +20,7 @@ func Factory(params inet256.NetworkParams) inet256.Network {
 type Network struct {
 	swarm     p2p.SecureSwarm
 	peers     inet256.PeerStore
-	peerSwarm *peerswarm.Swarm
+	peerSwarm peerswarm.Swarm
 
 	mu     sync.RWMutex
 	onRecv inet256.RecvFunc
@@ -87,7 +87,6 @@ func (n *Network) OnRecv(fn inet256.RecvFunc) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.onRecv = fn
-	n.mu.Unlock()
 }
 
 func (n *Network) MTU(ctx context.Context, addr inet256.Addr) int {

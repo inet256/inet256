@@ -1,4 +1,6 @@
-private_key_path: inet256_private1.pem
+private_key_path: ./inet256_private1.pem
+
+api_addr: 127.0.0.1:25601
 
 networks:
 - onehop
@@ -9,8 +11,6 @@ transports:
   behind_nat: false
 
 peers:
-- id: 1_YWcCtL14qQMYIoRA4bY9Uj_sLNRZQ8ro9lwlAvgcU
-  addrs: 
-  - dtls+udp://1_YWcCtL14qQMYIoRA4bY9Uj_sLNRZQ8ro9lwlAvgcU@127.0.0.1:44445
-
-cell_trackers: []
+- id: 7vzW5aTcTH_m2d9wEE3rPjOl44kRe0MzjirWQYEPuxc
+  addrs:
+  - mocksec+udp://7vzW5aTcTH_m2d9wEE3rPjOl44kRe0MzjirWQYEPuxc@127.0.0.1:44445

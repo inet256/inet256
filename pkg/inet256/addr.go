@@ -2,6 +2,7 @@ package inet256
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"math/bits"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -31,6 +32,10 @@ func MarshalPublicKey(pubKey PublicKey) []byte {
 	return p2p.MarshalPublicKey(pubKey)
 }
 
+func MarshalPrivateKey(privKey p2p.PrivateKey) ([]byte, error) {
+	return x509.MarshalPKCS8PrivateKey(privKey)
+}
+
 func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
 	privKey, err := x509.ParsePKCS8PrivateKey(data)
 	if err != nil {
@@ -43,8 +48,27 @@ func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
 	return privKey2, nil
 }
 
-func MarshalPrivateKey(privKey p2p.PrivateKey) ([]byte, error) {
-	return x509.MarshalPKCS8PrivateKey(privKey)
+func MarshalPrivateKeyPEM(privateKey p2p.PrivateKey) ([]byte, error) {
+	data, err := MarshalPrivateKey(privateKey)
+	if err != nil {
+		return nil, err
+	}
+	privKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: data,
+	})
+	return privKeyPEM, nil
+}
+
+func ParsePrivateKeyPEM(data []byte) (p2p.PrivateKey, error) {
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, errors.New("key file does not contain PEM")
+	}
+	if block.Type != "PRIVATE KEY" {
+		return nil, errors.New("wrong type for PEM block")
+	}
+	return ParsePrivateKey(block.Bytes)
 }
 
 func HasPrefix(addr Addr, prefix []byte, nbits int) bool {

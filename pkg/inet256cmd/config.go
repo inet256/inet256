@@ -1,20 +1,17 @@
 package inet256cmd
 
 import (
-	"crypto/ed25519"
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/d/celltracker"
-	"github.com/brendoncarroll/go-p2p/s/dtlsswarm"
 	"github.com/brendoncarroll/go-p2p/s/natswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mocksecswarm"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -45,50 +42,35 @@ type CellTrackerSpec = string
 
 type Config struct {
 	PrivateKeyPath string          `yaml:"private_key_path"`
+	APIAddr        string          `yaml:"api_addr"`
 	Networks       []string        `yaml:"networks"`
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
-<<<<<<< HEAD
 	Discovery []DiscoverySpec `yaml:"discovery"`
 }
 
-func BuildParams(c *Config) (*inet256.Params, error) {
-=======
-	CellTrackers []string   `yaml:"cell_trackers"`
-	Peers        []PeerSpec `yaml:"peers"`
-
-	configPath string
+func (c Config) GetAPIAddr() string {
+	if c.APIAddr == "" {
+		return defaultAPIAddr
+	}
+	return c.APIAddr
 }
 
-func (c *Config) BuildParams() (*inet256.Params, error) {
+func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
 	keyPath := c.PrivateKeyPath
-	if c.configPath != "" {
-		keyPath = filepath.Join(filepath.Dir(c.configPath), c.PrivateKeyPath)
+	if strings.HasPrefix(c.PrivateKeyPath, "./") {
+		keyPath = filepath.Join(filepath.Dir(configPath), c.PrivateKeyPath)
 	}
-
->>>>>>> 74e8d87 (wip)
 	// private key
 	keyPEMData, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
-	block, _ := pem.Decode(keyPEMData)
-	if block == nil {
-		return nil, errors.New("key file does not contain PEM")
-	}
-	if block.Type != "PRIVATE KEY" {
-		return nil, errors.New("wrong type for PEM block")
-	}
-	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	privateKey, err := inet256.ParsePrivateKeyPEM(keyPEMData)
 	if err != nil {
 		return nil, err
 	}
-	privateKey2, ok := privateKey.(p2p.PrivateKey)
-	if !ok {
-		return nil, errors.New("unknown private key")
-	}
-
 	swarms := map[string]p2p.SecureSwarm{}
 	for _, tspec := range c.Transports {
 		factory, exists := swarmFactories[tspec.Type]
@@ -103,8 +85,8 @@ func (c *Config) BuildParams() (*inet256.Params, error) {
 		if tspec.BehindNAT {
 			sw = natswarm.WrapSwarm(sw)
 		}
-		secSw := dtlsswarm.New(sw, privateKey2)
-		swarms["dtls+"+tspec.Type] = secSw
+		secSw := mocksecswarm.New(sw, privateKey)
+		swarms["mocksec+"+tspec.Type] = secSw
 	}
 
 	// peers
@@ -122,7 +104,7 @@ func (c *Config) BuildParams() (*inet256.Params, error) {
 	}
 
 	params := &inet256.Params{
-		PrivateKey: privateKey2,
+		PrivateKey: privateKey,
 		Swarms:     swarms,
 		Networks:   nspecs,
 		Peers:      peers,
@@ -144,29 +126,23 @@ func DefaultConfig() Config {
 }
 
 func SaveDefaultConfig(p string) error {
-	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	privateKey, err := generateKey()
 	if err != nil {
 		return err
 	}
-	privKeyData, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	privKeyPEM, err := inet256.MarshalPrivateKeyPEM(privateKey)
 	if err != nil {
 		return err
 	}
-	privKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PRIVATE KEY",
-		Bytes: privKeyData,
-	})
 	dirPath := filepath.Dir(p)
 	keyPath := filepath.Join(dirPath, "inet256_private.pem")
 	if err := ioutil.WriteFile(keyPath, privKeyPEM, 0644); err != nil {
 		return err
 	}
-
 	nspecs := []inet256.NetworkSpec{}
 	for _, nspec := range networks {
 		nspecs = append(nspecs, nspec)
 	}
-
 	c := DefaultConfig()
 	c.PrivateKeyPath = keyPath
 	return SaveConfig(p, c)
@@ -181,7 +157,6 @@ func LoadConfig(p string) (*Config, error) {
 	if err := yaml.Unmarshal(data, c); err != nil {
 		return nil, err
 	}
-	c.configPath = p
 	return c, nil
 }
 

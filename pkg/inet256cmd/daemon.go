@@ -1,7 +1,6 @@
 package inet256cmd
 
 import (
-	"log"
 	"net"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -11,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-const defaultAPIAddr = "127.0.0.1:25632"
+const defaultAPIAddr = "127.0.0.1:25600"
 
 func init() {
 	rootCmd.AddCommand(daemonCmd)
@@ -21,21 +20,22 @@ var daemonCmd = &cobra.Command{
 	Use:   "daemon",
 	Short: "Runs the inet256 daemon",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, _, err := setupNode(cmd, args)
+		node, _, config, err := setupNode(cmd, args)
 		if err != nil {
 			return err
 		}
+		logrus.Println("LOCAL ID: ", node.LocalAddr())
 		defer func() {
 			if err := node.Close(); err != nil {
 				logrus.Error(err)
 			}
 		}()
-		l, err := net.Listen("tcp", defaultAPIAddr)
+		l, err := net.Listen("tcp", config.GetAPIAddr())
 		if err != nil {
 			return err
 		}
 		defer l.Close()
-		log.Println("API listening on:", l.Addr())
+		logrus.Println("API listening on: ", l.Addr())
 		gs := grpc.NewServer()
 		s := inet256.NewServer(node)
 		inet256grpc.RegisterINET256Server(gs, s)

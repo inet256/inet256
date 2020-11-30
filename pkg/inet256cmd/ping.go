@@ -18,7 +18,7 @@ var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "ping an inet256 node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, _, err := setupNode(cmd, args)
+		node, _, _, err := setupNode(cmd, args)
 		if err != nil {
 			return err
 		}
