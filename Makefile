@@ -3,6 +3,7 @@
 
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
+	cd ./pkg/kadsrnet && ./build.sh
 test:
 	go test --race ./pkg/...
 	go test --race ./client/go_client/...

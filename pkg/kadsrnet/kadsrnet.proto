@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+option go_package = "github.com/inet256/inet256/pkg/kadsrnet";
+
+message Message {
+    bytes src = 1;
+    bytes dst = 2;
+    repeated uint32 path = 3;
+
+    oneof body {
+        bytes data = 6;
+        QueryRoutes query_routes = 7;
+        RouteList route_list = 8;
+    }
+    bytes nonce = 4;
+    bytes sig = 5;
+}
+
+message QueryRoutes {
+    uint32 max = 1;
+}
+
+message Route {
+    bytes dst = 1;
+    repeated uint32 path = 2;
+}
+
+message RouteList {
+    repeated Route routes = 1;
+    bytes src = 2;
+}
