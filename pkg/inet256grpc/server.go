@@ -1,4 +1,4 @@
-package inet256
+package inet256grpc
 
 import (
 	"context"
@@ -8,41 +8,41 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-var _ inet256grpc.INET256Server = &Server{}
+var _ INET256Server = &Server{}
 
 type Server struct {
-	n *Node
+	n *inet256.Node
 
-	inet256grpc.UnimplementedINET256Server
+	UnimplementedINET256Server
 }
 
-func NewServer(n *Node) *Server {
+func NewServer(n *inet256.Node) *Server {
 	return &Server{
 		n: n,
 	}
 }
 
-func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*inet256grpc.GenerateKeyRes, error) {
+func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyRes, error) {
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return nil, err
 	}
-	keyData, err := MarshalPrivateKey(priv)
+	keyData, err := inet256.MarshalPrivateKey(priv)
 	if err != nil {
 		return nil, err
 	}
-	return &inet256grpc.GenerateKeyRes{
+	return &GenerateKeyRes{
 		PrivateKey: keyData,
 	}, nil
 }
 
-func (s *Server) LookupSelf(ctx context.Context, req *inet256grpc.LookupSelfReq) (*inet256grpc.PeerInfo, error) {
-	privKey, err := ParsePrivateKey(req.PrivateKey)
+func (s *Server) LookupSelf(ctx context.Context, req *LookupSelfReq) (*PeerInfo, error) {
+	privKey, err := inet256.ParsePrivateKey(req.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -52,34 +52,34 @@ func (s *Server) LookupSelf(ctx context.Context, req *inet256grpc.LookupSelfReq)
 	}
 	pubKey := privKey2.Public()
 	peerID := p2p.NewPeerID(pubKey)
-	return &inet256grpc.PeerInfo{
+	return &PeerInfo{
 		Addr:      peerID[:],
 		PublicKey: p2p.MarshalPublicKey(pubKey),
 	}, nil
 }
 
-func (s *Server) Lookup(ctx context.Context, req *inet256grpc.LookupReq) (*inet256grpc.PeerInfo, error) {
-	target := Addr{}
+func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*PeerInfo, error) {
+	target := inet256.Addr{}
 	copy(target[:], req.TargetAddr)
 	pubKey, err := s.n.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
-	return &inet256grpc.PeerInfo{
+	return &PeerInfo{
 		Addr:      target[:],
 		PublicKey: p2p.MarshalPublicKey(pubKey),
 	}, nil
 }
 
-func (s *Server) MTU(ctx context.Context, req *inet256grpc.MTUReq) (*inet256grpc.MTURes, error) {
-	target := AddrFromBytes(req.Target)
+func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
+	target := inet256.AddrFromBytes(req.Target)
 	mtu := s.n.MTU(ctx, target)
-	return &inet256grpc.MTURes{
+	return &MTURes{
 		Mtu: int64(mtu),
 	}, nil
 }
 
-func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
+func (s *Server) Connect(srv INET256_ConnectServer) error {
 	msg, err := srv.Recv()
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 		return errors.Errorf("first message must contain ConnectInit")
 	}
 	cinit := msg.ConnectInit
-	privKey, err := ParsePrivateKey(cinit.PrivateKey)
+	privKey, err := inet256.ParsePrivateKey(cinit.PrivateKey)
 	if err != nil {
 		return err
 	}
@@ -98,9 +98,9 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 			logrus.Error(err)
 		}
 	}()
-	n.OnRecv(func(src, dst Addr, payload []byte) {
-		if err := srv.Send(&inet256grpc.ConnectMsg{
-			Datagram: &inet256grpc.Datagram{
+	n.OnRecv(func(src, dst inet256.Addr, payload []byte) {
+		if err := srv.Send(&ConnectMsg{
+			Datagram: &Datagram{
 				Src:     src[:],
 				Dst:     dst[:],
 				Payload: payload,
@@ -121,7 +121,7 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 		if msg.Datagram == nil {
 			continue
 		}
-		dst := Addr{}
+		dst := inet256.Addr{}
 		if len(msg.Datagram.Dst) < 32 {
 			if dst, err = s.findAddr(ctx, msg.Datagram.Dst); err != nil {
 				return err
@@ -136,6 +136,6 @@ func (s *Server) Connect(srv inet256grpc.INET256_ConnectServer) error {
 	return n.Close()
 }
 
-func (s *Server) findAddr(ctx context.Context, prefix []byte) (Addr, error) {
+func (s *Server) findAddr(ctx context.Context, prefix []byte) (inet256.Addr, error) {
 	return s.n.FindAddr(ctx, prefix, len(prefix)*8)
 }

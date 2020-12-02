@@ -50,6 +50,13 @@ func (s *peerStore) ListPeers() []p2p.PeerID {
 	return ids
 }
 
+func (s *peerStore) Contains(id p2p.PeerID) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, exists := s.m[id]
+	return exists
+}
+
 func (s *peerStore) ListAddrs(id p2p.PeerID) []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

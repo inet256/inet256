@@ -6,6 +6,9 @@ protobuf:
 test:
 	go test --race ./pkg/...
 
+testv:
+	go test --race -v -count=1 ./pkg/...
+
 drop-replace:
 	go mod edit -dropreplace github.com/brendoncarroll/go-p2p
 

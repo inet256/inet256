@@ -10,10 +10,10 @@ var _ Network = &swarmAdapter{}
 
 type swarmAdapter struct {
 	peerswarm PeerSwarm
-	peers     PeerStore
+	peers     PeerSet
 }
 
-func newSwarmAdapter(x PeerSwarm, peers PeerStore) Network {
+func newSwarmAdapter(x PeerSwarm, peers PeerSet) Network {
 	return &swarmAdapter{
 		peerswarm: x,
 		peers:     peers,

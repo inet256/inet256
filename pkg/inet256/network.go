@@ -29,6 +29,7 @@ type PeerSet interface {
 type PeerStore interface {
 	ListPeers() []p2p.PeerID
 	ListAddrs(p2p.PeerID) []string
+	Contains(p2p.PeerID) bool
 }
 
 // Network is a network for sending messages between peers
@@ -45,10 +46,10 @@ type Network interface {
 
 // NetworkParams are passed to a NetworkFactory to create a Network.
 // This type really defines the problem domain quite well. Essentially
-// it is a list of one-hop peers and a means to send messages to them.
+// it is a set of one-hop peers and a means to send messages to them.
 type NetworkParams struct {
 	Swarm PeerSwarm
-	Peers PeerStore
+	Peers PeerSet
 }
 
 // NetworkFactory is a constructor for a network

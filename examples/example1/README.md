@@ -9,3 +9,5 @@ From this directory in terminal 2 run
 ```
 go run ../../cmd/inet256 --config=config2.yml ping 9ZAeBq9jdbkwARDIi08nyp7R_jk-kezBn6AqZZNacL4
 ```
+
+It should go without saying that the private keys used in this example should not be reused.

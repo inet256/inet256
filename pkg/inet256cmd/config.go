@@ -9,17 +9,22 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/d/celltracker"
 	"github.com/brendoncarroll/go-p2p/s/natswarm"
+	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mocksecswarm"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
-var swarmFactories = map[string]func(addr string) (p2p.Swarm, error){
-	"udp": func(addr string) (p2p.Swarm, error) {
+var swarmFactories = map[string]func(addr string, pk p2p.PrivateKey) (p2p.Swarm, error){
+	"udp": func(addr string, privateKey p2p.PrivateKey) (p2p.Swarm, error) {
 		usw, err := udpswarm.New(addr)
 		return usw, err
+	},
+	"quic": func(addr string, privateKey p2p.PrivateKey) (p2p.Swarm, error) {
+		return quicswarm.New(addr, privateKey)
 	},
 }
 
@@ -78,15 +83,21 @@ func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
 			return nil, fmt.Errorf("unrecognized transport type %s: ", tspec.Type)
 		}
 
-		sw, err := factory(tspec.Addr)
+		sw, err := factory(tspec.Addr, privateKey)
 		if err != nil {
 			return nil, err
 		}
 		if tspec.BehindNAT {
 			sw = natswarm.WrapSwarm(sw)
 		}
-		secSw := mocksecswarm.New(sw, privateKey)
-		swarms["mocksec+"+tspec.Type] = secSw
+		log.Printf("%T\n", sw)
+		secSw, ok := sw.(p2p.SecureSwarm)
+		if !ok {
+			secSw = mocksecswarm.New(sw, privateKey)
+			swarms["mocksec+"+tspec.Type] = secSw
+		} else {
+			swarms[tspec.Type] = secSw
+		}
 	}
 
 	// peers

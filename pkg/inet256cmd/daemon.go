@@ -3,7 +3,6 @@ package inet256cmd
 import (
 	"net"
 
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ var daemonCmd = &cobra.Command{
 		defer l.Close()
 		logrus.Println("API listening on: ", l.Addr())
 		gs := grpc.NewServer()
-		s := inet256.NewServer(node)
+		s := inet256grpc.NewServer(node)
 		inet256grpc.RegisterINET256Server(gs, s)
 		return gs.Serve(l)
 	},
