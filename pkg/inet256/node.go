@@ -24,9 +24,10 @@ type Params struct {
 type Node struct {
 	params Params
 
-	memrealm *memswarm.Realm
-	memswarm *memswarm.Swarm
-	network  Network
+	baseSwarm p2p.SecureSwarm
+	memrealm  *memswarm.Realm
+	memswarm  *memswarm.Swarm
+	network   Network
 }
 
 func NewNode(params Params) *Node {
@@ -56,10 +57,11 @@ func NewNode(params Params) *Node {
 	}
 
 	return &Node{
-		params:   params,
-		memrealm: memrealm,
-		memswarm: memsw,
-		network:  newMultiNetwork(networks),
+		params:    params,
+		baseSwarm: baseSwarm,
+		memrealm:  memrealm,
+		memswarm:  memsw,
+		network:   newMultiNetwork(networks),
 	}
 }
 
@@ -85,6 +87,14 @@ func (n *Node) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey,
 
 func (n *Node) MTU(ctx context.Context, target Addr) int {
 	return n.network.MTU(ctx, target)
+}
+
+func (n *Node) TransportAddrs() (ret []string) {
+	for _, addr := range n.baseSwarm.LocalAddrs() {
+		data, _ := addr.MarshalText()
+		ret = append(ret, string(data))
+	}
+	return ret
 }
 
 func (n *Node) NewVirtual(privateKey p2p.PrivateKey) *Node {

@@ -83,3 +83,44 @@ func newAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
 		return ys
 	}
 }
+
+var _ PeerStore = ChainPeerStore{}
+
+type ChainPeerStore []PeerStore
+
+func (ps ChainPeerStore) ListPeers() (ids []p2p.PeerID) {
+	m := map[p2p.PeerID]struct{}{}
+	for _, ps2 := range ps {
+		for _, id := range ps2.ListPeers() {
+			m[id] = struct{}{}
+		}
+	}
+	ret := make([]p2p.PeerID, 0, len(m))
+	for id := range m {
+		ret = append(ret, id)
+	}
+	return ids
+}
+
+func (ps ChainPeerStore) ListAddrs(id p2p.PeerID) []string {
+	m := map[string]struct{}{}
+	for _, ps2 := range ps {
+		for _, addr := range ps2.ListAddrs(id) {
+			m[addr] = struct{}{}
+		}
+	}
+	ret := make([]string, 0, len(m))
+	for addr := range m {
+		ret = append(ret, addr)
+	}
+	return ret
+}
+
+func (ps ChainPeerStore) Contains(id p2p.PeerID) bool {
+	for _, ps2 := range ps {
+		if ps2.Contains(id) {
+			return true
+		}
+	}
+	return false
+}

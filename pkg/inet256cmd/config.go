@@ -1,7 +1,6 @@
 package inet256cmd
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -14,19 +13,8 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mocksecswarm"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
-
-var swarmFactories = map[string]func(addr string, pk p2p.PrivateKey) (p2p.Swarm, error){
-	"udp": func(addr string, privateKey p2p.PrivateKey) (p2p.Swarm, error) {
-		usw, err := udpswarm.New(addr)
-		return usw, err
-	},
-	"quic": func(addr string, privateKey p2p.PrivateKey) (p2p.Swarm, error) {
-		return quicswarm.New(addr, privateKey)
-	},
-}
 
 type PeerSpec struct {
 	ID    p2p.PeerID `yaml:"id"`
@@ -34,15 +22,19 @@ type PeerSpec struct {
 }
 
 type TransportSpec struct {
-	Type      string `yaml:"type"`
-	Addr      string `yaml:"addr"`
-	BehindNAT bool   `yaml:"behind_nat"`
+	UDP      *UDPTransportSpec      `yaml:"udp"`
+	QUIC     *QUICTransportSpec     `yaml:"quic"`
+	Ethernet *EthernetTransportSpec `yaml:"ethernet"`
+
+	BehindNAT bool `yaml:"behind_nat"`
 }
+type UDPTransportSpec string
+type QUICTransportSpec string
+type EthernetTransportSpec string
 
 type DiscoverySpec struct {
 	CellTracker *CellTrackerSpec `yaml:"cell_tracker"`
 }
-
 type CellTrackerSpec = string
 
 type Config struct {
@@ -62,12 +54,12 @@ func (c Config) GetAPIAddr() string {
 	return c.APIAddr
 }
 
-func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
+func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
+	// private key
 	keyPath := c.PrivateKeyPath
 	if strings.HasPrefix(c.PrivateKeyPath, "./") {
 		keyPath = filepath.Join(filepath.Dir(configPath), c.PrivateKeyPath)
 	}
-	// private key
 	keyPEMData, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
@@ -76,30 +68,23 @@ func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
 	if err != nil {
 		return nil, err
 	}
+	// transports
 	swarms := map[string]p2p.SecureSwarm{}
 	for _, tspec := range c.Transports {
-		factory, exists := swarmFactories[tspec.Type]
-		if !exists {
-			return nil, fmt.Errorf("unrecognized transport type %s: ", tspec.Type)
-		}
-
-		sw, err := factory(tspec.Addr, privateKey)
+		sw, swname, err := makeTransport(tspec, privateKey)
 		if err != nil {
 			return nil, err
 		}
 		if tspec.BehindNAT {
 			sw = natswarm.WrapSwarm(sw)
 		}
-		log.Printf("%T\n", sw)
 		secSw, ok := sw.(p2p.SecureSwarm)
 		if !ok {
 			secSw = mocksecswarm.New(sw, privateKey)
-			swarms["mocksec+"+tspec.Type] = secSw
-		} else {
-			swarms[tspec.Type] = secSw
+			swname = "mocksec+" + swname
 		}
+		swarms[swname] = secSw
 	}
-
 	// peers
 	peers := inet256.NewPeerStore()
 	for _, pspec := range c.Peers {
@@ -108,7 +93,7 @@ func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
 			peers.AddAddr(pspec.ID, addrStr)
 		}
 	}
-
+	// networks
 	nspecs := []inet256.NetworkSpec{}
 	for _, nspec := range networks {
 		nspecs = append(nspecs, nspec)
@@ -120,8 +105,37 @@ func BuildParams(configPath string, c *Config) (*inet256.Params, error) {
 		Networks:   nspecs,
 		Peers:      peers,
 	}
-
 	return params, nil
+}
+
+func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, string, error) {
+	switch {
+	case spec.UDP != nil:
+		s, err := udpswarm.New(string(*spec.UDP))
+		if err != nil {
+			return nil, "", err
+		}
+		return s, "udp", nil
+	case spec.QUIC != nil:
+		s, err := quicswarm.New(string(*spec.QUIC), privKey)
+		if err != nil {
+			return nil, "", err
+		}
+		return s, "quic", err
+	case spec.Ethernet != nil:
+		return nil, "", errors.Errorf("ethernet transport not implemented")
+	default:
+		return nil, "", errors.Errorf("empty transport spec")
+	}
+}
+
+func makeDiscoveryService(spec DiscoverySpec) (p2p.DiscoveryService, error) {
+	switch {
+	case spec.CellTracker != nil:
+		return celltracker.NewClient(*spec.CellTracker)
+	default:
+		return nil, errors.Errorf("empty discovery spec")
+	}
 }
 
 func DefaultConfig() Config {
@@ -129,8 +143,7 @@ func DefaultConfig() Config {
 		Networks: []string{"onehop"},
 		Transports: []TransportSpec{
 			{
-				Type: "udp",
-				Addr: "0.0.0.0:",
+				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0")),
 			},
 		},
 	}
@@ -186,4 +199,8 @@ func setupDiscovery(spec DiscoverySpec) (p2p.DiscoveryService, error) {
 	default:
 		return nil, errors.Errorf("empty spec")
 	}
+}
+
+func strPtr(x string) *string {
+	return &x
 }

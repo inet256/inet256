@@ -58,7 +58,7 @@ func setupNode(cmd *cobra.Command, args []string) (*inet256.Node, *inet256.Param
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	params, err := BuildParams(configPath, config)
+	params, err := MakeNodeParams(configPath, *config)
 	if err != nil {
 		return nil, nil, nil, err
 	}
