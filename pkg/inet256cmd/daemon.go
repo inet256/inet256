@@ -62,6 +62,7 @@ func (d *daemon) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	localID := p2p.NewPeerID(nodeParams.PrivateKey.Public())
 
 	// discovery
 	peerStores := []inet256.PeerStore{nodeParams.Peers}
@@ -90,7 +91,7 @@ func (d *daemon) run(ctx context.Context) error {
 		return d.runGRPCServer(ctx, d.config.APIAddr, node)
 	})
 	eg.Go(func() error {
-		return d.runDiscoveryServices(ctx, dscSrvs, peerStores[1:])
+		return d.runDiscoveryServices(ctx, localID, dscSrvs, peerStores[1:])
 	})
 	return eg.Wait()
 }
@@ -118,7 +119,7 @@ func (d *daemon) runDiscoveryServices(ctx context.Context, localID p2p.PeerID, d
 		disc := ds[i]
 		p := ps[i]
 		eg.Go(func() error {
-			return d.runDiscoveryService(ctx, disc, p)
+			return d.runDiscoveryService(ctx, localID, disc, p)
 		})
 	}
 	return eg.Wait()
@@ -130,7 +131,7 @@ func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds
 	for {
 		// TODO: announce, and find, add each to the store
 		select {
-		case <-ctx.Done:
+		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
 		}
