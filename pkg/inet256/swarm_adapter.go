@@ -41,7 +41,7 @@ func (n *swarmAdapter) FindAddr(ctx context.Context, prefix []byte, nbits int) (
 }
 
 func (n *swarmAdapter) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
-	return n.peerswarm.LookupPublicKey(target), nil
+	return n.peerswarm.LookupPublicKey(ctx, target)
 }
 
 func (n *swarmAdapter) Close() error {

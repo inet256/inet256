@@ -57,6 +57,7 @@ type NetworkFactory func(NetworkParams) Network
 
 // NetworkSpec is a name associated with a network factory
 type NetworkSpec struct {
+	Index   int
 	Name    string
 	Factory NetworkFactory
 }

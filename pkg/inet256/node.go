@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/simplemux"
+	"github.com/brendoncarroll/go-p2p/p/intmux"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
@@ -24,9 +24,10 @@ type Params struct {
 type Node struct {
 	params Params
 
-	memrealm *memswarm.Realm
-	memswarm *memswarm.Swarm
-	network  Network
+	baseSwarm p2p.SecureSwarm
+	memrealm  *memswarm.Realm
+	memswarm  *memswarm.Swarm
+	network   Network
 }
 
 func NewNode(params Params) *Node {
@@ -40,14 +41,11 @@ func NewNode(params Params) *Node {
 	}
 
 	baseSwarm := multiswarm.NewSecure(swarms)
-	mux := simplemux.MultiplexSwarm(baseSwarm)
+	mux := intmux.WrapSecureSwarm(baseSwarm)
 
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
-		s, err := mux.OpenSecure(nspec.Name)
-		if err != nil {
-			panic(err)
-		}
+		s := mux.Open(uint64(nspec.Index))
 		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			Swarm: ps,
@@ -56,10 +54,11 @@ func NewNode(params Params) *Node {
 	}
 
 	return &Node{
-		params:   params,
-		memrealm: memrealm,
-		memswarm: memsw,
-		network:  newMultiNetwork(networks),
+		params:    params,
+		baseSwarm: baseSwarm,
+		memrealm:  memrealm,
+		memswarm:  memsw,
+		network:   newMultiNetwork(networks),
 	}
 }
 
@@ -85,6 +84,14 @@ func (n *Node) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey,
 
 func (n *Node) MTU(ctx context.Context, target Addr) int {
 	return n.network.MTU(ctx, target)
+}
+
+func (n *Node) TransportAddrs() (ret []string) {
+	for _, addr := range n.baseSwarm.LocalAddrs() {
+		data, _ := addr.MarshalText()
+		ret = append(ret, string(data))
+	}
+	return ret
 }
 
 func (n *Node) NewVirtual(privateKey p2p.PrivateKey) *Node {

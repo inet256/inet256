@@ -15,7 +15,8 @@ func init() {
 }
 
 var keygenCmd = &cobra.Command{
-	Use: "keygen",
+	Use:   "keygen",
+	Short: "generates a private key and writes it to stdout",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		privKey, err := generateKey()
 		if err != nil {

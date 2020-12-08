@@ -63,8 +63,8 @@ func (s *Swarm) PublicKey() p2p.PublicKey {
 	return s.inet256Swarm.PublicKey()
 }
 
-func (s *Swarm) LookupPublicKey(target p2p.Addr) p2p.PublicKey {
-	return s.inet256Swarm.LookupPublicKey(target)
+func (s *Swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+	return s.inet256Swarm.LookupPublicKey(ctx, target)
 }
 
 func (s *Swarm) MTU(ctx context.Context, target p2p.Addr) int {

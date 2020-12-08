@@ -9,20 +9,21 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func Register(name string, factory inet256.NetworkFactory) {
+func Register(name string, index int, factory inet256.NetworkFactory) {
 	netSpec := inet256.NetworkSpec{
 		Name:    name,
+		Index:   index,
 		Factory: factory,
 	}
-	if _, exists := networks[netSpec.Name]; exists {
+	if _, exists := networks[netSpec.Index]; exists {
 		panic("network by that name already exists")
 	}
-	networks[netSpec.Name] = netSpec
+	networks[netSpec.Index] = netSpec
 }
 
 var (
 	configPath string
-	networks   = map[string]inet256.NetworkSpec{}
+	networks   = map[int]inet256.NetworkSpec{}
 )
 
 func init() {

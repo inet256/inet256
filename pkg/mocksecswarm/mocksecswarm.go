@@ -51,9 +51,12 @@ func (s *Swarm) OnTell(fn p2p.TellHandler) {
 	swarmutil.AtomicSetTH(&s.onTell, fn)
 }
 
-func (s *Swarm) LookupPublicKey(target p2p.Addr) p2p.PublicKey {
-	v, _ := s.keyCache.Load(target)
-	return v.(p2p.PublicKey)
+func (s *Swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+	v, ok := s.keyCache.Load(target)
+	if !ok {
+		return nil, p2p.ErrPublicKeyNotFound
+	}
+	return v.(p2p.PublicKey), nil
 }
 
 func (s *Swarm) PublicKey() p2p.PublicKey {

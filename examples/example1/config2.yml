@@ -6,8 +6,7 @@ networks:
 - onehop
 
 transports:
-- type: udp
-  addr: "0.0.0.0:44445"
+- udp: "0.0.0.0:44445"
   behind_nat: false
 
 peers:
