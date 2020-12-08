@@ -8,12 +8,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type MutablePeerStore interface {
+	PeerStore
+	AddPeer(id p2p.PeerID)
+	PutAddrs(id p2p.PeerID, addrs []string)
+}
+
 type peerStore struct {
 	mu sync.RWMutex
 	m  map[p2p.PeerID][]string
 }
 
-func NewPeerStore() *peerStore {
+func NewPeerStore() MutablePeerStore {
 	return &peerStore{
 		m: map[p2p.PeerID][]string{},
 	}

@@ -89,9 +89,7 @@ func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
 	peers := inet256.NewPeerStore()
 	for _, pspec := range c.Peers {
 		peers.AddPeer(pspec.ID)
-		for _, addrStr := range pspec.Addrs {
-			peers.AddAddr(pspec.ID, addrStr)
-		}
+		peers.PutAddrs(pspec.ID, pspec.Addrs)
 	}
 	// networks
 	nspecs := []inet256.NetworkSpec{}

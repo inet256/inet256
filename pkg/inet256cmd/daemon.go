@@ -91,7 +91,7 @@ func (d *daemon) run(ctx context.Context) error {
 		return d.runGRPCServer(ctx, d.config.APIAddr, node)
 	})
 	eg.Go(func() error {
-		return d.runDiscoveryServices(ctx, localID, dscSrvs, peerStores[1:])
+		return d.runDiscoveryServices(ctx, localID, dscSrvs, node.TransportAddrs, peerStores[1:])
 	})
 	return eg.Wait()
 }
@@ -113,27 +113,57 @@ func (d *daemon) runGRPCServer(ctx context.Context, endpoint string, node *inet2
 	return gs.Serve(l)
 }
 
-func (d *daemon) runDiscoveryServices(ctx context.Context, localID p2p.PeerID, ds []p2p.DiscoveryService, ps []inet256.PeerStore) error {
+func (d *daemon) runDiscoveryServices(ctx context.Context, localID p2p.PeerID, ds []p2p.DiscoveryService, localAddrs func() []string, ps []inet256.PeerStore) error {
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]
 		p := ps[i]
 		eg.Go(func() error {
-			return d.runDiscoveryService(ctx, localID, disc, p)
+			return d.runDiscoveryService(ctx, localID, disc, localAddrs, p.(inet256.MutablePeerStore))
 		})
 	}
 	return eg.Wait()
 }
 
-func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds p2p.DiscoveryService, ps inet256.PeerStore) error {
-	ticker := time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
-	for {
-		// TODO: announce, and find, add each to the store
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
+func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds p2p.DiscoveryService, localAddrs func() []string, ps inet256.MutablePeerStore) error {
+	eg := errgroup.Group{}
+	// announce loop
+	eg.Go(func() error {
+		ttl := 60 * time.Second
+		ticker := time.NewTicker(60 * time.Second / 2)
+		defer ticker.Stop()
+		for {
+			addrs := localAddrs()
+			if err := ds.Announce(ctx, localID, addrs, ttl); err != nil {
+				logrus.Error("announce error:", err)
+			}
+			// TODO: announce, and find, add each to the store
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
 		}
-	}
+	})
+	// Find loop
+	eg.Go(func() error {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			for _, id := range ps.ListPeers() {
+				addrs, err := ds.Find(ctx, localID)
+				if err != nil {
+					logrus.Error("find errored: ", err)
+					continue
+				}
+				ps.PutAddrs(id, addrs)
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
+		}
+	})
+	return eg.Wait()
 }
