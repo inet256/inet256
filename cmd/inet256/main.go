@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	inet256cmd.Register("onehop", inet256.OneHopFactory)
+	inet256cmd.Register("onehop", 0, inet256.OneHopFactory)
 	if err := inet256cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}

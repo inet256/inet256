@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/simplemux"
+	"github.com/brendoncarroll/go-p2p/p/intmux"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
@@ -41,14 +41,11 @@ func NewNode(params Params) *Node {
 	}
 
 	baseSwarm := multiswarm.NewSecure(swarms)
-	mux := simplemux.MultiplexSwarm(baseSwarm)
+	mux := intmux.WrapSecureSwarm(baseSwarm)
 
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
-		s, err := mux.OpenSecure(nspec.Name)
-		if err != nil {
-			panic(err)
-		}
+		s := mux.Open(uint64(nspec.Index))
 		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			Swarm: ps,

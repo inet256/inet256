@@ -49,13 +49,8 @@ func (s *netAdapter) PublicKey() p2p.PublicKey {
 	return s.publicKey
 }
 
-func (s *netAdapter) LookupPublicKey(target p2p.Addr) p2p.PublicKey {
-	ctx := context.Background()
-	pubKey, err := s.network.LookupPublicKey(ctx, target.(p2p.PeerID))
-	if err != nil {
-		return nil
-	}
-	return pubKey
+func (s *netAdapter) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+	return s.network.LookupPublicKey(ctx, target.(p2p.PeerID))
 }
 
 func (s *netAdapter) MTU(ctx context.Context, target p2p.Addr) int {
