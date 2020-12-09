@@ -33,7 +33,7 @@ func (n *swarmAdapter) OnRecv(fn RecvFunc) {
 func (n *swarmAdapter) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 	for _, id := range n.peers.ListPeers() {
 		addr := id
-		if HasPrefix(addr, prefix, nbits) {
+		if HasPrefix(addr[:], prefix, nbits) {
 			return addr, nil
 		}
 	}

@@ -45,7 +45,7 @@ func NewNode(params Params) *Node {
 
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
-		s := mux.Open(uint64(nspec.Index))
+		s := mux.Open(nspec.Index)
 		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			Swarm: ps,

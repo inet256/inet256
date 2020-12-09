@@ -3,6 +3,7 @@ package inet256grpc
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -100,12 +101,9 @@ func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
 }
 
 func (c *Client) runLoop(ctx context.Context) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 		cc, err := c.inetClient.Connect(ctx)
 		if err != nil {
 			logrus.Error(err)
@@ -113,6 +111,11 @@ func (c *Client) runLoop(ctx context.Context) {
 		}
 		if err := c.runClient(cc); err != nil {
 			logrus.Error(err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

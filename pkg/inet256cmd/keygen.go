@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"io/ioutil"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -12,6 +13,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(keygenCmd)
+	rootCmd.AddCommand(deriveAddrCmd)
 }
 
 var keygenCmd = &cobra.Command{
@@ -27,6 +29,28 @@ var keygenCmd = &cobra.Command{
 			return err
 		}
 		cmd.OutOrStdout().Write(data)
+		return nil
+	},
+}
+
+var deriveAddrCmd = &cobra.Command{
+	Use:   "derive-addr",
+	Short: "derives an id from a private key, read from stdin",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		in := cmd.InOrStdin()
+		data, err := ioutil.ReadAll(in)
+		if err != nil {
+			return err
+		}
+		privateKey, err := inet256.ParsePrivateKeyPEM(data)
+		if err != nil {
+			return err
+		}
+		id := inet256.NewAddr(privateKey.Public())
+		out := cmd.OutOrStdout()
+		data, _ = id.MarshalText()
+		data = append(data, '\n')
+		out.Write(data)
 		return nil
 	},
 }

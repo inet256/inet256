@@ -1,6 +1,8 @@
 package inet256cmd
 
 import (
+	"encoding/binary"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/spf13/cobra"
 )
@@ -9,21 +11,37 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func Register(name string, index int, factory inet256.NetworkFactory) {
+func IndexFromString(x string) uint64 {
+	if len(x) > 8 {
+		panic("string to long")
+	}
+	b := []byte(x)
+	for len(b) < 8 {
+		b = append(b, 0x00)
+	}
+	return binary.LittleEndian.Uint64([]byte(x))
+}
+
+func Register(index uint64, name string, factory inet256.NetworkFactory) {
 	netSpec := inet256.NetworkSpec{
 		Name:    name,
 		Index:   index,
 		Factory: factory,
 	}
-	if _, exists := networks[netSpec.Index]; exists {
+	if _, exists := networkIndexes[netSpec.Index]; exists {
 		panic("network by that name already exists")
 	}
-	networks[netSpec.Index] = netSpec
+	if _, exists := networkNames[netSpec.Name]; exists {
+		panic("network already exists at that index")
+	}
+	networkIndexes[netSpec.Index] = netSpec
+	networkNames[netSpec.Name] = netSpec
 }
 
 var (
-	configPath string
-	networks   = map[int]inet256.NetworkSpec{}
+	configPath     string
+	networkIndexes = map[uint64]inet256.NetworkSpec{}
+	networkNames   = map[string]inet256.NetworkSpec{}
 )
 
 func init() {

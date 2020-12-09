@@ -71,13 +71,13 @@ func ParsePrivateKeyPEM(data []byte) (p2p.PrivateKey, error) {
 	return ParsePrivateKey(block.Bytes)
 }
 
-func HasPrefix(addr Addr, prefix []byte, nbits int) bool {
-	if len(addr) < len(prefix) {
+func HasPrefix(x []byte, prefix []byte, nbits int) bool {
+	if len(x) < len(prefix) {
 		return false
 	}
-	xor := make([]byte, len(addr))
+	xor := make([]byte, len(x))
 	for i := range prefix {
-		xor[i] = addr[i] ^ prefix[i]
+		xor[i] = x[i] ^ prefix[i]
 	}
 	lz := 0
 	for i := range xor {

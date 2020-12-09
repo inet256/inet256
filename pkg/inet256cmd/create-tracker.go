@@ -13,7 +13,7 @@ func init() {
 }
 
 var createTrackerCmd = &cobra.Command{
-	Use:   "create-tracker",
+	Use:   "create-tracker-token",
 	Short: "creates a new tracker config",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {

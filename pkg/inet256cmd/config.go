@@ -22,12 +22,13 @@ type PeerSpec struct {
 }
 
 type TransportSpec struct {
-	UDP      *UDPTransportSpec      `yaml:"udp"`
-	QUIC     *QUICTransportSpec     `yaml:"quic"`
-	Ethernet *EthernetTransportSpec `yaml:"ethernet"`
+	UDP      *UDPTransportSpec      `yaml:"udp,omitempty"`
+	QUIC     *QUICTransportSpec     `yaml:"quic,omitempty"`
+	Ethernet *EthernetTransportSpec `yaml:"ethernet,omitempty"`
 
-	BehindNAT bool `yaml:"behind_nat"`
+	NATUPnP bool `yaml:"nat_upnp"`
 }
+
 type UDPTransportSpec string
 type QUICTransportSpec string
 type EthernetTransportSpec string
@@ -75,7 +76,7 @@ func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tspec.BehindNAT {
+		if tspec.NATUPnP {
 			sw = natswarm.WrapSwarm(sw)
 		}
 		secSw, ok := sw.(p2p.SecureSwarm)
@@ -93,7 +94,11 @@ func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
 	}
 	// networks
 	nspecs := []inet256.NetworkSpec{}
-	for _, nspec := range networks {
+	for _, netName := range c.Networks {
+		nspec, exists := networkNames[netName]
+		if !exists {
+			return nil, errors.Errorf("no network: %s", netName)
+		}
 		nspecs = append(nspecs, nspec)
 	}
 
@@ -139,35 +144,13 @@ func makeDiscoveryService(spec DiscoverySpec) (p2p.DiscoveryService, error) {
 func DefaultConfig() Config {
 	return Config{
 		Networks: []string{"onehop"},
+		APIAddr:  defaultAPIAddr,
 		Transports: []TransportSpec{
 			{
 				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0")),
 			},
 		},
 	}
-}
-
-func SaveDefaultConfig(p string) error {
-	privateKey, err := generateKey()
-	if err != nil {
-		return err
-	}
-	privKeyPEM, err := inet256.MarshalPrivateKeyPEM(privateKey)
-	if err != nil {
-		return err
-	}
-	dirPath := filepath.Dir(p)
-	keyPath := filepath.Join(dirPath, "inet256_private.pem")
-	if err := ioutil.WriteFile(keyPath, privKeyPEM, 0644); err != nil {
-		return err
-	}
-	nspecs := []inet256.NetworkSpec{}
-	for _, nspec := range networks {
-		nspecs = append(nspecs, nspec)
-	}
-	c := DefaultConfig()
-	c.PrivateKeyPath = keyPath
-	return SaveConfig(p, c)
 }
 
 func LoadConfig(p string) (*Config, error) {
@@ -180,14 +163,6 @@ func LoadConfig(p string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
-}
-
-func SaveConfig(p string, c Config) error {
-	data, err := yaml.Marshal(c)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(p, data, 0644)
 }
 
 func setupDiscovery(spec DiscoverySpec) (p2p.DiscoveryService, error) {
