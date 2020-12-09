@@ -107,10 +107,10 @@ func (c *Client) runLoop(ctx context.Context) {
 		cc, err := c.inetClient.Connect(ctx)
 		if err != nil {
 			logrus.Error(err)
-			continue
-		}
-		if err := c.runClient(cc); err != nil {
-			logrus.Error(err)
+		} else {
+			if err := c.runClient(cc); err != nil {
+				logrus.Error(err)
+			}
 		}
 		select {
 		case <-ctx.Done():
