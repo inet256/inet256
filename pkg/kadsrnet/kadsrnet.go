@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,40 +23,82 @@ type Addr = inet256.Addr
 type Network struct {
 	swarm       peerswarm.Swarm
 	oneHopPeers inet256.PeerSet
+	localID     Addr
 
 	onRecv inet256.RecvFunc
 
 	linkMap    *linkMap
 	routeTable *RouteTable
+	peerInfos  *PeerInfoStore
 	cf         context.CancelFunc
 }
 
 func New(swarm peerswarm.Swarm, peers inet256.PeerSet) *Network {
+	localID := swarm.LocalAddrs()[0].(p2p.PeerID)
 	ctx, cf := context.WithCancel(context.Background())
 	n := &Network{
 		swarm:       swarm,
 		oneHopPeers: peers,
-		linkMap:     newLinkMap,
-		routeTable:  NewRouteTable(),
-		cf:          cf,
+		localID:     localID,
+
+		linkMap:    newLinkMap(),
+		routeTable: NewRouteTable(localID, 128),
+		peerInfos:  newPeerInfoStore(localID, 128),
+		cf:         cf,
 	}
 	swarm.OnTell(n.fromBelow)
 	go n.runLoop(ctx)
 	return n
 }
 
-func (n *Network) SendTo(ctx context.Context, addr Addr, data []byte) error {
+func (n *Network) Tell(ctx context.Context, addr Addr, data []byte) error {
+	var route *Route
 	if n.oneHopPeers.Contains(addr) {
-		return n.swarm.TellPeer(ctx, addr)
+		route = &Route{
+			Dst:  addr[:],
+			Path: Path{n.linkMap.ID2Int(addr)},
+		}
+	} else {
+		route = n.routeTable.Closest(addr[:])
 	}
+	if route == nil {
+		return inet256.ErrAddrUnreachable
+	}
+	nextPeer := n.linkMap.Int2ID(route.Path[0])
+	if nextPeer.Equals(p2p.ZeroPeerID()) {
+		return errors.Errorf("route contains invalid link %d", route.Path[0])
+	}
+	localID := n.LocalID()
+	msg := &Message{
+		Src:  localID[:],
+		Dst:  addr[:],
+		Path: route.Path[1:],
+		Body: &Message_Data{
+			Data: data,
+		},
+	}
+	msgData, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return n.swarm.TellPeer(ctx, nextPeer, msgData)
 }
 
-func (n *Network) OnRecv(fn func(src, dst Addr, data []byte)) {
+func (n *Network) OnRecv(fn inet256.RecvFunc) {
 	n.onRecv = fn
 }
 
-func (n *Network) AddrWithPrefix(ctx context.Context, prefix []byte) (Addr, error) {
+func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 	return Addr{}, nil
+}
+
+func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
+	n.peerInfos.Get(target)
+	return nil, nil
+}
+
+func (n *Network) MTU(ctx context.Context, target Addr) int {
+	return 0
 }
 
 func (n *Network) Close() error {
@@ -64,35 +107,48 @@ func (n *Network) Close() error {
 }
 
 func (n *Network) fromBelow(msg *p2p.Message) {
+	ctx := context.TODO()
 	kmsg := &Message{}
 	if err := proto.Unmarshal(msg.Payload, kmsg); err != nil {
 		logrus.Error(err)
 	}
 	// if addresssed to us, interpret
-	if bytes.Equal(msg.Dst, n.localID()) {
-		n.interpret(msg)
+	if bytes.Equal(kmsg.Dst[:], n.localID[:]) {
+		if err := n.interpret(ctx, kmsg); err != nil {
+			logrus.Error(err)
+		}
 	}
 	// otherwise forward
-	n.forward(kmsg)
+	if err := n.forward(ctx, kmsg); err != nil {
+		logrus.Error(err)
+	}
 }
 
-func (n *Network) interpret(msg *Message) {
+func (n *Network) interpret(ctx context.Context, msg *Message) error {
 	switch body := msg.GetBody().(type) {
 	case *Message_Data:
 		src := idFromBytes(msg.Src)
 		dst := idFromBytes(msg.Dst)
 		onRecv := n.onRecv
-		onRecv(src, dst, n.body.Data)
+		onRecv(src, dst, body.Data)
 	case *Message_RouteList:
 		for _, r := range body.RouteList.Routes {
-			n.routeTable.AddRelative(r, idFromBytes(body.RouteList.Src))
+			n.routeTable.AddRelativeTo(*r, idFromBytes(body.RouteList.Src))
 		}
 	case *Message_QueryRoutes:
 		// TODO: respond with routes
+	case *Message_LookupPeer:
+		prefix := body.LookupPeer.Prefix
+		nbits := int(body.LookupPeer.Bits)
+		peerInfo := n.peerInfos.Lookup(prefix, nbits)
+		if peerInfo != nil {
+			// respond
+		}
 	}
+	return nil
 }
 
-func (n *Network) forward(msg *Message) {
+func (n *Network) forward(ctx context.Context, msg *Message) error {
 	l := len(msg.Path)
 	// if there is no path, then lookup one
 	if l == 0 {
@@ -100,10 +156,10 @@ func (n *Network) forward(msg *Message) {
 		peerDist := make([]byte, len(r.Dst))
 		kademlia.XORBytes(peerDist, r.Dst, msg.Dst)
 		ourDist := make([]byte, len(r.Dst))
-		kademlia.XORBytes(ourDist, n.LocalID()[:], msg.Dst)
+		kademlia.XORBytes(ourDist, n.localID[:], msg.Dst)
 		if bytes.Compare(ourDist, peerDist) < 0 {
 			// if we are the closest, then drop it
-			return
+			return nil
 		}
 		msg.Path = r.Path
 	}
@@ -113,9 +169,7 @@ func (n *Network) forward(msg *Message) {
 	}
 	msg.Path = msg.Path[:l-1]
 	data, _ := proto.Marshal(msg)
-	if err := n.swarm.TellPeer(ctx, next, data); err != nil {
-		logrus.Error(err)
-	}
+	return n.swarm.TellPeer(ctx, next, data)
 }
 
 func (n *Network) totalPeerSet() inet256.PeerSet {
@@ -123,11 +177,12 @@ func (n *Network) totalPeerSet() inet256.PeerSet {
 }
 
 func (n *Network) LocalID() p2p.PeerID {
-	return n.swarm.LocalAddrs[0].(p2p.PeerID)
+	return n.localID
 }
 
 func (n *Network) runLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
 	for _, peerID := range n.oneHopPeers.ListPeers() {
 		n.linkMap.ID2Int(peerID)
