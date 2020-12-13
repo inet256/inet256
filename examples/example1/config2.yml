@@ -7,9 +7,9 @@ networks:
 
 transports:
 - udp: "0.0.0.0:44445"
-  behind_nat: false
+  nat_upnp: false
 
 peers:
 - id: CdAAo92_R56A90eTwyh_yWkE0ikfI_rIOojZf-e6Hqo
   addrs:
-  - mocksec+udp://CdAAo92_R56A90eTwyh_yWkE0ikfI_rIOojZf-e6Hqo@127.0.0.1:44444
+  - noise+udp://CdAAo92_R56A90eTwyh_yWkE0ikfI_rIOojZf-e6Hqo@127.0.0.1:44444

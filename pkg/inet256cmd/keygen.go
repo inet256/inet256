@@ -1,8 +1,7 @@
 package inet256cmd
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto/ed25519"
 	"crypto/rand"
 	"io/ioutil"
 
@@ -35,7 +34,7 @@ var keygenCmd = &cobra.Command{
 
 var deriveAddrCmd = &cobra.Command{
 	Use:   "derive-addr",
-	Short: "derives an id from a private key, read from stdin",
+	Short: "derives an address from a private key, read from stdin",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		in := cmd.InOrStdin()
 		data, err := ioutil.ReadAll(in)
@@ -56,5 +55,6 @@ var deriveAddrCmd = &cobra.Command{
 }
 
 func generateKey() (p2p.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	return priv, err
 }

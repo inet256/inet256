@@ -3,8 +3,8 @@ module github.com/inet256/inet256
 go 1.15
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20201208024614-2210ba42fc26
-	github.com/golang/protobuf v1.4.2
+	github.com/brendoncarroll/go-p2p v0.0.0-20201213001827-45ce0684b26e
+	github.com/golang/protobuf v1.4.3
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v0.0.5

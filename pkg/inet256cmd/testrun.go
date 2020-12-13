@@ -31,16 +31,22 @@ var testRunCmd = &cobra.Command{
 
 		ctx := context.Background()
 		data := []byte("ping")
-		for {
-			for _, addr := range params.Peers.ListPeers() {
-				if err := node.Tell(ctx, addr, data); err != nil {
-					log.Error(err)
-					continue
-				} else {
-					// fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
+		period := time.Second
+		ticker := time.NewTicker(period)
+		defer ticker.Stop()
+		for range ticker.C {
+			func() {
+				ctx, cf := context.WithTimeout(ctx, period)
+				cf()
+				for _, addr := range params.Peers.ListPeers() {
+					if err := node.Tell(ctx, addr, data); err != nil {
+						log.Error(err)
+						continue
+					} else {
+						// fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
+					}
 				}
-			}
-			time.Sleep(time.Second)
+			}()
 		}
 		return nil
 	},
