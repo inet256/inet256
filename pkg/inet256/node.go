@@ -7,6 +7,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/intmux"
+	"github.com/brendoncarroll/go-p2p/s/aggswarm"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
@@ -46,6 +47,7 @@ func NewNode(params Params) *Node {
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
+		s = aggswarm.NewSecure(s, 1<<16-1)
 		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			Swarm: ps,
@@ -58,7 +60,7 @@ func NewNode(params Params) *Node {
 		baseSwarm: baseSwarm,
 		memrealm:  memrealm,
 		memswarm:  memsw,
-		network:   newMultiNetwork(networks),
+		network:   newSecureNetwork(params.PrivateKey, newMultiNetwork(networks)),
 	}
 }
 

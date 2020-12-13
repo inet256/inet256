@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
 )
@@ -157,4 +158,33 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) Network {
 	}
 	mn.addrMap.Store(addr, network)
 	return network
+}
+
+type noise2PeerSwarm struct {
+	*noiseswarm.Swarm
+}
+
+func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
+	insecSw := SwarmFromNetwork(x, privateKey.Public())
+	noiseSw := noiseswarm.New(insecSw, privateKey)
+	secnet := networkFromSwarm(noise2PeerSwarm{noiseSw}, x.FindAddr)
+	return secnet
+}
+
+func (s noise2PeerSwarm) OnTell(fn p2p.TellHandler) {
+	s.Swarm.OnTell(func(x *p2p.Message) {
+		fn(&p2p.Message{
+			Src:     x.Src.(noiseswarm.Addr).ID,
+			Dst:     x.Dst.(noiseswarm.Addr).ID,
+			Payload: x.Payload,
+		})
+	})
+}
+
+func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data []byte) error {
+	return s.Swarm.Tell(ctx, noiseswarm.Addr{ID: id, Addr: id}, data)
+}
+
+func (s noise2PeerSwarm) LocalID() p2p.PeerID {
+	return s.Swarm.LocalAddrs()[0].(noiseswarm.Addr).ID
 }
