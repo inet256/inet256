@@ -1,4 +1,4 @@
-package inet256grpc
+package inet256client
 
 import (
 	"net"
@@ -8,6 +8,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -28,9 +29,9 @@ func TestDial(t *testing.T) {
 			"virtual": mr.NewSwarmWithKey(privateKey),
 		},
 	})
-	s := NewServer(n)
+	s := inet256grpc.NewServer(n)
 	gs := grpc.NewServer()
-	RegisterINET256Server(gs, s)
+	inet256grpc.RegisterINET256Server(gs, s)
 	l, err := net.Listen("tcp", "127.0.0.1:25600")
 	require.NoError(t, err)
 	eg := errgroup.Group{}
@@ -42,7 +43,7 @@ func TestDial(t *testing.T) {
 		defer gs.Stop()
 		// time.Sleep(30 * time.Millisecond)
 		privateKey := p2ptest.NewTestKey(t, 1)
-		c, err := NewClient("127.0.0.1:25600", privateKey)
+		c, err := New("127.0.0.1:25600", privateKey)
 		if err != nil {
 			return err
 		}

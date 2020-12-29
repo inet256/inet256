@@ -1,4 +1,4 @@
-package inet256grpc
+package inet256client
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -15,21 +16,21 @@ import (
 var _ inet256.Network = &Client{}
 
 type Client struct {
-	inetClient INET256Client
+	inetClient inet256grpc.INET256Client
 	privKey    p2p.PrivateKey
 
 	mu     sync.RWMutex
 	onRecv inet256.RecvFunc
-	cc     INET256_ConnectClient
+	cc     inet256grpc.INET256_ConnectClient
 	cf     context.CancelFunc
 }
 
-func NewClient(endpoint string, privKey p2p.PrivateKey) (*Client, error) {
+func New(endpoint string, privKey p2p.PrivateKey) (*Client, error) {
 	gc, err := grpc.Dial(endpoint, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
-	inetClient := NewINET256Client(gc)
+	inetClient := inet256grpc.NewINET256Client(gc)
 	ctx, cf := context.WithCancel(context.Background())
 	c := &Client{
 		cf:         cf,
@@ -42,7 +43,7 @@ func NewClient(endpoint string, privKey p2p.PrivateKey) (*Client, error) {
 }
 
 func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
-	peerInfo, err := c.inetClient.Lookup(ctx, &LookupReq{
+	peerInfo, err := c.inetClient.Lookup(ctx, &inet256grpc.LookupReq{
 		TargetAddr: prefix[:nbits/8],
 	})
 	if err != nil {
@@ -54,7 +55,7 @@ func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet25
 }
 
 func (c *Client) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
-	res, err := c.inetClient.Lookup(ctx, &LookupReq{
+	res, err := c.inetClient.Lookup(ctx, &inet256grpc.LookupReq{
 		TargetAddr: target[:],
 	})
 	if err != nil {
@@ -68,8 +69,8 @@ func (c *Client) Tell(ctx context.Context, dst inet256.Addr, data []byte) error 
 	if cc == nil {
 		return errors.Errorf("no ConnectClient")
 	}
-	return c.cc.Send(&ConnectMsg{
-		Datagram: &Datagram{
+	return c.cc.Send(&inet256grpc.ConnectMsg{
+		Datagram: &inet256grpc.Datagram{
 			Dst:     dst[:],
 			Payload: data,
 		},
@@ -91,7 +92,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
-	res, err := c.inetClient.MTU(ctx, &MTUReq{
+	res, err := c.inetClient.MTU(ctx, &inet256grpc.MTUReq{
 		Target: target[:],
 	})
 	if err != nil {
@@ -120,13 +121,13 @@ func (c *Client) runLoop(ctx context.Context) {
 	}
 }
 
-func (c *Client) runClient(cc INET256_ConnectClient) error {
+func (c *Client) runClient(cc inet256grpc.INET256_ConnectClient) error {
 	privKeyBytes, err := inet256.MarshalPrivateKey(c.privKey)
 	if err != nil {
 		panic(err)
 	}
-	if err := cc.Send(&ConnectMsg{
-		ConnectInit: &ConnectInit{
+	if err := cc.Send(&inet256grpc.ConnectMsg{
+		ConnectInit: &inet256grpc.ConnectInit{
 			PrivateKey: privKeyBytes,
 		},
 	}); err != nil {
@@ -152,13 +153,13 @@ func (c *Client) runClient(cc INET256_ConnectClient) error {
 	}
 }
 
-func (c *Client) setConnectClient(cc INET256_ConnectClient) {
+func (c *Client) setConnectClient(cc inet256grpc.INET256_ConnectClient) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cc = cc
 }
 
-func (c *Client) getConnectClient() INET256_ConnectClient {
+func (c *Client) getConnectClient() inet256grpc.INET256_ConnectClient {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.cc

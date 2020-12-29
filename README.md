@@ -74,3 +74,11 @@ func main() {
     }
 }
 ```
+
+## License
+Code in this repository is by default licensed under the GPL as defined in `LICENSE`.
+Some of the sub-directories contain their own `LICENSE` files for the LGPL as defined therein.
+That license applies to the sub-tree.
+
+In summary: you should be able to import an inet256 client in a language of your choice and do whatever you want.
+But other than clients, the implementation is strongly copyleft.
