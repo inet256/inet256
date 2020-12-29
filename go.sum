@@ -49,6 +49,8 @@ github.com/brendoncarroll/go-p2p v0.0.0-20201213023527-88bd08906abc h1:QyNGpNqI6
 github.com/brendoncarroll/go-p2p v0.0.0-20201213023527-88bd08906abc/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
 github.com/brendoncarroll/go-p2p v0.0.0-20201213152428-23a795ca0955 h1:KsZkOTbGusq4q+RCrbR0JDqzCIJnEPGUV2HINEakIs0=
 github.com/brendoncarroll/go-p2p v0.0.0-20201213152428-23a795ca0955/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
+github.com/brendoncarroll/go-p2p v0.0.0-20201229045541-915a55fc4c6d h1:JczziQj/utJFt4hyuJFzCQtFfQqSocz7QoPTrp3zLEA=
+github.com/brendoncarroll/go-p2p v0.0.0-20201229045541-915a55fc4c6d/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/calmh/xdr v1.1.0/go.mod h1:E8sz2ByAdXC8MbANf1LCRYzedSnnc+/sXXJs/PVqoeg=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
