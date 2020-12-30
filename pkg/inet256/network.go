@@ -49,8 +49,9 @@ type Network interface {
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
 type NetworkParams struct {
-	Swarm PeerSwarm
-	Peers PeerSet
+	PrivateKey p2p.PrivateKey
+	Swarm      PeerSwarm
+	Peers      PeerSet
 }
 
 // NetworkFactory is a constructor for a network

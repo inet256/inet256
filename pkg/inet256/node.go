@@ -13,7 +13,10 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 )
 
-var ErrAddrUnreachable = errors.New("address is unreachable")
+var (
+	ErrAddrUnreachable   = errors.New("address is unreachable")
+	ErrPublicKeyNotFound = p2p.ErrPublicKeyNotFound
+)
 
 type Params struct {
 	p2p.PrivateKey

@@ -4,12 +4,14 @@
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
 	cd ./pkg/kadsrnet && ./build.sh
+
 test:
 	go test --race ./pkg/...
 	go test --race ./client/go_client/...
 
-testv:
+testv: protobuf
 	go test --race -v -count=1 ./pkg/...
+	go test --race -v -count=1 ./client/go_client/...
 
 drop-replace:
 	go mod edit -dropreplace github.com/brendoncarroll/go-p2p

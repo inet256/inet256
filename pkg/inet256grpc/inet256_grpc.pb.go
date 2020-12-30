@@ -4,10 +4,10 @@ package inet256grpc
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type INET256Client interface {
-	GenerateKey(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error)
+	GenerateKey(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error)
 	LookupSelf(ctx context.Context, in *LookupSelfReq, opts ...grpc.CallOption) (*PeerInfo, error)
 	Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*PeerInfo, error)
 	// Connect starts a session for sending and receiving messages
@@ -36,7 +36,7 @@ func NewINET256Client(cc grpc.ClientConnInterface) INET256Client {
 	return &iNET256Client{cc}
 }
 
-func (c *iNET256Client) GenerateKey(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error) {
+func (c *iNET256Client) GenerateKey(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error) {
 	out := new(GenerateKeyRes)
 	err := c.cc.Invoke(ctx, "/inet256.INET256/GenerateKey", in, out, opts...)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *iNET256Client) MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOp
 // All implementations must embed UnimplementedINET256Server
 // for forward compatibility
 type INET256Server interface {
-	GenerateKey(context.Context, *empty.Empty) (*GenerateKeyRes, error)
+	GenerateKey(context.Context, *emptypb.Empty) (*GenerateKeyRes, error)
 	LookupSelf(context.Context, *LookupSelfReq) (*PeerInfo, error)
 	Lookup(context.Context, *LookupReq) (*PeerInfo, error)
 	// Connect starts a session for sending and receiving messages
@@ -122,7 +122,7 @@ type INET256Server interface {
 type UnimplementedINET256Server struct {
 }
 
-func (*UnimplementedINET256Server) GenerateKey(context.Context, *empty.Empty) (*GenerateKeyRes, error) {
+func (*UnimplementedINET256Server) GenerateKey(context.Context, *emptypb.Empty) (*GenerateKeyRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateKey not implemented")
 }
 func (*UnimplementedINET256Server) LookupSelf(context.Context, *LookupSelfReq) (*PeerInfo, error) {
@@ -144,7 +144,7 @@ func RegisterINET256Server(s *grpc.Server, srv INET256Server) {
 }
 
 func _INET256_GenerateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
+	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func _INET256_GenerateKey_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/inet256.INET256/GenerateKey",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(INET256Server).GenerateKey(ctx, req.(*empty.Empty))
+		return srv.(INET256Server).GenerateKey(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }

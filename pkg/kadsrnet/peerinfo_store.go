@@ -33,7 +33,7 @@ func (s *PeerInfoStore) Lookup(prefix []byte, nbits int) *PeerInfo {
 func (s *PeerInfoStore) Get(target Addr) *PeerInfo {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	v := s.cache.Lookup(target[:])
+	v := s.cache.Get(target[:])
 	if v == nil {
 		return nil
 	}
