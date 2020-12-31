@@ -17,6 +17,11 @@ import (
 
 const (
 	MaxPathLen = 64
+
+	maxSigSize     = 64 // I have no idea
+	timestampSize  = 8
+	protobufFields = 10
+	Overhead       = 0 + MaxPathLen*4 + maxSigSize + timestampSize + protobufFields
 )
 
 func Factory(params inet256.NetworkParams) inet256.Network {
@@ -54,6 +59,7 @@ func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet
 		peerInfos:  newPeerInfoStore(localID, 128),
 		cf:         cf,
 	}
+	n.OnRecv(nil)
 	n.pinger = newPinger(n.sendPing)
 	n.crawler = newCrawler(n.routeTable, n.oneHopPeers, n.linkMap, n.pinger, n.sendQueryRoutes)
 	go n.runLoop(ctx)
@@ -79,17 +85,45 @@ func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr,
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
-	peerInfo := n.peerInfos.Get(target)
-	return p2p.ParsePublicKey(peerInfo.PublicKey)
+	for _, lookupFunc := range []func(ctx context.Context, target Addr) (p2p.PublicKey, error){
+		func(ctx context.Context, target Addr) (p2p.PublicKey, error) {
+			return n.swarm.LookupPublicKey(ctx, target)
+		},
+		func(ctx context.Context, target Addr) (p2p.PublicKey, error) {
+			peerInfo := n.peerInfos.Get(target)
+			if peerInfo == nil {
+				return nil, inet256.ErrPublicKeyNotFound
+			}
+			return p2p.ParsePublicKey(peerInfo.PublicKey)
+		},
+	} {
+		pubKey, err := lookupFunc(ctx, target)
+		if err != nil {
+			if err == inet256.ErrPublicKeyNotFound {
+				continue
+			}
+			return nil, err
+		}
+		return pubKey, nil
+	}
+	return nil, inet256.ErrPublicKeyNotFound
 }
 
 func (n *Network) MTU(ctx context.Context, target Addr) int {
-	return 0
+	return n.swarm.MTU(ctx, target) - Overhead
+}
+
+func (n *Network) LocalAddr() Addr {
+	return n.localID
 }
 
 func (n *Network) Close() error {
 	n.cf()
 	return n.swarm.Close()
+}
+
+func (n *Network) WaitStartup(ctx context.Context) error {
+	return n.crawler.crawlAll(ctx, 0)
 }
 
 func (n *Network) fromBelow(msg *p2p.Message, next inet256.RecvFunc) {
@@ -114,9 +148,8 @@ func (n *Network) sendBody(ctx context.Context, dst Addr, body *Body) error {
 	if err != nil {
 		panic(err)
 	}
-	localID := n.LocalID()
 	msg := &Message{
-		Src:  localID[:],
+		Src:  n.localID[:],
 		Dst:  dst[:],
 		Body: bodyBytes,
 	}
@@ -219,8 +252,12 @@ func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) ([]byte,
 		err := n.crawler.handleRoutes(ctx, src, body.RouteList.Routes)
 		return nil, err
 	case *Body_QueryRoutes:
-		// TODO: respond with routes
-		return nil, nil
+		routeList, err := n.queryRoutes(ctx, body.QueryRoutes.Locus, int(body.QueryRoutes.Nbits), int(body.QueryRoutes.Limit))
+		if err != nil {
+			return nil, err
+		}
+		err = n.sendRouteList(ctx, src, routeList)
+		return nil, err
 	case *Body_LookupPeer:
 		prefix := body.LookupPeer.Prefix
 		nbits := int(body.LookupPeer.Bits)
@@ -229,8 +266,16 @@ func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) ([]byte,
 			return nil, nil
 		}
 		return nil, n.sendPeerInfo(ctx, src, peerInfo)
-	default:
+	case *Body_Ping:
+		pong := &Pong{
+			Ping: body.Ping,
+		}
+		return nil, n.sendPong(ctx, src, pong)
+	case *Body_Pong:
+		n.pinger.handlePong(src, body.Pong)
 		return nil, nil
+	default:
+		return nil, errors.Errorf("empty message")
 	}
 }
 
@@ -274,12 +319,11 @@ func (n *Network) lookupRoute(finalDst Addr) *Route {
 		}
 	}
 	r := n.routeTable.Closest(finalDst[:])
-	peerDist := [32]byte{}
-	kademlia.XORBytes(peerDist[:], r.Dst, finalDst[:])
-	ourDist := [32]byte{}
-	kademlia.XORBytes(ourDist[:], n.localID[:], finalDst[:])
+	if r == nil {
+		return nil
+	}
 	// peer must actually be closer
-	if bytes.Compare(peerDist[:], ourDist[:]) < 0 {
+	if compareDistance(finalDst[:], r.Dst, n.localID[:]) < 0 {
 		return r
 	}
 	return nil
@@ -330,12 +374,38 @@ func (n *Network) sendPing(ctx context.Context, dst Addr, path Path, ping *Ping)
 	return n.sendExactMessage(ctx, nextPeer, msg)
 }
 
-func (n *Network) totalPeerSet() inet256.PeerSet {
-	return n.oneHopPeers
+func (n *Network) sendPong(ctx context.Context, dst Addr, pong *Pong) error {
+	return n.sendBody(ctx, dst, &Body{
+		Body: &Body_Pong{
+			Pong: pong,
+		},
+	})
 }
 
-func (n *Network) LocalID() p2p.PeerID {
-	return n.localID
+func (n *Network) queryRoutes(ctx context.Context, locus []byte, nbits int, limit int) (*RouteList, error) {
+	var routes []*Route
+	for _, peerID := range n.oneHopPeers.ListPeers() {
+		if kademlia.HasPrefix(peerID[:], locus, nbits) {
+			routes = append(routes, n.lookupRoute(peerID))
+		}
+		if len(routes) < limit {
+			break
+		}
+	}
+	n.routeTable.ForEach(func(r *Route) bool {
+		if kademlia.HasPrefix(r.Dst, locus[:], nbits) {
+			routes = append(routes)
+		}
+		return len(routes) < limit
+	})
+	return &RouteList{
+		Src:    n.localID[:],
+		Routes: routes,
+	}, nil
+}
+
+func (n *Network) totalPeerSet() inet256.PeerSet {
+	return n.oneHopPeers
 }
 
 func (n *Network) runLoop(ctx context.Context) {

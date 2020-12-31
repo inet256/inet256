@@ -14,15 +14,13 @@ type Path = []uint32
 var _ inet256.PeerSet = &RouteTable{}
 
 type RouteTable struct {
-	localID Addr
-	mu      sync.RWMutex
-	cache   *kademlia.Cache
+	mu    sync.RWMutex
+	cache *kademlia.Cache
 }
 
 func NewRouteTable(localID p2p.PeerID, size int) *RouteTable {
 	return &RouteTable{
-		localID: localID,
-		cache:   kademlia.NewCache(localID[:], size, 1),
+		cache: kademlia.NewCache(localID[:], size, 1),
 	}
 }
 
@@ -44,6 +42,9 @@ func (rt *RouteTable) Delete(dst []byte) bool {
 
 func (rt *RouteTable) add(r *Route) bool {
 	e := rt.cache.Put(r.Dst, r)
+	if e == nil {
+		return true
+	}
 	return !bytes.Equal(e.Key, r.Dst)
 }
 
@@ -62,13 +63,7 @@ func (rt *RouteTable) Closest(prefix []byte) *Route {
 	if ent == nil {
 		return nil
 	}
-	p := ent.Value.(Path)
-	id := p2p.PeerID{}
-	copy(id[:], prefix)
-	return &Route{
-		Dst:  id[:],
-		Path: p,
-	}
+	return ent.Value.(*Route)
 }
 
 func (rt *RouteTable) IsFull() bool {
@@ -78,22 +73,23 @@ func (rt *RouteTable) IsFull() bool {
 }
 
 func (rt *RouteTable) WouldAdd(r *Route) bool {
-	d := [32]byte{}
-	kademlia.XORBytes(d[:], rt.localID[:], r.Dst)
-	return kademlia.Leading0s(d[:]) >= rt.MustMatchBits()
+	rt.mu.RLock()
+	rt.mu.RUnlock()
+	return rt.cache.WouldAdd(r.Dst)
 }
 
 func (rt *RouteTable) MustMatchBits() int {
 	rt.mu.RLock()
 	defer rt.mu.RUnlock()
-	return rt.cache.WouldAccept()
+	return rt.cache.AcceptingPrefixLen()
 }
 
 func (rt *RouteTable) ListPeers() (ret []p2p.PeerID) {
-	rt.ForEach(func(r *Route) {
+	rt.ForEach(func(r *Route) bool {
 		id := p2p.PeerID{}
 		copy(id[:], r.GetDst())
 		ret = append(ret, id)
+		return true
 	})
 	return ret
 }
@@ -105,18 +101,17 @@ func (rt *RouteTable) Contains(addr Addr) bool {
 	return v != nil
 }
 
-func (rt *RouteTable) ForEach(fn func(*Route)) {
+func (rt *RouteTable) ForEach(fn func(*Route) bool) {
 	rt.mu.RLock()
 	defer rt.mu.RUnlock()
 	rt.cache.ForEach(func(e kademlia.Entry) bool {
 		r := e.Value.(*Route)
-		fn(r)
-		return true
+		return fn(r)
 	})
 }
 
 func (rt *RouteTable) LocalID() Addr {
-	return rt.localID
+	return idFromBytes(rt.cache.Locus())
 }
 
 func ConcatRoutes(left, right *Route) *Route {
@@ -138,4 +133,12 @@ func ConcatRoutes(left, right *Route) *Route {
 		Path:      p,
 		Timestamp: timestamp,
 	}
+}
+
+func compareDistance(target []byte, a, b []byte) int {
+	aDist := [32]byte{}
+	kademlia.XORBytes(aDist[:], target, a)
+	bDist := [32]byte{}
+	kademlia.XORBytes(bDist[:], target, b)
+	return bytes.Compare(aDist[:], bDist[:])
 }

@@ -37,6 +37,7 @@ type PeerStore interface {
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
 	OnRecv(fn RecvFunc)
+	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 
 	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
@@ -107,6 +108,10 @@ func (mn *multiNetwork) LookupPublicKey(ctx context.Context, target Addr) (p2p.P
 func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
 	ntwk := mn.whichNetwork(ctx, target)
 	return ntwk.MTU(ctx, target)
+}
+
+func (mn *multiNetwork) LocalAddr() Addr {
+	return mn.networks[0].LocalAddr()
 }
 
 func (mn *multiNetwork) Close() (retErr error) {

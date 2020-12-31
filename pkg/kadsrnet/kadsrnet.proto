@@ -40,7 +40,9 @@ message PeerInfo {
 }
 
 message QueryRoutes {
-    uint32 max = 1;
+    bytes locus = 1;
+    uint32 nbits = 2;
+    uint32 limit = 3;
 }
 
 message Route {

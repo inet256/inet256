@@ -18,6 +18,7 @@ var _ inet256.Network = &Client{}
 type Client struct {
 	inetClient inet256grpc.INET256Client
 	privKey    p2p.PrivateKey
+	localAddr  inet256.Addr
 
 	mu     sync.RWMutex
 	onRecv inet256.RecvFunc
@@ -36,6 +37,7 @@ func New(endpoint string, privKey p2p.PrivateKey) (*Client, error) {
 		cf:         cf,
 		inetClient: inetClient,
 		privKey:    privKey,
+		localAddr:  p2p.NewPeerID(privKey.Public()),
 		onRecv:     inet256.NoOpRecvFunc,
 	}
 	go c.runLoop(ctx)
@@ -99,6 +101,10 @@ func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
 		return -1
 	}
 	return int(res.Mtu)
+}
+
+func (c *Client) LocalAddr() inet256.Addr {
+	return c.localAddr
 }
 
 func (c *Client) runLoop(ctx context.Context) {

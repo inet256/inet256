@@ -125,7 +125,7 @@ func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
 			retErr = err
 		}
 	}
-	c.routeTable.ForEach(func(r *Route) {
+	c.routeTable.ForEach(func(r *Route) bool {
 		if r.Timestamp > lastRun {
 			dst := idFromBytes(r.Dst)
 			err := c.crawlSingle(ctx, dst)
@@ -133,13 +133,16 @@ func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
 				retErr = err
 			}
 		}
+		return true
 	})
 	return retErr
 }
 
 func (c *crawler) crawlSingle(ctx context.Context, dst Addr) error {
 	return c.sqf(ctx, dst, &QueryRoutes{
-		Max: 10,
+		Locus: c.routeTable.cache.Locus(),
+		Nbits: uint32(c.routeTable.MustMatchBits()),
+		Limit: 10,
 	})
 }
 
