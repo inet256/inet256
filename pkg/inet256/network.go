@@ -46,6 +46,14 @@ type Network interface {
 	Close() error
 }
 
+// WaitInit has the WaitInit method
+type WaitInit interface {
+	Network
+	// WaitInit block's until the Network has initialized.
+	// After WaitInit has completed, all addresses should be reachable from all other addresses.
+	WaitInit(ctx context.Context) error
+}
+
 // NetworkParams are passed to a NetworkFactory to create a Network.
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
@@ -53,6 +61,8 @@ type NetworkParams struct {
 	PrivateKey p2p.PrivateKey
 	Swarm      PeerSwarm
 	Peers      PeerSet
+
+	Logger *logrus.Logger
 }
 
 // NetworkFactory is a constructor for a network

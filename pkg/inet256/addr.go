@@ -3,9 +3,9 @@ package inet256
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"math/bits"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/pkg/errors"
 )
 
@@ -72,20 +72,5 @@ func ParsePrivateKeyPEM(data []byte) (p2p.PrivateKey, error) {
 }
 
 func HasPrefix(x []byte, prefix []byte, nbits int) bool {
-	if len(x) < len(prefix) {
-		return false
-	}
-	xor := make([]byte, len(x))
-	for i := range prefix {
-		xor[i] = x[i] ^ prefix[i]
-	}
-	lz := 0
-	for i := range xor {
-		lzi := bits.LeadingZeros8(xor[i])
-		lz += lzi
-		if lzi < 8 {
-			break
-		}
-	}
-	return lz == nbits
+	return kademlia.HasPrefix(x, prefix, nbits)
 }

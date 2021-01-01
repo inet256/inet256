@@ -3,10 +3,10 @@ package kadsrnet
 import (
 	"bytes"
 	"context"
+	"log"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
@@ -25,43 +25,52 @@ const (
 )
 
 func Factory(params inet256.NetworkParams) inet256.Network {
-	return New(params.PrivateKey, params.Swarm, params.Peers)
+	return New(params.PrivateKey, params.Swarm, params.Peers, params.Logger)
 }
 
 type Addr = inet256.Addr
 
 type Network struct {
+	log         *logrus.Logger
 	privateKey  p2p.PrivateKey
 	swarm       peerswarm.Swarm
 	oneHopPeers inet256.PeerSet
-	localID     Addr
+	localAddr   Addr
 
 	linkMap    *linkMap
-	routeTable *RouteTable
+	routeTable RouteTable
 	peerInfos  *PeerInfoStore
-	pinger     *pinger
-	crawler    *crawler
-	cf         context.CancelFunc
+
+	pinger  *pinger
+	infoSrv *infoService
+	crawler *crawler
+
+	cf context.CancelFunc
 }
 
-func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet) *Network {
-	localID := swarm.LocalAddrs()[0].(p2p.PeerID)
+func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet, log *logrus.Logger) *Network {
+	localAddr := swarm.LocalAddrs()[0].(p2p.PeerID)
 	ctx, cf := context.WithCancel(context.Background())
-	routeTable := NewRouteTable(localID, 128)
+	lm := newLinkMap()
+	kadRT := newKadRouteTable(localAddr, 128)
+	routeTable := newRouteTable(localAddr, peers, lm, kadRT)
+	peerInfos := newPeerInfoStore(privateKey.Public(), swarm, peers, 128)
 	n := &Network{
+		log:         log,
 		privateKey:  privateKey,
 		swarm:       swarm,
 		oneHopPeers: peers,
-		localID:     localID,
+		localAddr:   localAddr,
 
-		linkMap:    newLinkMap(),
+		linkMap:    lm,
 		routeTable: routeTable,
-		peerInfos:  newPeerInfoStore(localID, 128),
+		peerInfos:  peerInfos,
 		cf:         cf,
 	}
 	n.OnRecv(nil)
 	n.pinger = newPinger(n.sendPing)
-	n.crawler = newCrawler(n.routeTable, n.oneHopPeers, n.linkMap, n.pinger, n.sendQueryRoutes)
+	n.infoSrv = newInfoService(peerInfos, routeTable, n.sendLookupPeer)
+	n.crawler = newCrawler(n.routeTable, n.pinger, n.infoSrv, n.sendQueryRoutes)
 	go n.runLoop(ctx)
 	return n
 }
@@ -114,7 +123,7 @@ func (n *Network) MTU(ctx context.Context, target Addr) int {
 }
 
 func (n *Network) LocalAddr() Addr {
-	return n.localID
+	return n.localAddr
 }
 
 func (n *Network) Close() error {
@@ -122,20 +131,21 @@ func (n *Network) Close() error {
 	return n.swarm.Close()
 }
 
-func (n *Network) WaitStartup(ctx context.Context) error {
+func (n *Network) WaitInit(ctx context.Context) error {
 	return n.crawler.crawlAll(ctx, 0)
 }
 
 func (n *Network) fromBelow(msg *p2p.Message, next inet256.RecvFunc) {
-	ctx := context.TODO()
+	ctx, cf := context.WithTimeout(context.Background(), time.Second)
+	defer cf()
 	kmsg := &Message{}
 	if err := proto.Unmarshal(msg.Payload, kmsg); err != nil {
-		logrus.Error("garbage: ", err)
+		n.log.Error("garbage: ", err)
 		return
 	}
 	up, err := n.handleMessage(ctx, kmsg)
 	if err != nil {
-		logrus.Error("error handling message: ", err)
+		n.log.Error("while handling message: ", err)
 	}
 	if up != nil {
 		next(msg.Src.(Addr), msg.Dst.(Addr), up)
@@ -149,7 +159,7 @@ func (n *Network) sendBody(ctx context.Context, dst Addr, body *Body) error {
 		panic(err)
 	}
 	msg := &Message{
-		Src:  n.localID[:],
+		Src:  n.localAddr[:],
 		Dst:  dst[:],
 		Body: bodyBytes,
 	}
@@ -163,7 +173,7 @@ func (n *Network) sendBody(ctx context.Context, dst Addr, body *Body) error {
 // - marshal it
 // - send it to the next hop peer
 func (n *Network) sendMessage(ctx context.Context, dst Addr, msg *Message) error {
-	route := n.lookupRoute(dst)
+	route := n.routeTable.RouteTo(dst)
 	if route == nil {
 		return inet256.ErrAddrUnreachable
 	}
@@ -179,7 +189,7 @@ func (n *Network) sendMessage(ctx context.Context, dst Addr, msg *Message) error
 // sendExactMessage signs msg's body if it originates locally, marshals it, and sends it to dst.
 func (n *Network) sendExactMessage(ctx context.Context, dst Addr, msg *Message) error {
 	// if it is from us, sign it.
-	if bytes.HasPrefix(msg.Src, n.localID[:]) {
+	if bytes.HasPrefix(msg.Src, n.localAddr[:]) {
 		now := time.Now()
 		if err := SignMessage(n.privateKey, now, msg); err != nil {
 			return err
@@ -203,15 +213,12 @@ func (n *Network) handleMessage(ctx context.Context, msg *Message) ([]byte, erro
 		// if the message is from the peer in the peerInfo, use the public key they provided
 		var publicKey p2p.PublicKey
 		if peerInfo := body.GetPeerInfo(); peerInfo != nil {
-			if err := validatePeerInfo(peerInfo); err != nil {
-				return err
-			}
 			pk, err := p2p.ParsePublicKey(peerInfo.PublicKey)
 			if err != nil {
 				return err
 			}
-			peerID := p2p.NewPeerID(publicKey)
-			if bytes.Equal(peerID[:], peerInfo.Id) {
+			peerID := p2p.NewPeerID(pk)
+			if bytes.Equal(peerID[:], msg.Src) {
 				publicKey = pk
 			}
 		}
@@ -225,10 +232,11 @@ func (n *Network) handleMessage(ctx context.Context, msg *Message) ([]byte, erro
 			publicKey = pk
 		}
 		if err := VerifyMessage(publicKey, now, msg); err != nil {
+			log.Println("invalid: ", msg)
 			return err
 		}
 		// if not addressed to us, forward.
-		if !bytes.HasPrefix(msg.Dst[:], n.localID[:]) {
+		if !bytes.HasPrefix(msg.Dst[:], n.localAddr[:]) {
 			return n.forward(ctx, msg)
 		}
 		// if addresssed to us, interpret
@@ -245,34 +253,39 @@ func (n *Network) handleMessage(ctx context.Context, msg *Message) ([]byte, erro
 }
 
 func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) ([]byte, error) {
+	log := n.log.WithFields(logrus.Fields{"src": src})
 	switch body := body.GetBody().(type) {
 	case *Body_Data:
+		log.Debug("recv data")
 		return body.Data, nil
 	case *Body_RouteList:
-		err := n.crawler.handleRoutes(ctx, src, body.RouteList.Routes)
+		log.Debugf("recv RouteList: len=%d", len(body.RouteList.Routes))
+		err := n.crawler.onRoutes(ctx, src, body.RouteList.Routes)
 		return nil, err
 	case *Body_QueryRoutes:
-		routeList, err := n.queryRoutes(ctx, body.QueryRoutes.Locus, int(body.QueryRoutes.Nbits), int(body.QueryRoutes.Limit))
+		log.Debugf("recv QueryRoutes: limit=%d", body.QueryRoutes.Limit)
+		routeList, err := n.crawler.onQueryRoutes(body.QueryRoutes.Locus, int(body.QueryRoutes.Nbits), int(body.QueryRoutes.Limit))
 		if err != nil {
 			return nil, err
 		}
 		err = n.sendRouteList(ctx, src, routeList)
 		return nil, err
-	case *Body_LookupPeer:
-		prefix := body.LookupPeer.Prefix
-		nbits := int(body.LookupPeer.Bits)
-		peerInfo := n.peerInfos.Lookup(prefix, nbits)
-		if peerInfo == nil {
+	case *Body_LookupPeerReq:
+		log.Debug("recv LookupPeer")
+		res := n.infoSrv.onLookupPeer(body.LookupPeerReq)
+		if res == nil {
 			return nil, nil
 		}
-		return nil, n.sendPeerInfo(ctx, src, peerInfo)
+		return nil, n.sendLookupPeerRes(ctx, src, res)
+	case *Body_LookupPeerRes:
+		log.Debug("recv PeerInfo")
+		return nil, n.infoSrv.onLookupPeerRes(body.LookupPeerRes)
 	case *Body_Ping:
-		pong := &Pong{
-			Ping: body.Ping,
-		}
+		log.Debug("recv Ping")
+		pong := n.pinger.onPing(src, body.Ping)
 		return nil, n.sendPong(ctx, src, pong)
 	case *Body_Pong:
-		n.pinger.handlePong(src, body.Pong)
+		n.pinger.onPong(src, body.Pong)
 		return nil, nil
 	default:
 		return nil, errors.Errorf("empty message")
@@ -283,18 +296,18 @@ func (n *Network) forward(ctx context.Context, msg *Message) error {
 	if len(msg.Path) > MaxPathLen {
 		return errors.Errorf("msg path exceeds maximum length")
 	}
-	// if there is no path, then lookup one
+	ourRoute := n.routeTable.Get(idFromBytes(msg.Dst))
+	// try to find an exact path
+	// ping is used to test paths, so it must be fully specified, and not changed.
+	if !bodyIsPing(msg.Body) {
+		if ourRoute != nil {
+			msg.Path = ourRoute.Path
+		}
+	}
+
+	// if we couldn't find a path, drop it.
 	if len(msg.Path) == 0 {
-		if bodyIsPing(msg.Body) {
-			// ping is used to test paths, so it must be fully specified.
-			return nil
-		}
-		r := n.lookupRoute(idFromBytes(msg.Dst))
-		if r == nil {
-			// if we are the closest, then drop it
-			return nil
-		}
-		msg.Path = r.Path
+		return errors.Errorf("could not forward message, no path")
 	}
 	nextIndex := msg.Path[len(msg.Path)-1]
 	next := n.linkMap.Int2ID(nextIndex)
@@ -309,30 +322,10 @@ func (n *Network) forward(ctx context.Context, msg *Message) error {
 	return n.swarm.Tell(ctx, next, data)
 }
 
-// lookupRoute returns the route to finalDst, or nil if there is no better node than us.
-func (n *Network) lookupRoute(finalDst Addr) *Route {
-	if n.oneHopPeers.Contains(finalDst) {
-		linkIndex := n.linkMap.ID2Int(finalDst)
-		return &Route{
-			Dst:  finalDst[:],
-			Path: Path{linkIndex},
-		}
-	}
-	r := n.routeTable.Closest(finalDst[:])
-	if r == nil {
-		return nil
-	}
-	// peer must actually be closer
-	if compareDistance(finalDst[:], r.Dst, n.localID[:]) < 0 {
-		return r
-	}
-	return nil
-}
-
-func (n *Network) sendPeerInfo(ctx context.Context, dst Addr, peerInfo *PeerInfo) error {
+func (n *Network) sendLookupPeerRes(ctx context.Context, dst Addr, res *LookupPeerRes) error {
 	return n.sendBody(ctx, dst, &Body{
-		Body: &Body_PeerInfo{
-			PeerInfo: peerInfo,
+		Body: &Body_LookupPeerRes{
+			LookupPeerRes: res,
 		},
 	})
 }
@@ -365,7 +358,7 @@ func (n *Network) sendPing(ctx context.Context, dst Addr, path Path, ping *Ping)
 		panic(err)
 	}
 	msg := &Message{
-		Src:  n.localID[:],
+		Src:  n.localAddr[:],
 		Dst:  dst[:],
 		Path: path[1:],
 		Body: bodyBytes,
@@ -382,26 +375,12 @@ func (n *Network) sendPong(ctx context.Context, dst Addr, pong *Pong) error {
 	})
 }
 
-func (n *Network) queryRoutes(ctx context.Context, locus []byte, nbits int, limit int) (*RouteList, error) {
-	var routes []*Route
-	for _, peerID := range n.oneHopPeers.ListPeers() {
-		if kademlia.HasPrefix(peerID[:], locus, nbits) {
-			routes = append(routes, n.lookupRoute(peerID))
-		}
-		if len(routes) < limit {
-			break
-		}
-	}
-	n.routeTable.ForEach(func(r *Route) bool {
-		if kademlia.HasPrefix(r.Dst, locus[:], nbits) {
-			routes = append(routes)
-		}
-		return len(routes) < limit
+func (n *Network) sendLookupPeer(ctx context.Context, dst Addr, lp *LookupPeerReq) error {
+	return n.sendBody(ctx, dst, &Body{
+		Body: &Body_LookupPeerReq{
+			LookupPeerReq: lp,
+		},
 	})
-	return &RouteList{
-		Src:    n.localID[:],
-		Routes: routes,
-	}, nil
 }
 
 func (n *Network) totalPeerSet() inet256.PeerSet {

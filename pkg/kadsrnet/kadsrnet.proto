@@ -17,25 +17,31 @@ message Message {
 message Body {
     oneof body {
         bytes data = 1;
+        PeerInfo PeerInfo = 2;
 
         QueryRoutes query_routes = 3;
         RouteList route_list = 4;
 
-        LookupPeer lookup_peer = 5;
-        PeerInfo peer_info = 6;   
+        LookupPeerReq lookup_peer_req = 5;
+        LookupPeerRes lookup_peer_res = 6;
 
         Ping ping = 7;
         Pong pong = 8;
     }
 }
 
-message LookupPeer {
+message LookupPeerReq {
     bytes prefix = 1;
-    uint32 bits = 2;
+    uint32 nbits = 2;
+}
+
+message LookupPeerRes {
+    bytes prefix = 1;
+    uint32 nbits = 2;
+    PeerInfo peer_info = 3;
 }
 
 message PeerInfo {
-    bytes id = 1;
     bytes public_key = 2;
 }
 

@@ -1,12 +1,13 @@
 package kadsrnet
 
 import (
-	"bytes"
 	"context"
+	"log"
 	sync "sync"
 	"time"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/brendoncarroll/go-p2p/p/kademlia"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -17,28 +18,26 @@ type sendQueryFunc = func(ctx context.Context, dst Addr, q *QueryRoutes) error
 
 // crawler is responsible for populating the route table
 type crawler struct {
-	oneHopPeers inet256.PeerSet
-	routeTable  *RouteTable
-	linkMap     *linkMap
-	pinger      *pinger
-	sqf         sendQueryFunc
+	routeTable RouteTable
+	pinger     *pinger
+	infoSrv    *infoService
+	sqf        sendQueryFunc
 
 	mu           sync.Mutex
 	peerMonitors map[Addr]struct{}
 }
 
-func newCrawler(rt *RouteTable, oneHopPeers inet256.PeerSet, lm *linkMap, pinger *pinger, sqf sendQueryFunc) *crawler {
+func newCrawler(rt RouteTable, pinger *pinger, infoSrv *infoService, sqf sendQueryFunc) *crawler {
 	return &crawler{
 		routeTable:   rt,
-		oneHopPeers:  oneHopPeers,
-		linkMap:      lm,
 		pinger:       pinger,
+		infoSrv:      infoSrv,
 		sqf:          sqf,
 		peerMonitors: make(map[Addr]struct{}),
 	}
 }
 
-func (c *crawler) handleRoutes(ctx context.Context, from Addr, routes []*Route) error {
+func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) error {
 	ctx, cf := context.WithTimeout(ctx, crawlerPingTimeout)
 	defer cf()
 	mu := sync.Mutex{}
@@ -46,15 +45,7 @@ func (c *crawler) handleRoutes(ctx context.Context, from Addr, routes []*Route) 
 	eg := errgroup.Group{}
 	for _, r := range routes {
 		dst := idFromBytes(r.Dst)
-		// if it is a route to us, ignore
-		if localID := c.routeTable.LocalID(); bytes.Equal(r.Dst, localID[:]) {
-			continue
-		}
-		// if it's a route to a one hop peer, ignore
-		if c.oneHopPeers.Contains(dst) {
-			continue
-		}
-		baseRoute := c.lookup(from)
+		baseRoute := c.routeTable.Get(from)
 		// if we don't have a route to the peer that sent it, ignore
 		if baseRoute == nil {
 			continue
@@ -64,7 +55,13 @@ func (c *crawler) handleRoutes(ctx context.Context, from Addr, routes []*Route) 
 			continue
 		}
 		eg.Go(func() error {
-			_, err := c.pinger.ping(ctx, from, r2.Path)
+			// ensure we have their info
+			_, err := c.infoSrv.lookup(ctx, r2.Dst, len(r2.Dst)*8, &from)
+			if err != nil {
+				return err
+			}
+			// ensure the route works
+			_, err = c.pinger.ping(ctx, dst, r2.Path)
 			if err != nil {
 				return err
 			}
@@ -90,16 +87,27 @@ func (c *crawler) handleRoutes(ctx context.Context, from Addr, routes []*Route) 
 	return nil
 }
 
-func (c *crawler) lookup(target Addr) *Route {
-	if c.oneHopPeers.Contains(target) {
-		linkIndex := c.linkMap.ID2Int(target)
-		return &Route{
-			Dst:       target[:],
-			Path:      Path{linkIndex},
-			Timestamp: time.Now().Unix(),
+func (c *crawler) onQueryRoutes(locus []byte, nbits int, limit int) (*RouteList, error) {
+	var stopIter = errors.New("stop iteration")
+	var routes []*Route
+	if err := c.routeTable.ForEach(func(r *Route) error {
+		if kademlia.HasPrefix(r.Dst, locus[:], nbits) {
+			routes = append(routes, r)
+		} else {
+			log.Println("no match", r.Dst, locus, nbits)
 		}
+		if len(routes) < limit {
+			return nil
+		}
+		return stopIter
+	}); err != nil && err != stopIter {
+		return nil, err
 	}
-	return c.routeTable.Get(target)
+	localAddr := c.routeTable.LocalAddr()
+	return &RouteList{
+		Src:    localAddr[:],
+		Routes: routes,
+	}, nil
 }
 
 func (c *crawler) run(ctx context.Context) {
@@ -120,28 +128,24 @@ func (c *crawler) run(ctx context.Context) {
 }
 
 func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
-	for _, peerID := range c.oneHopPeers.ListPeers() {
-		if err := c.crawlSingle(ctx, peerID); retErr == nil {
+	c.routeTable.ForEach(func(r *Route) error {
+		dst := idFromBytes(r.Dst)
+		err := c.crawlSingle(ctx, dst)
+		if retErr == nil {
 			retErr = err
 		}
-	}
-	c.routeTable.ForEach(func(r *Route) bool {
-		if r.Timestamp > lastRun {
-			dst := idFromBytes(r.Dst)
-			err := c.crawlSingle(ctx, dst)
-			if retErr == nil {
-				retErr = err
-			}
-		}
-		return true
+		return nil
 	})
 	return retErr
 }
 
 func (c *crawler) crawlSingle(ctx context.Context, dst Addr) error {
+	// TODO: this is a leaky abstraction
+	nbits := c.routeTable.(*routeTable).cache.(*kadRouteTable).MustMatchBits()
+	localAddr := c.routeTable.LocalAddr()
 	return c.sqf(ctx, dst, &QueryRoutes{
-		Locus: c.routeTable.cache.Locus(),
-		Nbits: uint32(c.routeTable.MustMatchBits()),
+		Locus: localAddr[:],
+		Nbits: uint32(nbits),
 		Limit: 10,
 	})
 }
@@ -171,7 +175,7 @@ func (c *crawler) deleteMonitor(x Addr) {
 // responding.
 // when route monitor returns the entry is cleared from the cache
 func (c *crawler) monitorPeer(ctx context.Context, dst Addr) {
-	defer c.routeTable.Delete(dst[:])
+	defer c.routeTable.Delete(dst)
 	ticker := time.NewTicker(crawlerPingTimeout)
 	defer ticker.Stop()
 	for {

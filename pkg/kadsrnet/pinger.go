@@ -48,7 +48,13 @@ func (p *pinger) ping(ctx context.Context, dst Addr, path Path) (time.Duration, 
 	}
 }
 
-func (p *pinger) handlePong(from Addr, pong *Pong) {
+func (p *pinger) onPing(from Addr, ping *Ping) *Pong {
+	return &Pong{
+		Ping: ping,
+	}
+}
+
+func (p *pinger) onPong(from Addr, pong *Pong) {
 	if pong.Ping == nil {
 		return
 	}
