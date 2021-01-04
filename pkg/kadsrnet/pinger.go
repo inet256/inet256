@@ -7,19 +7,17 @@ import (
 	"time"
 )
 
-type sendPingFunc = func(ctx context.Context, dst Addr, path Path, ping *Ping) error
-
 type pingKey struct {
 	dst  Addr
 	uuid [16]byte
 }
 
 type pinger struct {
-	send   sendPingFunc
+	send   sendAlongFunc
 	active sync.Map
 }
 
-func newPinger(spf sendPingFunc) *pinger {
+func newPinger(spf sendAlongFunc) *pinger {
 	return &pinger{send: spf}
 }
 
@@ -36,7 +34,8 @@ func (p *pinger) ping(ctx context.Context, dst Addr, path Path) (time.Duration, 
 		Timestamp: startTime.Unix(),
 		Uuid:      key.uuid[:],
 	}
-	if err := p.send(ctx, dst, path, ping); err != nil {
+	body := &Body{Body: &Body_Ping{Ping: ping}}
+	if err := p.send(ctx, dst, path, body); err != nil {
 		return -1, err
 	}
 	select {
@@ -65,6 +64,9 @@ func (p *pinger) onPong(from Addr, pong *Pong) {
 		uuid: uuid,
 	}
 	ch := p.get(key)
+	if ch == nil {
+		return
+	}
 	ch <- pong
 	close(ch)
 }

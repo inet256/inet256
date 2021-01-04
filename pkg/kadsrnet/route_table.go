@@ -232,6 +232,9 @@ func (rt *kadRouteTable) IsFull() bool {
 func (rt *kadRouteTable) WouldAdd(r *Route) bool {
 	rt.mu.RLock()
 	rt.mu.RUnlock()
+	if current := rt.get(r.Dst); current != nil {
+		return BestRoute(current, r) == r
+	}
 	return rt.cache.WouldAdd(r.Dst)
 }
 
@@ -288,7 +291,7 @@ func ConcatRoutes(left, right *Route) *Route {
 
 func BestRoute(a, b *Route) *Route {
 	switch {
-	case !bytes.Equal(a.Dst, b.Dst):
+	case a != nil && b != nil && !bytes.Equal(a.Dst, b.Dst):
 		panic("incomparable routes")
 	case a == nil:
 		return b

@@ -44,7 +44,6 @@ func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) erro
 	var confirmedRoutes []*Route
 	eg := errgroup.Group{}
 	for _, r := range routes {
-		dst := idFromBytes(r.Dst)
 		baseRoute := c.routeTable.Get(from)
 		// if we don't have a route to the peer that sent it, ignore
 		if baseRoute == nil {
@@ -54,17 +53,22 @@ func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) erro
 		if !c.routeTable.WouldAdd(r2) {
 			continue
 		}
+		if len(r2.Path) > MaxPathLen {
+			continue
+		}
 		eg.Go(func() error {
 			// ensure we have their info
-			_, err := c.infoSrv.lookup(ctx, r2.Dst, len(r2.Dst)*8, &from)
+			_, err := c.infoSrv.get(ctx, idFromBytes(r2.Dst), r2.Path)
 			if err != nil {
 				return err
 			}
 			// ensure the route works
-			_, err = c.pinger.ping(ctx, dst, r2.Path)
+			_, err = c.pinger.ping(ctx, idFromBytes(r2.Dst), r2.Path)
 			if err != nil {
+				log.Println("ping error", err)
 				return err
 			}
+			log.Println("confirmed ping")
 			mu.Lock()
 			confirmedRoutes = append(confirmedRoutes, r2)
 			mu.Unlock()
@@ -76,6 +80,7 @@ func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) erro
 			return err
 		}
 	}
+	log.Printf("found %d routes from %v", len(confirmedRoutes), from)
 	for _, r := range confirmedRoutes {
 		if c.routeTable.Add(r) {
 			dst := idFromBytes(r.Dst)

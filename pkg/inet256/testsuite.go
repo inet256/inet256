@@ -56,6 +56,8 @@ func TestSuite(t *testing.T, nf NetworkFactory) {
 			Swarm:      peerSwarms[i],
 			Logger:     logger,
 		})
+	}
+	for i := 0; i < N; i++ {
 		if n, ok := nets[i].(WaitInit); ok {
 			require.NoError(t, n.WaitInit(ctx))
 		}
