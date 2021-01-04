@@ -45,12 +45,8 @@ github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kB
 github.com/bkaradzic/go-lz4 v0.0.0-20160924222819-7224d8d8f27e h1:2augTYh6E+XoNrrivZJBadpThP/dsvYKj0nzqfQ8tM4=
 github.com/bkaradzic/go-lz4 v0.0.0-20160924222819-7224d8d8f27e/go.mod h1:0YdlkowM3VswSROI7qDxhRvJ3sLhlFrRRwjwegp5jy4=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
-github.com/brendoncarroll/go-p2p v0.0.0-20201213023527-88bd08906abc h1:QyNGpNqI6S/ulJMSYF+IKEomJAxPyLiDpO1sBR3e1zg=
-github.com/brendoncarroll/go-p2p v0.0.0-20201213023527-88bd08906abc/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
-github.com/brendoncarroll/go-p2p v0.0.0-20201213152428-23a795ca0955 h1:KsZkOTbGusq4q+RCrbR0JDqzCIJnEPGUV2HINEakIs0=
-github.com/brendoncarroll/go-p2p v0.0.0-20201213152428-23a795ca0955/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
-github.com/brendoncarroll/go-p2p v0.0.0-20201229045541-915a55fc4c6d h1:JczziQj/utJFt4hyuJFzCQtFfQqSocz7QoPTrp3zLEA=
-github.com/brendoncarroll/go-p2p v0.0.0-20201229045541-915a55fc4c6d/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
+github.com/brendoncarroll/go-p2p v0.0.0-20210103200152-344b152e6ee0 h1:2Gq2zjUrrS6FQa9YyELw1WpJ+MIDK0mu+9UvjmPZ7Ro=
+github.com/brendoncarroll/go-p2p v0.0.0-20210103200152-344b152e6ee0/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
 github.com/calmh/xdr v1.1.0/go.mod h1:E8sz2ByAdXC8MbANf1LCRYzedSnnc+/sXXJs/PVqoeg=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
@@ -415,6 +411,8 @@ github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPx
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
 github.com/sirupsen/logrus v1.6.0 h1:UBcNElsrwanuuMsnGSlYmtmgbb23qDR5dG+6X6Oo89I=
 github.com/sirupsen/logrus v1.6.0/go.mod h1:7uNnSEd1DgxDLC74fIahvMZmmYsHGZGEOFrfsX/uA88=
+github.com/sirupsen/logrus v1.7.0 h1:ShrD1U9pZB12TX0cVy0DtePoCH97K8EtX+mg7ZARUtM=
+github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/goconvey v1.6.4/go.mod h1:syvi0/a8iFYH4r/RixwvyeAJjdLS9QV7WQ/tjFTllLA=
 github.com/soheilhy/cmux v0.1.4/go.mod h1:IM3LyeVVIOuxMH7sFAkER9+bJ4dT7Ms6E4xg4kGIyLM=

@@ -7,10 +7,10 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/d/celltracker"
-	"github.com/brendoncarroll/go-p2p/s/natswarm"
 	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
+	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -77,7 +77,7 @@ func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
 			return nil, err
 		}
 		if tspec.NATUPnP {
-			sw = natswarm.WrapSwarm(sw)
+			sw = upnpswarm.WrapSwarm(sw)
 		}
 		secSw, ok := sw.(p2p.SecureSwarm)
 		if !ok {
