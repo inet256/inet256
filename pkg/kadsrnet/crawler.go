@@ -2,10 +2,10 @@ package kadsrnet
 
 import (
 	"context"
-	"log"
 	sync "sync"
 	"time"
 
+	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -38,6 +38,28 @@ func newCrawler(rt RouteTable, pinger *pinger, infoSrv *infoService, sqf sendQue
 }
 
 func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) error {
+	confirmedRoutes, err := c.confirmRoutes(ctx, from, routes)
+	if err != nil {
+		return err
+	}
+	var todoPeers []p2p.PeerID
+	for _, r := range confirmedRoutes {
+		if c.routeTable.Add(r) {
+			dst := idFromBytes(r.Dst)
+			todoPeers = append(todoPeers, dst)
+		}
+	}
+	for _, peer := range todoPeers {
+		if err := c.crawlSingle(ctx, peer); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// confirmRoutes first ensures we have the peer info for the peer, and then sends
+// a ping along the route to confirm that is working
+func (c *crawler) confirmRoutes(ctx context.Context, from Addr, routes []*Route) ([]*Route, error) {
 	ctx, cf := context.WithTimeout(ctx, crawlerPingTimeout)
 	defer cf()
 	mu := sync.Mutex{}
@@ -58,17 +80,15 @@ func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) erro
 		}
 		eg.Go(func() error {
 			// ensure we have their info
-			_, err := c.infoSrv.get(ctx, idFromBytes(r2.Dst), r2.Path)
+			_, err := c.infoSrv.get(ctx, idFromBytes(r2.Dst), r2)
 			if err != nil {
 				return err
 			}
 			// ensure the route works
 			_, err = c.pinger.ping(ctx, idFromBytes(r2.Dst), r2.Path)
 			if err != nil {
-				log.Println("ping error", err)
 				return err
 			}
-			log.Println("confirmed ping")
 			mu.Lock()
 			confirmedRoutes = append(confirmedRoutes, r2)
 			mu.Unlock()
@@ -77,29 +97,18 @@ func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) erro
 	}
 	if err := eg.Wait(); err != nil {
 		if err != context.Canceled {
-			return err
+			return nil, err
 		}
 	}
-	log.Printf("found %d routes from %v", len(confirmedRoutes), from)
-	for _, r := range confirmedRoutes {
-		if c.routeTable.Add(r) {
-			dst := idFromBytes(r.Dst)
-			if err := c.crawlSingle(ctx, dst); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return confirmedRoutes, nil
 }
 
 func (c *crawler) onQueryRoutes(locus []byte, nbits int, limit int) (*RouteList, error) {
 	var stopIter = errors.New("stop iteration")
 	var routes []*Route
 	if err := c.routeTable.ForEach(func(r *Route) error {
-		if kademlia.HasPrefix(r.Dst, locus[:], nbits) {
+		if kademlia.HasPrefix(r.Dst, locus, nbits) {
 			routes = append(routes, r)
-		} else {
-			log.Println("no match", r.Dst, locus, nbits)
 		}
 		if len(routes) < limit {
 			return nil
@@ -133,14 +142,18 @@ func (c *crawler) run(ctx context.Context) {
 }
 
 func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
+	var routes []*Route
 	c.routeTable.ForEach(func(r *Route) error {
+		routes = append(routes, r)
+		return nil
+	})
+	for _, r := range routes {
 		dst := idFromBytes(r.Dst)
 		err := c.crawlSingle(ctx, dst)
 		if retErr == nil {
 			retErr = err
 		}
-		return nil
-	})
+	}
 	return retErr
 }
 

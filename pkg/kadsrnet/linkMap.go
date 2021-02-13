@@ -1,6 +1,7 @@
 package kadsrnet
 
 import (
+	"hash/fnv"
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -8,7 +9,6 @@ import (
 
 type linkMap struct {
 	mu     sync.RWMutex
-	n      uint32
 	id2Int map[p2p.PeerID]uint32
 	int2ID map[uint32]p2p.PeerID
 }
@@ -23,14 +23,25 @@ func newLinkMap() *linkMap {
 func (lm *linkMap) ID2Int(id p2p.PeerID) uint32 {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	i, exists := lm.id2Int[id]
-	if !exists {
-		lm.n++
-		i = lm.n
-		lm.id2Int[id] = i
-		lm.int2ID[i] = id
+	if n, exists := lm.id2Int[id]; exists {
+		return n
 	}
-	return i
+	h := fnv.New32()
+	h.Write(id[:])
+	n := h.Sum32()
+	for {
+		if n == 0 {
+			n++
+			continue
+		}
+		_, exists := lm.int2ID[n]
+		if !exists {
+			lm.int2ID[n] = id
+			lm.id2Int[id] = n
+			return n
+		}
+		n++
+	}
 }
 
 func (lm *linkMap) Int2ID(i uint32) p2p.PeerID {

@@ -6,6 +6,7 @@ message Message {
     bytes src = 1;
     bytes dst = 2;
     repeated uint32 path = 3;
+    uint32 path_match = 8;
     repeated uint32 return_path = 4;
 
     bytes body = 5;

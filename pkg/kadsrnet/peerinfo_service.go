@@ -7,7 +7,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 )
 
-type sendAlongFunc = func(ctx context.Context, dst Addr, p Path, body *Body) error
+type sendAlongFunc = func(ctx context.Context, dst Addr, r *Route, body *Body) error
 
 type infoService struct {
 	store      *PeerInfoStore
@@ -24,7 +24,7 @@ func newInfoService(store *PeerInfoStore, rt RouteTable, send sendAlongFunc) *in
 	}
 }
 
-func (s *infoService) get(ctx context.Context, target Addr, path Path) (*PeerInfo, error) {
+func (s *infoService) get(ctx context.Context, target Addr, r *Route) (*PeerInfo, error) {
 	if pinfo := s.store.Get(target); pinfo != nil {
 		return pinfo, nil
 	}
@@ -34,7 +34,7 @@ func (s *infoService) get(ctx context.Context, target Addr, path Path) (*PeerInf
 	defer s.deleteFut(target)
 
 	// send req
-	if err := s.sendRequest(ctx, target, path); err != nil {
+	if err := s.sendRequest(ctx, target, r); err != nil {
 		return nil, err
 	}
 	return fut.get(ctx)
@@ -61,13 +61,13 @@ func (s *infoService) onPeerInfo(info *PeerInfo) error {
 	return nil
 }
 
-func (s *infoService) sendRequest(ctx context.Context, target Addr, path Path) error {
-	if err := s.send(ctx, target, path, &Body{
+func (s *infoService) sendRequest(ctx context.Context, target Addr, r *Route) error {
+	if err := s.send(ctx, target, r, &Body{
 		Body: &Body_PeerInfo{PeerInfo: s.selfPeerInfo()},
 	}); err != nil {
 		return err
 	}
-	return s.send(ctx, target, path, &Body{
+	return s.send(ctx, target, r, &Body{
 		Body: &Body_PeerInfoReq{&PeerInfoReq{}},
 	})
 }

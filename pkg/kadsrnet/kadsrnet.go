@@ -3,6 +3,7 @@ package kadsrnet
 import (
 	"bytes"
 	"context"
+	"log"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -94,7 +95,7 @@ func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr,
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
-	for _, lookupFunc := range []func(ctx context.Context, target Addr) (p2p.PublicKey, error){
+	lookupFuncs := []func(ctx context.Context, target Addr) (p2p.PublicKey, error){
 		func(ctx context.Context, target Addr) (p2p.PublicKey, error) {
 			return n.swarm.LookupPublicKey(ctx, target)
 		},
@@ -105,7 +106,8 @@ func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicK
 			}
 			return p2p.ParsePublicKey(peerInfo.PublicKey)
 		},
-	} {
+	}
+	for _, lookupFunc := range lookupFuncs {
 		pubKey, err := lookupFunc(ctx, target)
 		if err != nil {
 			if err == inet256.ErrPublicKeyNotFound {
@@ -132,7 +134,25 @@ func (n *Network) Close() error {
 }
 
 func (n *Network) WaitInit(ctx context.Context) error {
-	return n.crawler.crawlAll(ctx, 0)
+	if err := n.crawler.crawlAll(ctx, 0); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Network) Routes() (ret []*Route) {
+	n.routeTable.ForEach(func(r *Route) error {
+		ret = append(ret, r)
+		return nil
+	})
+	return ret
+}
+
+func (n *Network) DumpRoutes() {
+	log.Println("ROUTES", n.localAddr)
+	for i, r := range n.Routes() {
+		log.Println(i, idFromBytes(r.Dst), r.Path)
+	}
 }
 
 func (n *Network) fromBelow(msg *p2p.Message, deliver inet256.RecvFunc) {
@@ -145,7 +165,7 @@ func (n *Network) fromBelow(msg *p2p.Message, deliver inet256.RecvFunc) {
 	}
 	up, err := n.handleMessage(ctx, msg.Src.(Addr), kmsg)
 	if err != nil {
-		n.log.Error("while handling message: ", err)
+		n.log.Warn("while handling message: ", err)
 		return
 	}
 	if up != nil {
@@ -160,15 +180,15 @@ func (n *Network) sendResponseBody(ctx context.Context, dst, next Addr, retPath 
 	}
 	// reverse path
 	p := make(Path, len(retPath))
-	l := len(p)
-	for i := 0; i < l/2; i++ {
-		p[i], p[l-1-i] = retPath[l-1-i], retPath[i]
+	for i := range retPath {
+		p[i] = retPath[len(retPath)-1-i]
 	}
 	msg := &Message{
-		Src:  n.localAddr[:],
-		Dst:  dst[:],
-		Body: bodyBytes,
-		Path: p,
+		Src:       n.localAddr[:],
+		Dst:       dst[:],
+		Body:      bodyBytes,
+		Path:      p,
+		PathMatch: uint32(len(dst) * 8), // will always be exact match
 	}
 	return n.sendMessage(ctx, next, msg)
 }
@@ -184,14 +204,16 @@ func (n *Network) sendBodyTo(ctx context.Context, dst Addr, body *Body) error {
 	if route == nil {
 		return inet256.ErrAddrUnreachable
 	}
-	return n.sendBodyAlong(ctx, dst, route.Path, body)
+	return n.sendBodyAlong(ctx, dst, route, body)
 }
 
-func (n *Network) sendBodyAlong(ctx context.Context, dst Addr, path Path, body *Body) error {
+func (n *Network) sendBodyAlong(ctx context.Context, dst Addr, r *Route, body *Body) error {
 	bodyBytes, err := proto.Marshal(body)
 	if err != nil {
 		panic(err)
 	}
+	path := r.Path
+	mb := matchingBits(dst[:], r.Dst)
 	nextPeer := n.linkMap.Int2ID(path[0])
 	if nextPeer.Equals(p2p.ZeroPeerID()) {
 		// maybe panic here, it means we put a bad link into the route table
@@ -201,7 +223,8 @@ func (n *Network) sendBodyAlong(ctx context.Context, dst Addr, path Path, body *
 		Src: n.localAddr[:],
 		Dst: dst[:],
 
-		Path: path[1:],
+		Path:      path[1:],
+		PathMatch: uint32(mb),
 
 		Body: bodyBytes,
 	}
@@ -232,35 +255,22 @@ func (n *Network) handleMessage(ctx context.Context, from Addr, msg *Message) ([
 		if err := proto.Unmarshal(msg.Body, body); err != nil {
 			return err
 		}
-		// if the message is from the peer in the peerInfo, use the public key they provided
-		var publicKey p2p.PublicKey
-		if peerInfo := body.GetPeerInfo(); peerInfo != nil {
-			pk, err := p2p.ParsePublicKey(peerInfo.PublicKey)
-			if err != nil {
+		publicKey := n.getPublicKey(ctx, msg, body)
+		var verified bool
+		if publicKey != nil {
+			if err := VerifyMessage(publicKey, now, msg); err != nil {
 				return err
 			}
-			peerID := p2p.NewPeerID(pk)
-			if bytes.Equal(peerID[:], msg.Src) {
-				publicKey = pk
-			}
-		}
-		// if the publicKey is not already set (from the message)
-		// then try to look it up.
-		if publicKey == nil {
-			pk, err := n.LookupPublicKey(ctx, idFromBytes(msg.Src))
-			if err != nil {
-				return err
-			}
-			publicKey = pk
-		}
-		if err := VerifyMessage(publicKey, now, msg); err != nil {
-			return err
+			verified = true
 		}
 		// if not addressed to us, forward.
-		if !bytes.HasPrefix(msg.Dst[:], n.localAddr[:]) {
+		if !bytes.HasPrefix(n.localAddr[:], msg.Dst) {
 			return n.forward(ctx, from, msg)
 		}
 		// if addresssed to us, interpret
+		if !verified {
+			return errors.Errorf("not interpretting invalid message")
+		}
 		up2, res, err := n.handleBody(ctx, idFromBytes(msg.Src), body)
 		if err != nil {
 			return err
@@ -278,16 +288,43 @@ func (n *Network) handleMessage(ctx context.Context, from Addr, msg *Message) ([
 	return up, nil
 }
 
+// getPublicKey tries to extract a public key from the message or retrive one locally
+func (n *Network) getPublicKey(ctx context.Context, msg *Message, body *Body) p2p.PublicKey {
+	// if the message is from the peer in the peerInfo, use the public key they provided
+	var publicKey p2p.PublicKey
+	if peerInfo := body.GetPeerInfo(); peerInfo != nil {
+		pk, err := p2p.ParsePublicKey(peerInfo.PublicKey)
+		if err != nil {
+			return err
+		}
+		peerID := p2p.NewPeerID(pk)
+		if bytes.Equal(peerID[:], msg.Src) {
+			publicKey = pk
+		}
+	}
+
+	// if the publicKey is not already set (from the message)
+	// then try to look it up.
+	if publicKey == nil {
+		pk, err := n.LookupPublicKey(ctx, idFromBytes(msg.Src))
+		if err != nil && err != p2p.ErrPublicKeyNotFound {
+			return err
+		}
+		publicKey = pk
+	}
+	return publicKey
+}
+
 func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) (up []byte, res *Body, err error) {
-	log := n.log.WithFields(logrus.Fields{"src": src, "dst": n.localAddr})
+	//log := n.log.WithFields(logrus.Fields{"src": src, "dst": n.localAddr})
 	switch body := body.GetBody().(type) {
 	case *Body_Data:
-		log.Debugf("recv data len=%d", len(body.Data))
+		//log.Debugf("recv data len=%d", len(body.Data))
 		return body.Data, nil, nil
 
 	// Routes
 	case *Body_QueryRoutes:
-		log.Debugf("recv QueryRoutes: limit=%d", body.QueryRoutes.Limit)
+		// log.Debugf("recv QueryRoutes: limit=%d", body.QueryRoutes.Limit)
 		routeList, err := n.crawler.onQueryRoutes(body.QueryRoutes.Locus, int(body.QueryRoutes.Nbits), int(body.QueryRoutes.Limit))
 		if err != nil {
 			return nil, nil, err
@@ -297,13 +334,13 @@ func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) (up []by
 		}
 		return nil, res, nil
 	case *Body_RouteList:
-		log.Debugf("recv RouteList: len=%d", len(body.RouteList.Routes))
+		// log.Debugf("recv RouteList: len=%d", len(body.RouteList.Routes))
 		err := n.crawler.onRoutes(ctx, src, body.RouteList.Routes)
 		return nil, nil, err
 
 	// PeerInfo
 	case *Body_PeerInfoReq:
-		log.Debugf("recv PeerInfoReq")
+		// log.Debugf("recv PeerInfoReq")
 		peerInfo := n.infoSrv.onPeerInfoReq(body.PeerInfoReq)
 		if peerInfo == nil {
 			return nil, nil, nil
@@ -313,19 +350,19 @@ func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) (up []by
 		}
 		return nil, res, nil
 	case *Body_PeerInfo:
-		log.Debug("recv PeerInfo")
+		//log.Debug("recv PeerInfo")
 		return nil, nil, n.infoSrv.onPeerInfo(body.PeerInfo)
 
 	// Ping
 	case *Body_Ping:
-		log.Debug("recv Ping")
+		// log.Debug("recv Ping")
 		pong := n.pinger.onPing(src, body.Ping)
 		res := &Body{
 			Body: &Body_Pong{Pong: pong},
 		}
 		return nil, res, nil
 	case *Body_Pong:
-		log.Debug("recv Pong")
+		// log.Debug("recv Pong")
 		n.pinger.onPong(src, body.Pong)
 		return nil, nil, nil
 
@@ -336,39 +373,51 @@ func (n *Network) handleBody(ctx context.Context, src Addr, body *Body) (up []by
 
 func (n *Network) forward(ctx context.Context, prev Addr, msg *Message) error {
 	if len(msg.Path)+len(msg.ReturnPath) > MaxPathLen {
-		return errors.Errorf("msg paths exceed maximum length")
+		return errors.Errorf("msg paths exceed maximum length %d, %d", len(msg.Path), len(msg.ReturnPath))
 	}
-	// try to find an exact path
 	// ping is used to test paths, so it must be fully specified, and not changed.
 	if !bodyIsPing(msg.Body) {
-		// only replace existing paths with exact matches.
-		var ourRoute *Route
-		if len(msg.Path) == 0 {
-			ourRoute = n.routeTable.RouteTo(idFromBytes(msg.Dst))
-		} else {
-			ourRoute = n.routeTable.Get(idFromBytes(msg.Dst))
-		}
-		if ourRoute != nil {
-			msg.Path = ourRoute.Path
+		if err := n.improveRoute(msg); err != nil {
+			return err
 		}
 	}
-
 	// if we couldn't find a path, drop it.
 	if len(msg.Path) == 0 {
-		return errors.Errorf("could not forward message, no path")
+		return errors.Errorf("could not forward message, no path %v -> %v", idFromBytes(msg.Src), idFromBytes(msg.Dst))
 	}
-	nextIndex := msg.Path[len(msg.Path)-1]
+	nextIndex := msg.Path[0]
 	next := n.linkMap.Int2ID(nextIndex)
 	if next == p2p.ZeroPeerID() {
 		return errors.Errorf("link index is invalid %d", nextIndex)
 	}
-	msg.Path = msg.Path[:len(msg.Path)-1]
+	msg.Path = msg.Path[1:]
+
 	msg.ReturnPath = append(msg.ReturnPath, n.linkMap.ID2Int(prev))
 	data, err := proto.Marshal(msg)
 	if err != nil {
 		panic(err)
 	}
+
 	return n.swarm.Tell(ctx, next, data)
+}
+
+func (n *Network) improveRoute(msg *Message) error {
+	ourRoute := n.routeTable.RouteTo(idFromBytes(msg.Dst))
+	if ourRoute == nil {
+		return nil
+	}
+	mb := matchingBits(msg.Dst, ourRoute.Dst)
+	if mb <= int(msg.PathMatch) {
+		return nil
+	}
+
+	// if we are the closest then error
+	if bytes.Equal(ourRoute.Dst, n.localAddr[:]) {
+		return errors.Errorf("dropping message, we are closest")
+	}
+	msg.Path = append(Path{}, ourRoute.Path...)
+	msg.PathMatch = uint32(mb)
+	return nil
 }
 
 func (n *Network) sendQueryRoutes(ctx context.Context, dst Addr, query *QueryRoutes) error {
@@ -382,20 +431,19 @@ func (n *Network) sendQueryRoutes(ctx context.Context, dst Addr, query *QueryRou
 	})
 }
 
-func (n *Network) sendSelfPeerInfo(ctx context.Context, dst Addr, path Path) error {
-	if path == nil {
-		r := n.routeTable.RouteTo(dst)
+func (n *Network) sendSelfPeerInfo(ctx context.Context, dst Addr, r *Route) error {
+	if r == nil {
+		r = n.routeTable.RouteTo(dst)
 		if r == nil {
 			return errors.Errorf("no route to path")
 		}
-		path = r.Path
 	}
 	body := &Body{
 		Body: &Body_PeerInfo{
 			PeerInfo: n.peerInfos.Get(n.localAddr),
 		},
 	}
-	return n.sendBodyAlong(ctx, dst, path, body)
+	return n.sendBodyAlong(ctx, dst, r, body)
 }
 
 func (n *Network) runLoop(ctx context.Context) {

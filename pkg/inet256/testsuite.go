@@ -13,12 +13,62 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestSuite(t *testing.T, nf NetworkFactory) {
-	ctx, cf := context.WithTimeout(context.Background(), time.Second)
+	t.Run("Test2Nodes", func(t *testing.T) {
+		const N = 2
+		adjList := p2ptest.Chain(N)
+		nets := setupNetworks(t, N, adjList, nf)
+		for _, i := range rand.Perm(len(nets)) {
+			for j := range rand.Perm(len(nets)) {
+				if i != j {
+					TestSendRecv(t, nets[i], nets[j])
+				}
+			}
+		}
+	})
+	t.Run("Test10Nodes", func(t *testing.T) {
+		const N = 10
+		adjList := p2ptest.Ring(N)
+		nets := setupNetworks(t, N, adjList, nf)
+		for _, i := range rand.Perm(len(nets)) {
+			eg := errgroup.Group{}
+			for j := range rand.Perm(len(nets)) {
+				j := j
+				if i == j {
+					continue
+				}
+				eg.Go(func() error {
+					TestSendRecv(t, nets[i], nets[j])
+					return nil
+				})
+			}
+			require.NoError(t, eg.Wait())
+		}
+	})
+}
+
+func TestSendRecv(t testing.TB, from, to Network) {
+	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
-	const N = 10
+	actualData := "test data"
+	ch := make(chan struct{}, 1)
+	to.OnRecv(func(src, dst Addr, data []byte) {
+		require.Equal(t, string(data), actualData)
+		ch <- struct{}{}
+	})
+	err := from.Tell(ctx, to.LocalAddr(), []byte(actualData))
+	require.NoError(t, err)
+	select {
+	case <-ctx.Done():
+		require.NoError(t, ctx.Err())
+	case <-ch:
+	}
+}
+
+func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	r := memswarm.NewRealm()
 
 	swarms := make([]p2p.SecureSwarm, N)
@@ -26,18 +76,18 @@ func TestSuite(t *testing.T, nf NetworkFactory) {
 	peerStores := make([]MutablePeerStore, N)
 	keys := make([]p2p.PrivateKey, N)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < N; i++ {
 		k := p2ptest.NewTestKey(t, i)
 		keys[i] = k
 		swarms[i] = r.NewSwarmWithKey(k)
 		peerStores[i] = NewPeerStore()
 		peerSwarms[i] = peerswarm.NewSwarm(swarms[i], newAddrSource(swarms[i], peerStores[i]))
 	}
-	adjList := p2ptest.Chain(p2ptest.CastSlice(swarms))
+
 	for i := 0; i < N; i++ {
-		for _, addr := range adjList[i] {
-			j := addr.(memswarm.Addr).N
+		for _, j := range adjList[i] {
 			peerID := p2p.NewPeerID(swarms[j].PublicKey())
+			addr := swarms[j].LocalAddrs()[0]
 			peerStores[i].AddPeer(peerID)
 			peerStores[i].PutAddrs(peerID, []string{addr.Key()})
 		}
@@ -57,44 +107,25 @@ func TestSuite(t *testing.T, nf NetworkFactory) {
 			Logger:     logger,
 		})
 	}
+
+	// call WaitInit
+	ctx, cf := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cf()
 	for i := 0; i < N; i++ {
 		if n, ok := nets[i].(WaitInit); ok {
 			require.NoError(t, n.WaitInit(ctx))
 		}
 		select {
 		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+			require.NoError(t, ctx.Err(), "timeout waiting for init")
 		default:
 		}
 	}
-	defer func() {
+	t.Log("successfull initialized", N, "networks")
+	t.Cleanup(func() {
 		for _, n := range nets {
 			require.NoError(t, n.Close())
 		}
-	}()
-	time.Sleep(time.Second)
-	for _, i := range rand.Perm(N) {
-		for j := range rand.Perm(N) {
-			if i != j {
-				TestSendRecv(t, nets[i], nets[j])
-			}
-		}
-	}
-}
-
-func TestSendRecv(t testing.TB, from, to Network) {
-	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cf()
-	actualData := "test data"
-	ch := make(chan struct{}, 1)
-	to.OnRecv(func(src, dst Addr, data []byte) {
-		require.Equal(t, string(data), actualData)
 	})
-	err := from.Tell(ctx, to.LocalAddr(), []byte(actualData))
-	require.NoError(t, err)
-	select {
-	case <-ctx.Done():
-		require.NoError(t, ctx.Err())
-	case <-ch:
-	}
+	return nets
 }

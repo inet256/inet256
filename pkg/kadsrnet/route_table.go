@@ -256,10 +256,8 @@ func (rt *kadRouteTable) ForEach(fn func(*Route) error) (retErr error) {
 	defer rt.mu.RUnlock()
 	rt.cache.ForEach(func(e kademlia.Entry) bool {
 		r := e.Value.(*Route)
-		if retErr = fn(r); retErr != nil {
-			return false
-		}
-		return true
+		retErr = fn(r)
+		return retErr == nil
 	})
 	return retErr
 }
@@ -322,4 +320,9 @@ func dist32(a, b []byte) [32]byte {
 	d := [32]byte{}
 	kademlia.XORBytes(d[:], a, b)
 	return d
+}
+
+func matchingBits(a, b []byte) int {
+	d := dist32(a, b)
+	return kademlia.Leading0s(d[:])
 }

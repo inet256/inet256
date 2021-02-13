@@ -35,7 +35,8 @@ func (p *pinger) ping(ctx context.Context, dst Addr, path Path) (time.Duration, 
 		Uuid:      key.uuid[:],
 	}
 	body := &Body{Body: &Body_Ping{Ping: ping}}
-	if err := p.send(ctx, dst, path, body); err != nil {
+	r := &Route{Dst: dst[:], Path: path}
+	if err := p.send(ctx, dst, r, body); err != nil {
 		return -1, err
 	}
 	select {
