@@ -27,12 +27,7 @@ We may benefit from some sort of standardization.
 Hopefully by exploring the design space, and tradeoffs between parameters herein, developers of new projects can be guided to the same point in the space, rather than all ending up a stone’s throw from one another.
 
 Most standards are doomed to fail, but this is usually due to there not actually being one simplest way to do something.
-One group wants to include functionality for their own use case and exclude other functionality for “simplicity”.
-And so there are competing standards with a lot of overlap, but with no simple mapping between them.
-Neither standard is a superset of the other.
-A standard with a superset of the functionality of both would be more complicated than both, and therefore less likely to be adopted.
-
-*But this time it’s different*
+When there are only a handful of ways to do something, and no party is losing functionality by not doing it their way, it is easy to standardize.
 
 ## Design
 In this case there are really only 2 parameters in the design space.
@@ -91,11 +86,6 @@ This particular method of allocating addresses, and determining what key is at a
 
 ## What does this get us?
 
-### Network Bridges
-If an address means the same thing to everyone, someone could bridge a network like CJDNS with Tor.
-Right now Tor uses the SHA3 of ed25519 public keys, and CJDNS uses the SHA512 of RSA public keys.
-If they both used INET256 addresses then nodes in one could contact nodes in another.
-
 ### Single Target For Applications
 Single target for application developers.
 People can start hosting services and connecting to one another based on stable identifiers, while projects like Yggdrasil and CJDNS innovate beneath them.
@@ -114,20 +104,12 @@ They use a compression scheme to remove similar leading bits, and the internal n
 Every network should be able to leverage this scheme.
 This mapping enables IPv6 applications to communicate with the network.
 
-### Next Steps
+## Next Steps
 The way to gain adoption is not to go around trying to change existing networks.
 Developers are not interested in changing their software just to adhere to a standard without proven value.
 The way towards adoption is to develop applications that expect INET256 beneath them, or that create INET256 networks internally.
-Still, network developers want users, and if INET256 helps them get users they may be interested.
 
 The goal is to create a growing ecosystem of networked applications sharing the same address space.
 Eventually the functionality in that ecosystem will become hard to ignore; tooling, routing algorithms, and other investment will manifest.
-Right now it’s bring your own network, and run it in-process, but eventually INET256 could become something you expect to have as a primitive.
 
-Take a look at [blobcache](https://github.com/brendoncarroll/blobcache).  It creates an overlay network similar to CJDNS as part of running the application.
-It uses INET256 addresses in its overlay network.
-It also uses a different hash function (BLAKE3) for most of the application, that’s fine, and proof that this standard is minimally invasive.
-
-The library [go-p2p](https://github.com/brendoncarroll/go-p2p) enables the creation of inet256 networks.
-The `PeerID` type is equivalent to an INET256 address.
-Functions are included for marshaling and parsing public keys, and constructing PeerIDs.  Consider using these types in a p2p application, and you will have joined the INET256 ecosystem.
+Take a look at [Awesome INET256 Projects](https://github.com/inet256/awesome) to see what others are building.
