@@ -113,8 +113,8 @@ func (n *Node) NewVirtual(privateKey p2p.PrivateKey) *Node {
 	addrs = append(addrs, string(data))
 
 	peerStore := NewPeerStore()
-	peerStore.AddPeer(n.LocalAddr())
-	peerStore.PutAddrs(n.LocalAddr(), addrs)
+	peerStore.Add(n.LocalAddr())
+	peerStore.SetAddrs(n.LocalAddr(), addrs)
 
 	return NewNode(Params{
 		PrivateKey: privateKey,

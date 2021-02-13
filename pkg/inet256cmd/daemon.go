@@ -119,13 +119,13 @@ func (d *daemon) runDiscoveryServices(ctx context.Context, localID p2p.PeerID, d
 		disc := ds[i]
 		p := ps[i]
 		eg.Go(func() error {
-			return d.runDiscoveryService(ctx, localID, disc, localAddrs, p.(inet256.MutablePeerStore))
+			return d.runDiscoveryService(ctx, localID, disc, localAddrs, p)
 		})
 	}
 	return eg.Wait()
 }
 
-func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds p2p.DiscoveryService, localAddrs func() []string, ps inet256.MutablePeerStore) error {
+func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds p2p.DiscoveryService, localAddrs func() []string, ps inet256.PeerStore) error {
 	eg := errgroup.Group{}
 	// announce loop
 	eg.Go(func() error {
@@ -156,7 +156,7 @@ func (d *daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds
 					logrus.Error("find errored: ", err)
 					continue
 				}
-				ps.PutAddrs(id, addrs)
+				ps.SetAddrs(id, addrs)
 			}
 			select {
 			case <-ctx.Done():

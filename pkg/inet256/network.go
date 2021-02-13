@@ -20,19 +20,6 @@ type RecvFunc func(src, dst Addr, data []byte)
 // NoOpRecvFunc does nothing
 func NoOpRecvFunc(src, dst Addr, data []byte) {}
 
-// PeerSet stores information about peers
-type PeerSet interface {
-	ListPeers() []p2p.PeerID
-	Contains(id p2p.PeerID) bool
-}
-
-// PeerStore stores information about peers
-type PeerStore interface {
-	ListPeers() []p2p.PeerID
-	ListAddrs(p2p.PeerID) []string
-	Contains(p2p.PeerID) bool
-}
-
 // Network is a network for sending messages between peers
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error

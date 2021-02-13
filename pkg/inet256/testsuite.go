@@ -73,7 +73,7 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 
 	swarms := make([]p2p.SecureSwarm, N)
 	peerSwarms := make([]peerswarm.Swarm, N)
-	peerStores := make([]MutablePeerStore, N)
+	peerStores := make([]PeerStore, N)
 	keys := make([]p2p.PrivateKey, N)
 
 	for i := 0; i < N; i++ {
@@ -88,8 +88,8 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 		for _, j := range adjList[i] {
 			peerID := p2p.NewPeerID(swarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
-			peerStores[i].AddPeer(peerID)
-			peerStores[i].PutAddrs(peerID, []string{addr.Key()})
+			peerStores[i].Add(peerID)
+			peerStores[i].SetAddrs(peerID, []string{addr.Key()})
 		}
 	}
 	nets := make([]Network, N)
@@ -121,7 +121,7 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 		default:
 		}
 	}
-	t.Log("successfull initialized", N, "networks")
+	t.Log("successfully initialized", N, "networks")
 	t.Cleanup(func() {
 		for _, n := range nets {
 			require.NoError(t, n.Close())

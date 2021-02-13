@@ -8,10 +8,20 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type MutablePeerStore interface {
-	PeerStore
-	AddPeer(id p2p.PeerID)
-	PutAddrs(id p2p.PeerID, addrs []string)
+// PeerStore stores information about peers
+type PeerStore interface {
+	Add(id p2p.PeerID)
+	Remove(id p2p.PeerID)
+	SetAddrs(id p2p.PeerID, addrs []string)
+	ListAddrs(p2p.PeerID) []string
+
+	PeerSet
+}
+
+// PeerSet represents a set of peers
+type PeerSet interface {
+	ListPeers() []p2p.PeerID
+	Contains(p2p.PeerID) bool
 }
 
 type peerStore struct {
@@ -19,13 +29,13 @@ type peerStore struct {
 	m  map[p2p.PeerID][]string
 }
 
-func NewPeerStore() MutablePeerStore {
+func NewPeerStore() PeerStore {
 	return &peerStore{
 		m: map[p2p.PeerID][]string{},
 	}
 }
 
-func (s *peerStore) AddPeer(id p2p.PeerID) {
+func (s *peerStore) Add(id p2p.PeerID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -34,13 +44,27 @@ func (s *peerStore) AddPeer(id p2p.PeerID) {
 	}
 }
 
+func (s *peerStore) Remove(id p2p.PeerID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.m[id]; !exists {
+		s.m[id] = []string{}
+	}
+}
+
 func (s *peerStore) AddAddr(id p2p.PeerID, addr string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	addrs := s.m[id]
+	for i := range addrs {
+		if addr == addrs[i] {
+			return
+		}
+	}
 	s.m[id] = append(s.m[id], addr)
 }
 
-func (s *peerStore) PutAddrs(id p2p.PeerID, addrs []string) {
+func (s *peerStore) SetAddrs(id p2p.PeerID, addrs []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.m[id] = addrs
@@ -93,6 +117,18 @@ func newAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
 var _ PeerStore = ChainPeerStore{}
 
 type ChainPeerStore []PeerStore
+
+func (ps ChainPeerStore) Add(p2p.PeerID) {
+	panic("cannot Add to ChainPeerStore")
+}
+
+func (ps ChainPeerStore) Remove(p2p.PeerID) {
+	panic("cannot Remove from ChainPeerStore")
+}
+
+func (ps ChainPeerStore) SetAddrs(id p2p.PeerID, addrs []string) {
+	panic("cannot SetAddrs on ChainPeerStore")
+}
 
 func (ps ChainPeerStore) ListPeers() (ids []p2p.PeerID) {
 	m := map[p2p.PeerID]struct{}{}
