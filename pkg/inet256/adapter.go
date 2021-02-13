@@ -100,6 +100,10 @@ func (n *swarmAdapter) LookupPublicKey(ctx context.Context, target Addr) (p2p.Pu
 	return n.peerswarm.LookupPublicKey(ctx, target)
 }
 
+func (n *swarmAdapter) LocalAddr() Addr {
+	return n.peerswarm.LocalAddrs()[0].(Addr)
+}
+
 func (n *swarmAdapter) Close() error {
 	return n.peerswarm.Close()
 }

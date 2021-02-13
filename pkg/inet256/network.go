@@ -37,6 +37,7 @@ type PeerStore interface {
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
 	OnRecv(fn RecvFunc)
+	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 
 	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
@@ -45,12 +46,23 @@ type Network interface {
 	Close() error
 }
 
+// WaitInit has the WaitInit method
+type WaitInit interface {
+	Network
+	// WaitInit block's until the Network has initialized.
+	// After WaitInit has completed, all addresses should be reachable from all other addresses.
+	WaitInit(ctx context.Context) error
+}
+
 // NetworkParams are passed to a NetworkFactory to create a Network.
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
 type NetworkParams struct {
-	Swarm PeerSwarm
-	Peers PeerSet
+	PrivateKey p2p.PrivateKey
+	Swarm      PeerSwarm
+	Peers      PeerSet
+
+	Logger *logrus.Logger
 }
 
 // NetworkFactory is a constructor for a network
@@ -106,6 +118,10 @@ func (mn *multiNetwork) LookupPublicKey(ctx context.Context, target Addr) (p2p.P
 func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
 	ntwk := mn.whichNetwork(ctx, target)
 	return ntwk.MTU(ctx, target)
+}
+
+func (mn *multiNetwork) LocalAddr() Addr {
+	return mn.networks[0].LocalAddr()
 }
 
 func (mn *multiNetwork) Close() (retErr error) {
