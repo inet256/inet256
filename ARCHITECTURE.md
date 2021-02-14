@@ -12,7 +12,7 @@ It is the job the Network to figure out how to route messages to more peers than
 An INET256 Node's stack looks like this, implemented as layered `Swarms`
 
 ```
-				Application Data :-)
+                Application Data :-)
 |-----------------------------------------------|
 |		  	Encryption Layer (NPF)		        |
 |-----------------------------------------------|
@@ -30,9 +30,9 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 | Transports:									|
 |       UDP     |   ETHERNET    |  MEMORY		|
 |-----------------------------------------------|					...
-						NODE 1										NODE 2
-						|											|
-						|___________________________________________|
+                        NODE 1										NODE 2
+                        |											|
+                        |___________________________________________|
 
 
 (NPF) - Noise Protocol Framework
