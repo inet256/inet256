@@ -8,6 +8,8 @@ A unified 256 bit address space for peer-to-peer hosts/applications.
 >
 > All you have to do to recieve messages is generate a private, public key pair and connect to the inet256 daemon
 
+[ARCHITECTURE](./ARCHITECTURE.md)
+
 ## Background
 There are now a few projects/networks which use the hash of a public key, as a mechanism for assigning addresses.
 
