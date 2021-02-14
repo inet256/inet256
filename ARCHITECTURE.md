@@ -14,24 +14,24 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 ```
                 Application Data :-)
 |-----------------------------------------------|
-|		  	Encryption Layer (NPF)		        |
+|              Encryption Layer (NPF)           |
 |-----------------------------------------------|
-| Network Selection								|
+| Network Selection                             |
 |-----------------------------------------------|
-| Routing Algorithms:							|
-|				|				|				|
-|	Kad + SR	|	Network 2	|	Network 3   |
-|				|				|				|
+| Routing Algorithms:                           |
+|                |                |             |
+|    Kad + SR    |    Network 2   |   Network 3 |
+|                |                |             |
 |-----------------------------------------------|
-| 		Multiplexing & Packet Aggregation		|
+|         Multiplexing & Packet Aggregation     |
 |-----------------------------------------------|
-|		  	Encryption Layer (NPF)		        |
+|              Encryption Layer (NPF)           |
 |-----------------------------------------------|
-| Transports:									|
-|       UDP     |   ETHERNET    |  MEMORY		|
-|-----------------------------------------------|					...
-                        NODE 1										NODE 2
-                        |											|
+| Transports:                                   |
+|       UDP     |   ETHERNET    |  MEMORY       |
+|-----------------------------------------------|                   ...
+                        NODE 1                                      NODE 2
+                        |                                           |
                         |___________________________________________|
 
 
