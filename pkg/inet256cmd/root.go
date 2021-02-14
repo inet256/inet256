@@ -19,7 +19,7 @@ func IndexFromString(x string) uint64 {
 	for len(b) < 8 {
 		b = append(b, 0x00)
 	}
-	return binary.LittleEndian.Uint64([]byte(x))
+	return binary.LittleEndian.Uint64(b)
 }
 
 func Register(index uint64, name string, factory inet256.NetworkFactory) {

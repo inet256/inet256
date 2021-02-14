@@ -5,6 +5,9 @@ protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
 	cd ./pkg/kadsrnet && ./build.sh
 
+install:
+	go install ./cmd/inet256	
+
 test:
 	go test --race ./pkg/...
 	go test --race ./client/go_client/...
