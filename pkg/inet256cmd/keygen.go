@@ -19,10 +19,7 @@ var keygenCmd = &cobra.Command{
 	Use:   "keygen",
 	Short: "generates a private key and writes it to stdout",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		privKey, err := generateKey()
-		if err != nil {
-			return err
-		}
+		privKey := generateKey()
 		data, err := inet256.MarshalPrivateKeyPEM(privKey)
 		if err != nil {
 			return err
@@ -54,7 +51,10 @@ var deriveAddrCmd = &cobra.Command{
 	},
 }
 
-func generateKey() (p2p.PrivateKey, error) {
+func generateKey() p2p.PrivateKey {
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	return priv, err
+	if err != nil {
+		panic(err)
+	}
+	return priv
 }

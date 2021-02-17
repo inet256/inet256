@@ -5,6 +5,8 @@ import (
 	"crypto"
 	"crypto/ed25519"
 	"io"
+	mrand "math/rand"
+	sync "sync"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -16,14 +18,20 @@ import (
 var _ INET256Server = &Server{}
 
 type Server struct {
-	n *inet256.Node
+	s *inet256.Server
+
+	mu     sync.RWMutex
+	nodes  map[p2p.PeerID]inet256.Node
+	active map[p2p.PeerID][]INET256_ConnectServer
 
 	UnimplementedINET256Server
 }
 
-func NewServer(n *inet256.Node) *Server {
+func NewServer(s *inet256.Server) *Server {
 	return &Server{
-		n: n,
+		s:      s,
+		nodes:  make(map[p2p.PeerID]inet256.Node),
+		active: make(map[p2p.PeerID][]INET256_ConnectServer),
 	}
 }
 
@@ -61,7 +69,7 @@ func (s *Server) LookupSelf(ctx context.Context, req *LookupSelfReq) (*PeerInfo,
 func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*PeerInfo, error) {
 	target := inet256.Addr{}
 	copy(target[:], req.TargetAddr)
-	pubKey, err := s.n.LookupPublicKey(ctx, target)
+	pubKey, err := s.s.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +81,7 @@ func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*PeerInfo, error) 
 
 func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 	target := inet256.AddrFromBytes(req.Target)
-	mtu := s.n.MTU(ctx, target)
+	mtu := s.s.MTU(ctx, target)
 	return &MTURes{
 		Mtu: int64(mtu),
 	}, nil
@@ -92,23 +100,12 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	n := s.n.NewVirtual(privKey)
-	defer func() {
-		if err := n.Close(); err != nil {
-			logrus.Error(err)
-		}
-	}()
-	n.OnRecv(func(src, dst inet256.Addr, payload []byte) {
-		if err := srv.Send(&ConnectMsg{
-			Datagram: &Datagram{
-				Src:     src[:],
-				Dst:     dst[:],
-				Payload: payload,
-			},
-		}); err != nil {
-			logrus.Error(err)
-		}
-	})
+	id := p2p.NewPeerID(privKey.Public())
+	if err := s.addServer(privKey, id, srv); err != nil {
+		return err
+	}
+	defer s.removeServer(id, srv)
+
 	ctx := srv.Context()
 	for {
 		msg, err := srv.Recv()
@@ -129,13 +126,86 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		} else {
 			copy(dst[:], msg.Datagram.Dst)
 		}
-		if err := n.Tell(ctx, dst, msg.Datagram.Payload); err != nil {
+		if err := s.fromClient(ctx, id, dst, msg.Datagram.Payload); err != nil {
 			return err
 		}
 	}
-	return n.Close()
+	return nil
 }
 
 func (s *Server) findAddr(ctx context.Context, prefix []byte) (inet256.Addr, error) {
-	return s.n.FindAddr(ctx, prefix, len(prefix)*8)
+	return s.s.FindAddr(ctx, prefix, len(prefix)*8)
+}
+
+func (s *Server) toClients(src, dst inet256.Addr, payload []byte) {
+	s.mu.RLock()
+	var srv INET256_ConnectServer
+	srvs := s.active[dst]
+	if len(srvs) > 0 {
+		srv = srvs[mrand.Intn(len(srvs))]
+	}
+	s.mu.RUnlock()
+
+	if srv == nil {
+		logrus.Error("no active clients")
+		return
+	}
+
+	if err := srv.Send(&ConnectMsg{
+		Datagram: &Datagram{
+			Src:     src[:],
+			Dst:     dst[:],
+			Payload: payload,
+		},
+	}); err != nil {
+		logrus.Error(err)
+	}
+}
+
+func (s *Server) fromClient(ctx context.Context, src, dst inet256.Addr, payload []byte) error {
+	s.mu.RLock()
+	n := s.nodes[src]
+	s.mu.RUnlock()
+	return n.Tell(ctx, dst, payload)
+}
+
+func (s *Server) addServer(privKey p2p.PrivateKey, id p2p.PeerID, srv INET256_ConnectServer) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, exists := s.nodes[id]
+	if !exists {
+		n, err := s.s.CreateNode(privKey)
+		if err != nil {
+			return err
+		}
+		s.nodes[id] = n
+		n.OnRecv(s.toClients)
+	}
+	s.active[id] = append(s.active[id], srv)
+	return nil
+}
+
+func (s *Server) removeServer(id p2p.PeerID, srv INET256_ConnectServer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	srvs := s.active[id]
+	for i := range srvs {
+		if srv == srvs[i] {
+			if i < len(srvs)-1 {
+				srvs = append(srvs[:i], srvs[i+1:]...)
+			} else {
+				srvs = srvs[:i]
+			}
+			return
+		}
+	}
+	s.active[id] = srvs
+
+	if len(s.active[id]) > 0 {
+		return
+	}
+	if err := s.nodes[id].Close(); err != nil {
+		logrus.Error(err)
+	}
+	delete(s.nodes, id)
 }

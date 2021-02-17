@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +20,8 @@ var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "ping an inet256 node",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, _, _, err := setupNode(cmd, args)
+		privKey := generateKey()
+		node, err := newClient(privKey)
 		if err != nil {
 			return err
 		}
@@ -37,4 +40,8 @@ var pingCmd = &cobra.Command{
 		fmt.Println("pinging", dst)
 		return node.Tell(ctx, dst, []byte("ping"))
 	},
+}
+
+func newClient(privateKey p2p.PrivateKey) (inet256.Network, error) {
+	return inet256client.New(defaultAPIAddr, privateKey)
 }

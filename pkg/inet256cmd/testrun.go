@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256d"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -18,56 +20,64 @@ var testRunCmd = &cobra.Command{
 	Use:   "testrun",
 	Short: "run an inet256 node with logging",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		node, params, _, err := setupNode(cmd, args)
+		d, err := setupDaemon(cmd, args)
 		if err != nil {
 			return err
 		}
-
-		cmd.Printf("ADDR: %v\n", node.LocalAddr())
-		cmd.Printf("LISTENERS: %v\n", params.Swarms)
-		node.OnRecv(func(src, dst inet256.Addr, data []byte) {
-			cmd.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
-		})
-
 		ctx := context.Background()
-		data := []byte("ping")
-		period := time.Second
-		ticker := time.NewTicker(period)
-		defer ticker.Stop()
-		for range ticker.C {
-			func() {
-				ctx, cf := context.WithTimeout(ctx, period)
-				cf()
-				for _, addr := range params.Peers.ListPeers() {
-					if err := node.Tell(ctx, addr, data); err != nil {
-						log.Error(err)
-						continue
-					} else {
-						// fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
-					}
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			return d.Run(ctx)
+		})
+		eg.Go(func() error {
+			return d.DoWithServer(ctx, func(s *inet256.Server) error {
+				node := s.MainNode()
+				cmd.Printf("ADDR: %v\n", node.LocalAddr())
+				cmd.Printf("LISTENERS: %v\n", node.TransportAddrs())
+				node.OnRecv(func(src, dst inet256.Addr, data []byte) {
+					cmd.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
+				})
+
+				data := []byte("ping")
+				period := time.Second
+				ticker := time.NewTicker(period)
+				defer ticker.Stop()
+				for range ticker.C {
+					func() {
+						ctx, cf := context.WithTimeout(ctx, period)
+						cf()
+						for _, addr := range node.ListOneHop() {
+							if err := node.Tell(ctx, addr, data); err != nil {
+								log.Error(err)
+								continue
+							} else {
+								// fmt.Printf("SEND: src=%v dst=%v data=%v\n", node.LocalAddr(), addr, string(data))
+							}
+						}
+					}()
 				}
-			}()
-		}
-		return nil
+				return nil
+			})
+		})
+		return eg.Wait()
 	},
 }
 
-func setupNode(cmd *cobra.Command, args []string) (*inet256.Node, *inet256.Params, *Config, error) {
+func setupDaemon(cmd *cobra.Command, args []string) (*inet256d.Daemon, error) {
 	if err := cmd.ParseFlags(args); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	if configPath == "" {
-		return nil, nil, nil, errors.New("must provide config path")
+		return nil, errors.New("must provide config path")
 	}
 	log.Infof("using config path: %v", configPath)
-	config, err := LoadConfig(configPath)
+	config, err := inet256d.LoadConfig(configPath)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	params, err := MakeNodeParams(configPath, *config)
+	params, err := inet256d.MakeParams(configPath, *config)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	node := inet256.NewNode(*params)
-	return node, params, config, nil
+	return inet256d.New(*params), nil
 }

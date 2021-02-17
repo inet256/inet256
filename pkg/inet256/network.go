@@ -70,6 +70,11 @@ type multiNetwork struct {
 }
 
 func newMultiNetwork(networks []Network) Network {
+	for i := 0; i < len(networks)-1; i++ {
+		if networks[i].LocalAddr() != networks[i+1].LocalAddr() {
+			panic("network addresses do not match")
+		}
+	}
 	return &multiNetwork{
 		networks: networks,
 	}
@@ -163,6 +168,66 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) Network {
 	return network
 }
 
+type loopbackNetwork struct {
+	localAddr Addr
+	localKey  p2p.PublicKey
+	mu        sync.RWMutex
+	onRecv    RecvFunc
+}
+
+func newLoopbackNetwork(localKey p2p.PublicKey) Network {
+	return &loopbackNetwork{
+		localAddr: p2p.NewPeerID(localKey),
+		localKey:  localKey,
+		onRecv:    NoOpRecvFunc,
+	}
+}
+
+func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
+	if dst != n.localAddr {
+		return ErrAddrUnreachable
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.onRecv(dst, dst, data)
+	return nil
+}
+
+func (n *loopbackNetwork) OnRecv(fn RecvFunc) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if fn == nil {
+		fn = NoOpRecvFunc
+	}
+	n.onRecv = fn
+}
+
+func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
+	if HasPrefix(n.localAddr[:], prefix, nbits) {
+		return n.localAddr, nil
+	}
+	return Addr{}, ErrAddrUnreachable
+}
+
+func (n *loopbackNetwork) LocalAddr() Addr {
+	return n.localAddr
+}
+
+func (n *loopbackNetwork) Close() error {
+	return nil
+}
+
+func (n *loopbackNetwork) MTU(context.Context, Addr) int {
+	return 1 << 20
+}
+
+func (n *loopbackNetwork) LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error) {
+	if addr == n.localAddr {
+		return n.localKey, nil
+	}
+	return nil, ErrPublicKeyNotFound
+}
+
 type noise2PeerSwarm struct {
 	*noiseswarm.Swarm
 }
@@ -186,6 +251,13 @@ func (s noise2PeerSwarm) OnTell(fn p2p.TellHandler) {
 
 func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data []byte) error {
 	return s.Swarm.Tell(ctx, noiseswarm.Addr{ID: id, Addr: id}, data)
+}
+
+func (s noise2PeerSwarm) LocalAddrs() (ys []p2p.Addr) {
+	for _, x := range s.Swarm.LocalAddrs() {
+		ys = append(ys, x.(noiseswarm.Addr).ID)
+	}
+	return ys
 }
 
 func (s noise2PeerSwarm) LocalID() p2p.PeerID {

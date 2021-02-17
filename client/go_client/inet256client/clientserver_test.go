@@ -1,6 +1,7 @@
 package inet256client
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 func TestDial(t *testing.T) {
 	mr := memswarm.NewRealm()
 	privateKey := p2ptest.NewTestKey(t, 0)
-	n := inet256.NewNode(inet256.Params{
+	serv := inet256.NewServer(inet256.Params{
 		PrivateKey: privateKey,
 		Networks: []inet256.NetworkSpec{
 			{
@@ -25,15 +26,17 @@ func TestDial(t *testing.T) {
 				Factory: inet256.OneHopFactory,
 			},
 		},
+		Peers: inet256.NewPeerStore(),
 		Swarms: map[string]p2p.SecureSwarm{
 			"virtual": mr.NewSwarmWithKey(privateKey),
 		},
 	})
-	s := inet256grpc.NewServer(n)
+	s := inet256grpc.NewServer(serv)
 	gs := grpc.NewServer()
 	inet256grpc.RegisterINET256Server(gs, s)
 	l, err := net.Listen("tcp", "127.0.0.1:25600")
 	require.NoError(t, err)
+	ctx := context.Background()
 	eg := errgroup.Group{}
 	eg.Go(func() error {
 		return gs.Serve(l)
@@ -41,14 +44,23 @@ func TestDial(t *testing.T) {
 	eg.Go(func() error {
 		defer l.Close()
 		defer gs.Stop()
-		// time.Sleep(30 * time.Millisecond)
 		privateKey := p2ptest.NewTestKey(t, 1)
 		c, err := New("127.0.0.1:25600", privateKey)
 		if err != nil {
 			return err
 		}
+		done := make(chan struct{})
+		c.OnRecv(func(dst, src inet256.Addr, payload []byte) {
+			done <- struct{}{}
+		})
+		err = c.Tell(ctx, p2p.NewPeerID(privateKey.Public()), []byte("this shouldn't break"))
+		if err != nil {
+			return err
+		}
+		select {
+		case <-done:
+		}
 		defer c.Close()
-		t.Log(c)
 		return nil
 	})
 	require.NoError(t, eg.Wait())

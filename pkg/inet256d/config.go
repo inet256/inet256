@@ -1,4 +1,4 @@
-package inet256cmd
+package inet256d
 
 import (
 	"io/ioutil"
@@ -6,15 +6,17 @@ import (
 	"strings"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/d/celltracker"
 	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
+	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
+
+const DefaultAPIAddr = "127.0.0.1:25600"
 
 type PeerSpec struct {
 	ID    p2p.PeerID `yaml:"id"`
@@ -50,12 +52,12 @@ type Config struct {
 
 func (c Config) GetAPIAddr() string {
 	if c.APIAddr == "" {
-		return defaultAPIAddr
+		return DefaultAPIAddr
 	}
 	return c.APIAddr
 }
 
-func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
+func MakeParams(configPath string, c Config) (*Params, error) {
 	// private key
 	keyPath := c.PrivateKeyPath
 	if strings.HasPrefix(c.PrivateKeyPath, "./") {
@@ -102,11 +104,16 @@ func MakeNodeParams(configPath string, c Config) (*inet256.Params, error) {
 		nspecs = append(nspecs, nspec)
 	}
 
-	params := &inet256.Params{
-		PrivateKey: privateKey,
-		Swarms:     swarms,
-		Networks:   nspecs,
-		Peers:      peers,
+	params := &Params{
+		MainNodeParams: inet256.Params{
+			PrivateKey: privateKey,
+			Swarms:     swarms,
+			Networks:   nspecs,
+			Peers:      peers,
+		},
+		DiscoveryServices:   []p2p.DiscoveryService{},
+		AutoPeeringServices: []autopeering.Service{},
+		APIAddr:             c.APIAddr,
 	}
 	return params, nil
 }
@@ -132,19 +139,10 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, strin
 	}
 }
 
-func makeDiscoveryService(spec DiscoverySpec) (p2p.DiscoveryService, error) {
-	switch {
-	case spec.CellTracker != nil:
-		return celltracker.NewClient(*spec.CellTracker)
-	default:
-		return nil, errors.Errorf("empty discovery spec")
-	}
-}
-
 func DefaultConfig() Config {
 	return Config{
 		Networks: []string{"onehop"},
-		APIAddr:  defaultAPIAddr,
+		APIAddr:  DefaultAPIAddr,
 		Transports: []TransportSpec{
 			{
 				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0")),
@@ -163,15 +161,6 @@ func LoadConfig(p string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
-}
-
-func setupDiscovery(spec DiscoverySpec) (p2p.DiscoveryService, error) {
-	switch {
-	case spec.CellTracker != nil:
-		return celltracker.NewClient(*spec.CellTracker)
-	default:
-		return nil, errors.Errorf("empty spec")
-	}
 }
 
 func strPtr(x string) *string {

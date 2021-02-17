@@ -231,7 +231,7 @@ func (rt *kadRouteTable) IsFull() bool {
 
 func (rt *kadRouteTable) WouldAdd(r *Route) bool {
 	rt.mu.RLock()
-	rt.mu.RUnlock()
+	defer rt.mu.RUnlock()
 	if current := rt.get(r.Dst); current != nil {
 		return BestRoute(current, r) == r
 	}
