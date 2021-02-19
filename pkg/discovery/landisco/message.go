@@ -80,12 +80,12 @@ func copy32(x []byte) [32]byte {
 	return y
 }
 
-func UnpackMessage(m Message, ids []p2p.PeerID) ([]byte, error) {
+func UnpackMessage(m Message, ids []p2p.PeerID) (int, []byte, error) {
 	mac := m.GetMAC()
 	nonce := m.GetNonce()
 	preimage := [64]byte{}
 	copy(preimage[32:], nonce[:])
-	for _, id := range ids {
+	for i, id := range ids {
 		copy(preimage[:32], id[:])
 		sum := sha3.Sum256(preimage[:])
 		// I don't know where we would ever leak this timing information, but whatever.
@@ -96,10 +96,10 @@ func UnpackMessage(m Message, ids []p2p.PeerID) ([]byte, error) {
 			}
 			ptext, err := ciph.Open(nil, nonce[:ciph.NonceSize()], m.GetCiphertext(), nil)
 			if err != nil {
-				return nil, err
+				return -1, nil, err
 			}
-			return ptext, nil
+			return i, ptext, nil
 		}
 	}
-	return nil, errors.Errorf("no provided peer sent this message")
+	return -1, nil, errors.Errorf("no provided peer sent this message")
 }
