@@ -30,7 +30,7 @@ Creating a single target for application and service developers will hopefully i
 INET256 aims to provide tooling in the form of NATs, DHCPv6, TUN devices, VPNs, secure transports, and discovery services, which can be leveraged for all compatible networks.
 
 ## Spec
-Addresses are determined by the `SHA3-256` of the `PKIX ASN.1 DER` encoding of the public key.
+Addresses are determined by 256 bits of `SHAKE-256` of the `PKIX ASN.1 DER` encoding of the public key.
 
 More about that design decision in `docs/`
 

@@ -59,8 +59,8 @@ There is a tradeoff between security and address size here.
 Smaller addresses are better, more security is better.
 Many people consider 256 bit hashes to be sufficient and 512 to be overkill.
 At the time of writing, that seems reasonable.
-The rationale at least is clear: if we need the extra bits then we have to pick 512, if we don’t then we don’t.
-Smaller is better, and 256 is enough, so 256 bits it is.
+The SHAKE-256 function provides 256 bit pre-image resistance, and 128 bit collision resistance, if you read 256 bits of output.
+And if we ever wanted to increase the address size to get more collision resistance (up to 256 bits) we could just read more bytes from SHAKE.
 
 ### Key Serialization
 Now let’s look at the key serializing function.
@@ -80,7 +80,7 @@ DER is just a deterministic way of serializing ASN.1 structures.
 PKIX composes these along with a number from somewhere in the sky to identify the public key algorithm.
 X509 PKIX seems like the best candidate for our key serializing function.
 
-If you follow and agree with this reasoning then we have chosen `SHA3-256` as the hash function.  And `X509 PKIX` as the key marshaling function.
+If you follow and agree with this reasoning then we have chosen `SHAKE-256` as the hash function.  And `X509 PKIX` as the key marshaling function.
 
 This particular method of allocating addresses, and determining what key is at an address is the **INET256 Address Scheme**
 
