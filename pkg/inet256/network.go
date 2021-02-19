@@ -3,6 +3,7 @@ package inet256
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -36,7 +37,7 @@ type Network interface {
 // WaitInit has the WaitInit method
 type WaitInit interface {
 	Network
-	// WaitInit block's until the Network has initialized.
+	// WaitInit blocks until the Network has initialized.
 	// After WaitInit has completed, all addresses should be reachable from all other addresses.
 	WaitInit(ctx context.Context) error
 }
@@ -166,6 +167,73 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) Network {
 	}
 	mn.addrMap.Store(addr, network)
 	return network
+}
+
+type chainNetwork []Network
+
+func newChainNetwork(ns []Network) Network {
+	return chainNetwork(ns)
+}
+
+func (n chainNetwork) Tell(ctx context.Context, dst Addr, data []byte) (retErr error) {
+	for _, n2 := range n {
+		if err := n2.Tell(ctx, dst, data); err != nil {
+			retErr = err
+		} else {
+			return nil
+		}
+	}
+	return retErr
+}
+
+func (n chainNetwork) OnRecv(fn RecvFunc) {
+	for _, n2 := range n {
+		n2.OnRecv(fn)
+	}
+}
+
+func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
+	for _, n2 := range n {
+		addr, err := n2.FindAddr(ctx, prefix, nbits)
+		if err == nil {
+			return addr, nil
+		}
+	}
+	return Addr{}, ErrAddrUnreachable
+}
+
+func (n chainNetwork) LookupPublicKey(ctx context.Context, x Addr) (p2p.PublicKey, error) {
+	for _, n2 := range n {
+		pubKey, err := n2.LookupPublicKey(ctx, x)
+		if err == nil {
+			return pubKey, nil
+		}
+	}
+	return nil, ErrPublicKeyNotFound
+}
+
+func (n chainNetwork) LocalAddr() Addr {
+	return n[0].LocalAddr()
+}
+
+func (n chainNetwork) Close() (retErr error) {
+	for _, n2 := range n {
+		if err := n2.Close(); retErr == nil {
+			retErr = err
+		}
+	}
+	return retErr
+}
+
+func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
+	var min int = math.MaxInt32
+	for _, n2 := range n {
+		m := n2.MTU(ctx, x)
+		if m < min {
+			min = m
+		}
+	}
+	return min
 }
 
 type loopbackNetwork struct {

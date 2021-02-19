@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/d/celltracker"
 	"github.com/inet256/inet256/pkg/autopeering"
+	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/pkg/errors"
@@ -153,18 +153,9 @@ func (d *Daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds
 
 func makeDiscoveryService(spec DiscoverySpec) (p2p.DiscoveryService, error) {
 	switch {
-	case spec.CellTracker != nil:
-		return celltracker.NewClient(*spec.CellTracker)
+	case spec.Cell != nil:
+		return celldisco.New(*spec.Cell)
 	default:
 		return nil, errors.Errorf("empty discovery spec")
-	}
-}
-
-func setupDiscovery(spec DiscoverySpec) (p2p.DiscoveryService, error) {
-	switch {
-	case spec.CellTracker != nil:
-		return celltracker.NewClient(*spec.CellTracker)
-	default:
-		return nil, errors.Errorf("empty spec")
 	}
 }

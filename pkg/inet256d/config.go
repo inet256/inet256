@@ -36,9 +36,18 @@ type QUICTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
-	CellTracker *CellTrackerSpec `yaml:"cell_tracker"`
+	Cell  *CellDiscoverySpec `yaml:"cell"`
+	Local *LocalDiscoverySpec
 }
-type CellTrackerSpec = string
+
+type CellDiscoverySpec = string
+
+type LocalDiscoverySpec struct {
+	MulticastAddr string `yaml:"multicast_addr"`
+}
+
+type AutopeerSpec struct {
+}
 
 type Config struct {
 	PrivateKeyPath string          `yaml:"private_key_path"`
@@ -47,7 +56,8 @@ type Config struct {
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
-	Discovery []DiscoverySpec `yaml:"discovery"`
+	Discovery   []DiscoverySpec `yaml:"discovery"`
+	AutoPeering []AutopeerSpec  `yaml:"autopeering"`
 }
 
 func (c Config) GetAPIAddr() string {
