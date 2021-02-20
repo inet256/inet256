@@ -10,6 +10,6 @@ transports:
   nat_upnp: false
 
 peers:
-- id: 7vzW5aTcTH_m2d9wEE3rPjOl44kRe0MzjirWQYEPuxc
+- id: TryuCcgaaslRvLvOYRb9FeBLa-xS92Wk4aaapaAq8eQ
   addrs:
-  - noise+udp://7vzW5aTcTH_m2d9wEE3rPjOl44kRe0MzjirWQYEPuxc@127.0.0.1:44445
+  - noise+udp://TryuCcgaaslRvLvOYRb9FeBLa-xS92Wk4aaapaAq8eQ@127.0.0.1:44445

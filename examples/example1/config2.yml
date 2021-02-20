@@ -10,6 +10,6 @@ transports:
   nat_upnp: false
 
 peers:
-- id: CdAAo92_R56A90eTwyh_yWkE0ikfI_rIOojZf-e6Hqo
+- id: xSqGrMo8gJKqXymZ-huFL8D6mJ6J_ZUM8eEDQxwiPiY
   addrs:
-  - noise+udp://CdAAo92_R56A90eTwyh_yWkE0ikfI_rIOojZf-e6Hqo@127.0.0.1:44444
+  - noise+udp://xSqGrMo8gJKqXymZ-huFL8D6mJ6J_ZUM8eEDQxwiPiY@127.0.0.1:44444
