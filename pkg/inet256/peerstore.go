@@ -93,19 +93,16 @@ func (s *peerStore) ListAddrs(id p2p.PeerID) []string {
 	return s.m[id]
 }
 
-type addrSource struct {
-	swarm p2p.Swarm
-	store PeerStore
-}
-
-func newAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
+func NewAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
 	return func(id p2p.PeerID) []p2p.Addr {
 		xs := store.ListAddrs(id)
 		var ys []p2p.Addr
 		for i := range xs {
 			y, err := swarm.ParseAddr([]byte(xs[i]))
 			if err != nil {
-				logrus.Error("error parsing addr:", err)
+				logrus.Infof("%+v", swarm)
+				logrus.Errorf("parsing addr %v, got error %v", xs[i], err)
+				panic(xs[i])
 				continue
 			}
 			ys = append(ys, y)

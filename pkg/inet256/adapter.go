@@ -104,6 +104,10 @@ func (n *swarmAdapter) LocalAddr() Addr {
 	return n.peerswarm.LocalAddrs()[0].(Addr)
 }
 
+func (n *swarmAdapter) WaitReady(ctx context.Context) error {
+	return nil
+}
+
 func (n *swarmAdapter) Close() error {
 	return n.peerswarm.Close()
 }

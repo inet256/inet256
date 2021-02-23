@@ -7,13 +7,9 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
-
-// PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
-type PeerSwarm = peerswarm.Swarm
 
 // RecvFunc can be passed to Network.OnRecv as a callback to receive messages
 type RecvFunc func(src, dst Addr, data []byte)
@@ -31,15 +27,8 @@ type Network interface {
 	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
 
+	WaitReady(ctx context.Context) error
 	Close() error
-}
-
-// WaitInit has the WaitInit method
-type WaitInit interface {
-	Network
-	// WaitInit blocks until the Network has initialized.
-	// After WaitInit has completed, all addresses should be reachable from all other addresses.
-	WaitInit(ctx context.Context) error
 }
 
 // NetworkParams are passed to a NetworkFactory to create a Network.
@@ -70,7 +59,7 @@ type multiNetwork struct {
 	addrMap sync.Map
 }
 
-func newMultiNetwork(networks []Network) Network {
+func newMultiNetwork(networks ...Network) Network {
 	for i := 0; i < len(networks)-1; i++ {
 		if networks[i].LocalAddr() != networks[i+1].LocalAddr() {
 			panic("network addresses do not match")
@@ -84,7 +73,7 @@ func newMultiNetwork(networks []Network) Network {
 func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
 	network := mn.whichNetwork(ctx, dst)
 	if network == nil {
-		return ErrAddrUnreachable
+		return ErrAddrUnreachable{dst}
 	}
 	return network.Tell(ctx, dst, data)
 }
@@ -103,7 +92,7 @@ func (mn *multiNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) 
 func (mn *multiNetwork) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
 	network := mn.whichNetwork(ctx, target)
 	if network == nil {
-		return nil, ErrAddrUnreachable
+		return nil, ErrAddrUnreachable{target}
 	}
 	return network.LookupPublicKey(ctx, target)
 }
@@ -115,6 +104,17 @@ func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
 
 func (mn *multiNetwork) LocalAddr() Addr {
 	return mn.networks[0].LocalAddr()
+}
+
+func (mn *multiNetwork) WaitReady(ctx context.Context) error {
+	eg := errgroup.Group{}
+	for _, n := range mn.networks {
+		n := n
+		eg.Go(func() error {
+			return n.WaitReady(ctx)
+		})
+	}
+	return eg.Wait()
 }
 
 func (mn *multiNetwork) Close() (retErr error) {
@@ -171,7 +171,7 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) Network {
 
 type chainNetwork []Network
 
-func newChainNetwork(ns []Network) Network {
+func newChainNetwork(ns ...Network) Network {
 	return chainNetwork(ns)
 }
 
@@ -199,7 +199,7 @@ func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (A
 			return addr, nil
 		}
 	}
-	return Addr{}, ErrAddrUnreachable
+	return Addr{}, ErrNoAddrWithPrefix
 }
 
 func (n chainNetwork) LookupPublicKey(ctx context.Context, x Addr) (p2p.PublicKey, error) {
@@ -236,6 +236,17 @@ func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
 	return min
 }
 
+func (n chainNetwork) WaitReady(ctx context.Context) error {
+	eg := errgroup.Group{}
+	for _, n2 := range n {
+		n2 := n2
+		eg.Go(func() error {
+			return n2.WaitReady(ctx)
+		})
+	}
+	return eg.Wait()
+}
+
 type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
@@ -253,7 +264,7 @@ func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 
 func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
 	if dst != n.localAddr {
-		return ErrAddrUnreachable
+		return ErrNoAddrWithPrefix
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -274,7 +285,7 @@ func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int
 	if HasPrefix(n.localAddr[:], prefix, nbits) {
 		return n.localAddr, nil
 	}
-	return Addr{}, ErrAddrUnreachable
+	return Addr{}, ErrNoAddrWithPrefix
 }
 
 func (n *loopbackNetwork) LocalAddr() Addr {
@@ -289,45 +300,13 @@ func (n *loopbackNetwork) MTU(context.Context, Addr) int {
 	return 1 << 20
 }
 
+func (n *loopbackNetwork) WaitReady(ctx context.Context) error {
+	return nil
+}
+
 func (n *loopbackNetwork) LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error) {
 	if addr == n.localAddr {
 		return n.localKey, nil
 	}
 	return nil, ErrPublicKeyNotFound
-}
-
-type noise2PeerSwarm struct {
-	*noiseswarm.Swarm
-}
-
-func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
-	insecSw := SwarmFromNetwork(x, privateKey.Public())
-	noiseSw := noiseswarm.New(insecSw, privateKey)
-	secnet := networkFromSwarm(noise2PeerSwarm{noiseSw}, x.FindAddr)
-	return secnet
-}
-
-func (s noise2PeerSwarm) OnTell(fn p2p.TellHandler) {
-	s.Swarm.OnTell(func(x *p2p.Message) {
-		fn(&p2p.Message{
-			Src:     x.Src.(noiseswarm.Addr).ID,
-			Dst:     x.Dst.(noiseswarm.Addr).ID,
-			Payload: x.Payload,
-		})
-	})
-}
-
-func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data []byte) error {
-	return s.Swarm.Tell(ctx, noiseswarm.Addr{ID: id, Addr: id}, data)
-}
-
-func (s noise2PeerSwarm) LocalAddrs() (ys []p2p.Addr) {
-	for _, x := range s.Swarm.LocalAddrs() {
-		ys = append(ys, x.(noiseswarm.Addr).ID)
-	}
-	return ys
-}
-
-func (s noise2PeerSwarm) LocalID() p2p.PeerID {
-	return s.Swarm.LocalAddrs()[0].(noiseswarm.Addr).ID
 }

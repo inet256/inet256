@@ -9,7 +9,7 @@ func OneHopFactory(params NetworkParams) Network {
 				return id, nil
 			}
 		}
-		return Addr{}, ErrAddrUnreachable
+		return Addr{}, ErrNoAddrWithPrefix
 	}
 	return networkFromSwarm(params.Swarm, findAddr)
 }

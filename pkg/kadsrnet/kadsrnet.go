@@ -133,7 +133,7 @@ func (n *Network) Close() error {
 	return n.swarm.Close()
 }
 
-func (n *Network) WaitInit(ctx context.Context) error {
+func (n *Network) WaitReady(ctx context.Context) error {
 	if err := n.crawler.crawlAll(ctx, 0); err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (n *Network) sendResponseBody(ctx context.Context, dst, next Addr, retPath 
 func (n *Network) sendBodyTo(ctx context.Context, dst Addr, body *Body) error {
 	route := n.routeTable.RouteTo(dst)
 	if route == nil {
-		return inet256.ErrAddrUnreachable
+		return inet256.ErrAddrUnreachable{Addr: dst}
 	}
 	return n.sendBodyAlong(ctx, dst, route, body)
 }

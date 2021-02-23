@@ -128,6 +128,10 @@ func (c *Client) ListOneHop() []inet256.Addr {
 	return nil
 }
 
+func (c *Client) WaitReady(ctx context.Context) error {
+	return nil
+}
+
 func (c *Client) runLoop(ctx context.Context) {
 	eg := errgroup.Group{}
 	for _, w := range c.workers {

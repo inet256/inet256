@@ -3,18 +3,10 @@ package inet256
 import (
 	"context"
 
-	"github.com/pkg/errors"
-
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/intmux"
 	"github.com/brendoncarroll/go-p2p/s/aggswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
-)
-
-var (
-	ErrAddrUnreachable   = errors.New("address is unreachable")
-	ErrPublicKeyNotFound = p2p.ErrPublicKeyNotFound
 )
 
 type Params struct {
@@ -46,19 +38,23 @@ func NewNode(params Params) Node {
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
 		s = aggswarm.NewSecure(s, (1<<16)-1)
-		ps := peerswarm.NewSwarm(s, newAddrSource(s, params.Peers))
+		ps := NewPeerSwarm(s, NewAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
-			Swarm: ps,
-			Peers: params.Peers,
+			PrivateKey: params.PrivateKey,
+			Swarm:      ps,
+			Peers:      params.Peers,
 		})
 	}
+
+	var network Network = newMultiNetwork(networks...)
 	// apply top layer of security
-	secNet := newSecureNetwork(params.PrivateKey, newMultiNetwork(networks))
-	// add loopback
-	network := newMultiNetwork([]Network{
+	network = newSecureNetwork(params.PrivateKey, network)
+	// loopback
+	network = newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),
-		secNet,
-	})
+		network,
+	)
+
 	return &node{
 		params:    params,
 		baseSwarm: baseSwarm,
@@ -100,6 +96,10 @@ func (n *node) TransportAddrs() (ret []string) {
 
 func (n *node) ListOneHop() []Addr {
 	return n.params.Peers.ListPeers()
+}
+
+func (n *node) WaitReady(ctx context.Context) error {
+	return n.network.WaitReady(ctx)
 }
 
 func (n *node) Close() error {

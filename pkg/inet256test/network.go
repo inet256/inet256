@@ -1,4 +1,4 @@
-package inet256
+package inet256test
 
 import (
 	"context"
@@ -11,60 +11,56 @@ import (
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 )
 
-func TestSuite(t *testing.T, nf NetworkFactory) {
+type (
+	Addr           = inet256.Addr
+	Network        = inet256.Network
+	NetworkFactory = inet256.NetworkFactory
+	PeerStore      = inet256.PeerStore
+)
+
+func TestNetwork(t *testing.T, nf NetworkFactory) {
 	t.Run("Test2Nodes", func(t *testing.T) {
 		const N = 2
 		adjList := p2ptest.Chain(N)
 		nets := setupNetworks(t, N, adjList, nf)
-		for _, i := range rand.Perm(len(nets)) {
-			for j := range rand.Perm(len(nets)) {
-				if i != j {
-					TestSendRecv(t, nets[i], nets[j])
-				}
-			}
-		}
+		randomPairs(len(nets), func(i, j int) {
+			TestSendRecvOne(t, nets[i], nets[j])
+		})
 	})
 	t.Run("Test10Nodes", func(t *testing.T) {
 		const N = 10
 		adjList := p2ptest.Ring(N)
 		nets := setupNetworks(t, N, adjList, nf)
-		for _, i := range rand.Perm(len(nets)) {
-			eg := errgroup.Group{}
-			for j := range rand.Perm(len(nets)) {
-				j := j
-				if i == j {
-					continue
-				}
-				eg.Go(func() error {
-					TestSendRecv(t, nets[i], nets[j])
-					return nil
-				})
-			}
-			require.NoError(t, eg.Wait())
-		}
+		randomPairs(len(nets), func(i, j int) {
+			TestSendRecvOne(t, nets[i], nets[j])
+		})
 	})
 }
 
-func TestSendRecv(t testing.TB, from, to Network) {
+func TestSendRecvOne(t testing.TB, from, to Network) {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	actualData := "test data"
-	ch := make(chan struct{}, 1)
+	ch := make(chan bool, 1)
 	to.OnRecv(func(src, dst Addr, data []byte) {
-		require.Equal(t, string(data), actualData)
-		ch <- struct{}{}
+		match := string(data) == actualData
+		select {
+		case ch <- match:
+		case <-ctx.Done():
+		}
 	})
 	err := from.Tell(ctx, to.LocalAddr(), []byte(actualData))
 	require.NoError(t, err)
 	select {
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
-	case <-ch:
+	case match := <-ch:
+		require.True(t, match)
 	}
 }
 
@@ -77,14 +73,13 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 	keys := make([]p2p.PrivateKey, N)
 
 	for i := 0; i < N; i++ {
-		k := p2ptest.NewTestKey(t, i)
-		keys[i] = k
-		swarms[i] = r.NewSwarmWithKey(k)
-		peerStores[i] = NewPeerStore()
-		peerSwarms[i] = peerswarm.NewSwarm(swarms[i], newAddrSource(swarms[i], peerStores[i]))
+		keys[i] = p2ptest.NewTestKey(t, i)
+		swarms[i] = r.NewSwarmWithKey(keys[i])
+		peerStores[i] = inet256.NewPeerStore()
+		peerSwarms[i] = peerswarm.NewSwarm(swarms[i], inet256.NewAddrSource(swarms[i], peerStores[i]))
 	}
 
-	for i := 0; i < N; i++ {
+	for i := range adjList {
 		for _, j := range adjList[i] {
 			peerID := p2p.NewPeerID(swarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
@@ -94,13 +89,8 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 	}
 	nets := make([]Network, N)
 	for i := 0; i < N; i++ {
-		logger := logrus.New()
-		logger.Level = logrus.DebugLevel
-		logger.SetOutput(os.Stderr)
-		logger.SetFormatter(&logrus.TextFormatter{
-			ForceColors: true,
-		})
-		nets[i] = nf(NetworkParams{
+		logger := newTestLogger(t)
+		nets[i] = nf(inet256.NetworkParams{
 			Peers:      peerStores[i],
 			PrivateKey: keys[i],
 			Swarm:      peerSwarms[i],
@@ -108,13 +98,11 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 		})
 	}
 
-	// call WaitInit
 	ctx, cf := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cf()
 	for i := 0; i < N; i++ {
-		if n, ok := nets[i].(WaitInit); ok {
-			require.NoError(t, n.WaitInit(ctx))
-		}
+		err := nets[i].WaitReady(ctx)
+		require.NoError(t, err)
 		select {
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err(), "timeout waiting for init")
@@ -128,4 +116,24 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 		}
 	})
 	return nets
+}
+
+func randomPairs(n int, fn func(i, j int)) {
+	for _, i := range rand.Perm(n) {
+		for _, j := range rand.Perm(n) {
+			if i != j {
+				fn(i, j)
+			}
+		}
+	}
+}
+
+func newTestLogger(t *testing.T) *logrus.Logger {
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+	logger.SetOutput(os.Stderr)
+	logger.SetFormatter(&logrus.TextFormatter{
+		ForceColors: true,
+	})
+	return logger
 }

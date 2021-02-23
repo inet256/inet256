@@ -36,44 +36,59 @@ func NewServer(params Params) *Server {
 	msw := r.NewSwarmWithKey(params.PrivateKey)
 	swarms[nameMemSwarm] = msw
 
+	memPeers := NewPeerStore()
+
 	return &Server{
 		params: params,
 
 		memrealm:     r,
 		mainID:       p2p.NewPeerID(params.PrivateKey.Public()),
-		mainMemPeers: params.Peers,
+		mainMemPeers: memPeers,
 		mainMemSwarm: msw,
-		mainNode:     NewNode(params),
-
+		mainNode: NewNode(Params{
+			PrivateKey: params.PrivateKey,
+			Swarms:     swarms,
+			Networks:   params.Networks,
+			Peers:      ChainPeerStore{memPeers, params.Peers},
+		}),
 		nodes: make(map[p2p.PeerID]Node),
 	}
 }
 
-func (s *Server) CreateNode(privateKey p2p.PrivateKey) (Node, error) {
+func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
 	id := p2p.NewPeerID(privateKey.Public())
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if _, exists := s.nodes[id]; exists {
-		return nil, errors.Errorf("node already exists")
+	n, err := func() (Node, error) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, exists := s.nodes[id]; exists {
+			return nil, errors.Errorf("node already exists")
+		}
+
+		swarm := s.memrealm.NewSwarmWithKey(privateKey)
+
+		ps := NewPeerStore()
+		ps.Add(s.mainID)
+		ps.SetAddrs(s.mainID, []string{nameMemSwarm + "://" + marshalAddr(s.mainMemSwarm.LocalAddrs()[0])})
+		s.mainMemPeers.Add(id)
+		s.mainMemPeers.SetAddrs(id, []string{nameMemSwarm + "://" + marshalAddr(swarm.LocalAddrs()[0])})
+
+		n := NewNode(Params{
+			Networks:   s.params.Networks,
+			Peers:      ps,
+			PrivateKey: privateKey,
+			Swarms: map[string]p2p.SecureSwarm{
+				nameMemSwarm: swarm,
+			},
+		})
+		s.nodes[id] = n
+		return n, nil
+	}()
+	if err != nil {
+		return nil, err
 	}
-
-	swarm := s.memrealm.NewSwarmWithKey(privateKey)
-
-	ps := NewPeerStore()
-	ps.Add(s.mainID)
-	ps.SetAddrs(s.mainID, []string{marshalAddr(s.mainMemSwarm.LocalAddrs()[0])})
-	s.mainMemPeers.Add(id)
-	s.mainMemPeers.SetAddrs(id, []string{marshalAddr(swarm.LocalAddrs()[0])})
-
-	n := NewNode(Params{
-		Networks:   s.params.Networks,
-		Peers:      ps,
-		PrivateKey: privateKey,
-		Swarms: map[string]p2p.SecureSwarm{
-			nameMemSwarm: swarm,
-		},
-	})
-	s.nodes[id] = n
+	if err := n.WaitReady(ctx); err != nil {
+		return nil, err
+	}
 	return n, nil
 }
 

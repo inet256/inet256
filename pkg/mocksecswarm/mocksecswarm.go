@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/swarmutil"
 )
 
 var _ p2p.SecureSwarm = &Swarm{}
@@ -17,6 +16,7 @@ type Swarm struct {
 	localID    p2p.PeerID
 	inner      p2p.Swarm
 
+	mu     sync.RWMutex
 	onTell p2p.TellHandler
 
 	keyCache sync.Map
@@ -48,7 +48,9 @@ func (s *Swarm) Tell(ctx context.Context, addr p2p.Addr, data []byte) error {
 }
 
 func (s *Swarm) OnTell(fn p2p.TellHandler) {
-	swarmutil.AtomicSetTH(&s.onTell, fn)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onTell = fn
 }
 
 func (s *Swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
@@ -119,7 +121,9 @@ func (s *Swarm) fromBelow(msg *p2p.Message) {
 		Dst:     Addr{ID: dst.ID, Addr: msg.Dst},
 		Payload: msg2.Payload,
 	}
-	onTell := swarmutil.AtomicGetTH(&s.onTell)
+	s.mu.RLock()
+	onTell := s.onTell
+	s.mu.RUnlock()
 	onTell(&msg3)
 }
 

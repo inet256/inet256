@@ -88,6 +88,7 @@ func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 }
 
 func (s *Server) Connect(srv INET256_ConnectServer) error {
+	ctx := srv.Context()
 	msg, err := srv.Recv()
 	if err != nil {
 		return err
@@ -101,12 +102,11 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		return err
 	}
 	id := p2p.NewPeerID(privKey.Public())
-	if err := s.addServer(privKey, id, srv); err != nil {
+	if err := s.addServer(ctx, privKey, id, srv); err != nil {
 		return err
 	}
 	defer s.removeServer(id, srv)
 
-	ctx := srv.Context()
 	for {
 		msg, err := srv.Recv()
 		if err == io.EOF {
@@ -169,12 +169,12 @@ func (s *Server) fromClient(ctx context.Context, src, dst inet256.Addr, payload 
 	return n.Tell(ctx, dst, payload)
 }
 
-func (s *Server) addServer(privKey p2p.PrivateKey, id p2p.PeerID, srv INET256_ConnectServer) error {
+func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.PeerID, srv INET256_ConnectServer) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, exists := s.nodes[id]
 	if !exists {
-		n, err := s.s.CreateNode(privKey)
+		n, err := s.s.CreateNode(ctx, privKey)
 		if err != nil {
 			return err
 		}
