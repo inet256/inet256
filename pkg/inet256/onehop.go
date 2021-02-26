@@ -1,6 +1,8 @@
 package inet256
 
-import "context"
+import (
+	"context"
+)
 
 func OneHopFactory(params NetworkParams) Network {
 	findAddr := func(ctx context.Context, prefix []byte, nbits int) (Addr, error) {

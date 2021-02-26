@@ -43,5 +43,5 @@ var pingCmd = &cobra.Command{
 }
 
 func newClient(privateKey p2p.PrivateKey) (inet256.Network, error) {
-	return inet256client.New(defaultAPIAddr, privateKey)
+	return inet256client.NewNode(defaultAPIAddr, privateKey)
 }

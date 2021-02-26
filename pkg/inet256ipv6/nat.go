@@ -34,7 +34,7 @@ func (nt *NATTable) AddClient(ipv6 IPv6Addr) inet256.Addr {
 	if err != nil {
 		panic(err)
 	}
-	vnode, err := inet256client.NewFromGRPC(nt.client, priv)
+	vnode, err := inet256client.NewNodeFromGRPC(nt.client, priv)
 	if err != nil {
 		panic(err)
 	}

@@ -45,7 +45,7 @@ func TestDial(t *testing.T) {
 		defer l.Close()
 		defer gs.Stop()
 		privateKey := p2ptest.NewTestKey(t, 1)
-		c, err := New("127.0.0.1:25600", privateKey)
+		c, err := NewNode("127.0.0.1:25600", privateKey)
 		if err != nil {
 			return err
 		}

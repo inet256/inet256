@@ -16,9 +16,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-var _ inet256.Node = &Client{}
+var _ inet256.Node = &client{}
 
-type Client struct {
+type client struct {
 	inetClient inet256grpc.INET256Client
 	privKey    p2p.PrivateKey
 	localAddr  inet256.Addr
@@ -30,9 +30,18 @@ type Client struct {
 	workers []*worker
 }
 
-func NewFromGRPC(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (*Client, error) {
+func NewNode(endpoint string, privKey p2p.PrivateKey) (inet256.Node, error) {
+	gc, err := grpc.Dial(endpoint, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	inetClient := inet256grpc.NewINET256Client(gc)
+	return NewNodeFromGRPC(inetClient, privKey)
+}
+
+func NewNodeFromGRPC(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (inet256.Node, error) {
 	ctx, cf := context.WithCancel(context.Background())
-	c := &Client{
+	c := &client{
 		cf:         cf,
 		inetClient: inetClient,
 		privKey:    privKey,
@@ -56,16 +65,7 @@ func NewFromGRPC(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (
 	return c, nil
 }
 
-func New(endpoint string, privKey p2p.PrivateKey) (*Client, error) {
-	gc, err := grpc.Dial(endpoint, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	inetClient := inet256grpc.NewINET256Client(gc)
-	return NewFromGRPC(inetClient, privKey)
-}
-
-func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
+func (c *client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
 	peerInfo, err := c.inetClient.Lookup(ctx, &inet256grpc.LookupReq{
 		TargetAddr: prefix[:nbits/8],
 	})
@@ -77,7 +77,7 @@ func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet25
 	return ret, nil
 }
 
-func (c *Client) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
+func (c *client) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
 	res, err := c.inetClient.Lookup(ctx, &inet256grpc.LookupReq{
 		TargetAddr: target[:],
 	})
@@ -87,11 +87,11 @@ func (c *Client) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.
 	return inet256.ParsePublicKey(res.PublicKey)
 }
 
-func (c *Client) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
+func (c *client) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
 	return c.pickWorker().tell(ctx, dst, data)
 }
 
-func (c *Client) OnRecv(fn inet256.RecvFunc) {
+func (c *client) OnRecv(fn inet256.RecvFunc) {
 	if fn == nil {
 		fn = inet256.NoOpRecvFunc
 	}
@@ -100,12 +100,12 @@ func (c *Client) OnRecv(fn inet256.RecvFunc) {
 	c.onRecv = fn
 }
 
-func (c *Client) Close() error {
+func (c *client) Close() error {
 	c.cf()
 	return nil
 }
 
-func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
+func (c *client) MTU(ctx context.Context, target inet256.Addr) int {
 	res, err := c.inetClient.MTU(ctx, &inet256grpc.MTUReq{
 		Target: target[:],
 	})
@@ -115,24 +115,24 @@ func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
 	return int(res.Mtu)
 }
 
-func (c *Client) LocalAddr() inet256.Addr {
+func (c *client) LocalAddr() inet256.Addr {
 	return c.localAddr
 }
 
-func (c *Client) TransportAddrs() []string {
+func (c *client) TransportAddrs() []string {
 	return nil
 }
 
-func (c *Client) ListOneHop() []inet256.Addr {
+func (c *client) ListOneHop() []inet256.Addr {
 	// TODO: return the main node?
 	return nil
 }
 
-func (c *Client) WaitReady(ctx context.Context) error {
+func (c *client) WaitReady(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) runLoop(ctx context.Context) {
+func (c *client) runLoop(ctx context.Context) {
 	eg := errgroup.Group{}
 	for _, w := range c.workers {
 		w := w
@@ -145,7 +145,7 @@ func (c *Client) runLoop(ctx context.Context) {
 	}
 }
 
-func (c *Client) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient, error) {
+func (c *client) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient, error) {
 	cc, err := c.inetClient.Connect(ctx)
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func (c *Client) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient
 	return cc, nil
 }
 
-func (c *Client) pickWorker() *worker {
+func (c *client) pickWorker() *worker {
 	l := len(c.workers)
 	offset := mrand.Intn(l)
 	for i := range c.workers {

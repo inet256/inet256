@@ -19,7 +19,7 @@ type Swarm struct {
 }
 
 func NewSwarm(endpoint string, privateKey p2p.PrivateKey) (peerswarm.AskSwarm, error) {
-	client, err := inet256client.New(endpoint, privateKey)
+	client, err := inet256client.NewNode(endpoint, privateKey)
 	if err != nil {
 		return nil, err
 	}

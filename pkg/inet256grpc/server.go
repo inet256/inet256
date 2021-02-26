@@ -119,13 +119,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 			continue
 		}
 		dst := inet256.Addr{}
-		if len(msg.Datagram.Dst) < 32 {
-			if dst, err = s.findAddr(ctx, msg.Datagram.Dst); err != nil {
-				return err
-			}
-		} else {
-			copy(dst[:], msg.Datagram.Dst)
-		}
+		copy(dst[:], msg.Datagram.Dst)
 		if err := s.fromClient(ctx, id, dst, msg.Datagram.Payload); err != nil {
 			return err
 		}
@@ -181,7 +175,7 @@ func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.P
 		s.nodes[id] = n
 		n.OnRecv(s.toClients)
 	}
-	s.active[id] = append(s.active[id], srv)
+	s.active[id] = append(s.active[id], &serverWrapper{INET256_ConnectServer: srv})
 	return nil
 }
 
@@ -208,4 +202,15 @@ func (s *Server) removeServer(id p2p.PeerID, srv INET256_ConnectServer) {
 		logrus.Error(err)
 	}
 	delete(s.nodes, id)
+}
+
+type serverWrapper struct {
+	INET256_ConnectServer
+	mu sync.Mutex
+}
+
+func (s *serverWrapper) Send(m *ConnectMsg) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.INET256_ConnectServer.Send(m)
 }

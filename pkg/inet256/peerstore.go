@@ -102,7 +102,6 @@ func NewAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
 			if err != nil {
 				logrus.Infof("%+v", swarm)
 				logrus.Errorf("parsing addr %v, got error %v", xs[i], err)
-				panic(xs[i])
 				continue
 			}
 			ys = append(ys, y)
@@ -127,7 +126,7 @@ func (ps ChainPeerStore) SetAddrs(id p2p.PeerID, addrs []string) {
 	panic("cannot SetAddrs on ChainPeerStore")
 }
 
-func (ps ChainPeerStore) ListPeers() (ids []p2p.PeerID) {
+func (ps ChainPeerStore) ListPeers() []p2p.PeerID {
 	m := map[p2p.PeerID]struct{}{}
 	for _, ps2 := range ps {
 		for _, id := range ps2.ListPeers() {
@@ -138,7 +137,7 @@ func (ps ChainPeerStore) ListPeers() (ids []p2p.PeerID) {
 	for id := range m {
 		ret = append(ret, id)
 	}
-	return ids
+	return ret
 }
 
 func (ps ChainPeerStore) ListAddrs(id p2p.PeerID) []string {

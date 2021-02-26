@@ -24,22 +24,32 @@ type (
 )
 
 func TestNetwork(t *testing.T, nf NetworkFactory) {
-	t.Run("Test2Nodes", func(t *testing.T) {
-		const N = 2
-		adjList := p2ptest.Chain(N)
-		nets := setupNetworks(t, N, adjList, nf)
-		randomPairs(len(nets), func(i, j int) {
-			TestSendRecvOne(t, nets[i], nets[j])
+	tcs := []struct {
+		Name     string
+		Topology p2ptest.AdjList
+	}{
+		{
+			Name:     "Chain-2",
+			Topology: p2ptest.Chain(2),
+		},
+		{
+			Name:     "Chain-5",
+			Topology: p2ptest.Chain(5),
+		},
+		{
+			Name:     "Ring-10",
+			Topology: p2ptest.Ring(10),
+		},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.Name, func(t *testing.T) {
+			nets := setupNetworks(t, len(tc.Topology), tc.Topology, nf)
+			t.Log("topology:", tc.Topology)
+			randomPairs(len(nets), func(i, j int) {
+				TestSendRecvOne(t, nets[i], nets[j])
+			})
 		})
-	})
-	t.Run("Test10Nodes", func(t *testing.T) {
-		const N = 10
-		adjList := p2ptest.Ring(N)
-		nets := setupNetworks(t, N, adjList, nf)
-		randomPairs(len(nets), func(i, j int) {
-			TestSendRecvOne(t, nets[i], nets[j])
-		})
-	})
+	}
 }
 
 func TestSendRecvOne(t testing.TB, from, to Network) {
@@ -51,7 +61,7 @@ func TestSendRecvOne(t testing.TB, from, to Network) {
 		match := string(data) == actualData
 		select {
 		case ch <- match:
-		case <-ctx.Done():
+		default:
 		}
 	})
 	err := from.Tell(ctx, to.LocalAddr(), []byte(actualData))

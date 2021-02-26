@@ -50,6 +50,9 @@ type Network struct {
 }
 
 func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet, log *logrus.Logger) *Network {
+	if log == nil {
+		log = logrus.New()
+	}
 	localAddr := swarm.LocalAddrs()[0].(p2p.PeerID)
 	ctx, cf := context.WithCancel(context.Background())
 	lm := newLinkMap()
@@ -269,7 +272,7 @@ func (n *Network) handleMessage(ctx context.Context, from Addr, msg *Message) ([
 		}
 		// if addresssed to us, interpret
 		if !verified {
-			return errors.Errorf("not interpretting invalid message")
+			return errors.Errorf("not interpretting invalid message: %v", body)
 		}
 		up2, res, err := n.handleBody(ctx, idFromBytes(msg.Src), body)
 		if err != nil {
