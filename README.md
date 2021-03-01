@@ -1,40 +1,50 @@
 # INET256
 
-A unified 256 bit address space for peer-to-peer hosts/applications.
+![Matrix](https://img.shields.io/matrix/inet256:matrix.org?label=%23inet256%3Amatrix.org&logo=matrix)
+[![GoDoc](https://godoc.org/github.com/inet256/inet256?status.svg)](http://godoc.org/github.com/inet256/inet256)
+
+A 256 bit address space for peer-to-peer hosts/applications.
 
 > **The value proposition**:
 >
-> All you have to do to send messages to another process is know its address (hash of public key).
+> All you have to do to send messages to another process is know its address, which will never change.
 >
 > All you have to do to recieve messages is generate a private, public key pair and connect to the inet256 daemon
 
 [Architecture](./ARCHITECTURE.md)
 
-## Background
-There are now a few projects/networks which use the hash of a public key, as a mechanism for assigning addresses.
-
-- [CJDNS](https://github.com/cjdelisle/cjdns)
-SHA512 of RSA Key
-- [Yggdrasil](https://github.com/yggdrasil-network/yggdrasil-go)
-SHA512 of Ed25519
-- [Tor](https://www.torproject.org/)
-Raw Ed25519 (among other schemes)
-- [IPFS](https://github.com/ipfs/go-ipfs)
-Multihash of Ed25519
-
-They are all using different hash functions, and key serialization functions.
-The space would benefit from some standardization, in particular if users who cared less about the network/routing and more about services had one daemon to install that gave them access to the whole address space that would be good for all the networks.
-
-Creating a single target for application and service developers will hopefully inspire more development, and nudge these networks to assimilate their address schemes.
-
-INET256 aims to provide tooling in the form of NATs, DHCPv6, TUN devices, VPNs, secure transports, and discovery services, which can be leveraged for all compatible networks.
+## Features
+- Stable addresses derived from public keys
+- Secure communication to other nodes in the network
+- Best effort delivery like IP or UDP. At most once delivery, unlike IP and UDP.
+- Messages are never corrupted. If it gets there, it's correct.
+- Easy to add/remove/change routing algorithms.
+- Addresses are plentiful. Spawn a new node for each process. Every process gets its own address, no need for ports.
+- IPv6/IPv4 can run above or below INET256.
+- Autopeering and transport address discovery help make peering easy.
 
 ## Spec
 Addresses are determined by 256 bits of `SHAKE-256` of the `PKIX ASN.1 DER` encoding of the public key.
 
 More about that design decision in `docs/`
 
-## Building Blocks (Help From Below)
+Take a look in `ARCHITECTURE.md` for more about the interface for network protocols.
+
+## Network Routing Protocols
+This project separates a modern communication API from the routing algorithm that powers it.
+The autoconfiguring, distributed routing algorithms of the sort required are very much under active research, and we don't want to couple INET256 to any one algorithm as the state of the art could change rapidly.
+
+Users are ultimately in control of which networks they participate in.
+Networks can be selected in the configuration file.
+
+Right now we have a network `Kademlia + Source Routing`, which uses an algothirm similar to CJDNS's.
+
+We are eager to add other protocols.
+Check out `pkg/floodnet` for an example of a naive flooding protocol.
+It's a good place to start.
+
+## What is Provided
+### Building Blocks (Help From Below)
 
 This project encourages use of primitives from the message based p2p networking library [go-p2p](https://github.com/brendoncarroll/go-p2p)
 
@@ -43,7 +53,7 @@ The library also provides discovery services, and methods for serializing and cr
 Notably, the discovery services and NAT management provide a way for users to link all their devices to INET256 without touching a VPS or DNS entry, or forwarding a port.
 It models friend-to-friend communication, and unreliable messages well, making it better suited for overlay networks than, for example: libp2p, which is more suited for public networks, with reliable communication.
 
-## Tooling (Help From Above)
+### Tooling (Help From Above)
 This project will provide tools for using INET256 networks, some of which are not yet implemented
 
 - [x] INET256 to IPv6 mapping. Inspired by Yggdrasil
@@ -51,31 +61,6 @@ This project will provide tools for using INET256 networks, some of which are no
 - [ ] NAT Table using the mapping. No port mappings Layer 3 only.
 - [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
 - [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to wireguard.
-
-## Use Cases
-
-#### I Have a Network Protocol. How do I start a Node?
-Assuming you have a package `mynetwork` which contains an INET256 network factory, the entrypoint would look something like this:
-
-```go
-// cmd/mynetwork/main.go
-
-package main
-
-import (
-    "log"
-
-    "github.com/inet256/inet256/pkg/inet256cmd"
-    "mynetwork.org/mynetwork"
-)
-
-func main() {
-    inet256cmd.Register("mynetwork", mynetwork.Factory)
-    if err := inet256cmd.Execute(); err != nil {
-        log.Fatal(err)
-    }
-}
-```
 
 ## License
 Code in this repository is by default licensed under the GPL as defined in `LICENSE`.
