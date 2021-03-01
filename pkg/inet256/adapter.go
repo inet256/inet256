@@ -68,17 +68,23 @@ func (s *netAdapter) ParseAddr(data []byte) (p2p.Addr, error) {
 	return id, nil
 }
 
+type FindAddrFunc = func(ctx context.Context, prefix []byte, nbits int) (Addr, error)
+
+type WaitReadyFunc = func(ctx context.Context) error
+
 var _ Network = &swarmAdapter{}
 
 type swarmAdapter struct {
-	peerswarm PeerSwarm
-	findAddr  func(ctx context.Context, prefix []byte, nbits int) (Addr, error)
+	peerswarm     PeerSwarm
+	findAddr      FindAddrFunc
+	waitReadyFunc WaitReadyFunc
 }
 
-func networkFromSwarm(x PeerSwarm, findAddr func(ctx context.Context, prefix []byte, nbits int) (Addr, error)) Network {
+func networkFromSwarm(x PeerSwarm, findAddr FindAddrFunc, waitFunc WaitReadyFunc) Network {
 	return &swarmAdapter{
-		peerswarm: x,
-		findAddr:  findAddr,
+		peerswarm:     x,
+		findAddr:      findAddr,
+		waitReadyFunc: waitFunc,
 	}
 }
 
@@ -105,7 +111,7 @@ func (n *swarmAdapter) LocalAddr() Addr {
 }
 
 func (n *swarmAdapter) WaitReady(ctx context.Context) error {
-	return nil
+	return n.waitReadyFunc(ctx)
 }
 
 func (n *swarmAdapter) Close() error {

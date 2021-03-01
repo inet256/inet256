@@ -8,7 +8,7 @@ protobuf:
 install:
 	go install ./cmd/inet256	
 
-test:
+test: protobuf
 	go test --race ./pkg/...
 	go test --race ./client/go_client/...
 

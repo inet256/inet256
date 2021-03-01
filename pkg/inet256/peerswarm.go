@@ -22,7 +22,7 @@ type noise2PeerSwarm struct {
 func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
 	insecSw := SwarmFromNetwork(x, privateKey.Public())
 	noiseSw := noiseswarm.New(insecSw, privateKey)
-	secnet := networkFromSwarm(noise2PeerSwarm{noiseSw}, x.FindAddr)
+	secnet := networkFromSwarm(noise2PeerSwarm{noiseSw}, x.FindAddr, x.WaitReady)
 	return secnet
 }
 

@@ -9,6 +9,8 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 )
 
+const TransportMTU = (1 << 16) - 1
+
 type Params struct {
 	p2p.PrivateKey
 	Swarms   map[string]p2p.SecureSwarm
@@ -37,7 +39,7 @@ func NewNode(params Params) Node {
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
-		s = aggswarm.NewSecure(s, (1<<16)-1)
+		s = aggswarm.NewSecure(s, TransportMTU)
 		ps := NewPeerSwarm(s, NewAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			PrivateKey: params.PrivateKey,

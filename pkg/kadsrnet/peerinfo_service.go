@@ -5,6 +5,8 @@ import (
 	sync "sync"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 )
 
 type sendAlongFunc = func(ctx context.Context, dst Addr, r *Route, body *Body) error
@@ -40,8 +42,13 @@ func (s *infoService) get(ctx context.Context, target Addr, r *Route) (*PeerInfo
 	return fut.get(ctx)
 }
 
-func (s *infoService) onPeerInfoReq(req *PeerInfoReq) *PeerInfo {
-	return s.selfPeerInfo()
+func (s *infoService) onPeerInfoReq(req *PeerInfoReq) (*PeerInfo, error) {
+	pubKey, err := inet256.ParsePublicKey(req.GetAskerPublicKey())
+	if err != nil {
+		return nil, errors.Errorf("info requests must contain valid public key")
+	}
+	s.store.Put(inet256.NewAddr(pubKey), &PeerInfo{PublicKey: req.AskerPublicKey})
+	return s.selfPeerInfo(), nil
 }
 
 func (s *infoService) selfPeerInfo() *PeerInfo {
@@ -62,13 +69,10 @@ func (s *infoService) onPeerInfo(info *PeerInfo) error {
 }
 
 func (s *infoService) sendRequest(ctx context.Context, target Addr, r *Route) error {
-	if err := s.send(ctx, target, r, &Body{
-		Body: &Body_PeerInfo{PeerInfo: s.selfPeerInfo()},
-	}); err != nil {
-		return err
-	}
 	return s.send(ctx, target, r, &Body{
-		Body: &Body_PeerInfoReq{&PeerInfoReq{}},
+		Body: &Body_PeerInfoReq{&PeerInfoReq{
+			AskerPublicKey: s.selfPeerInfo().PublicKey,
+		}},
 	})
 }
 
@@ -89,38 +93,23 @@ func (s *infoService) deleteFut(x Addr) {
 }
 
 type infoFuture struct {
-	done   chan struct{}
-	result *PeerInfo
-	once   sync.Once
+	future
 }
 
 func newInfoFuture() *infoFuture {
-	return &infoFuture{
-		done: make(chan struct{}),
-	}
-}
-
-func (f *infoFuture) wait(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-f.done:
-		return nil
-	}
+	return &infoFuture{*newFuture()}
 }
 
 func (f *infoFuture) get(ctx context.Context) (*PeerInfo, error) {
-	if err := f.wait(ctx); err != nil {
+	x, err := f.future.get(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return f.result, nil
+	return x.(*PeerInfo), nil
 }
 
 func (f *infoFuture) complete(res *PeerInfo) {
-	f.once.Do(func() {
-		f.result = res
-		close(f.done)
-	})
+	f.future.complete(res)
 }
 
 func addrFromInfo(info *PeerInfo) (Addr, error) {

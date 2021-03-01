@@ -13,5 +13,8 @@ func OneHopFactory(params NetworkParams) Network {
 		}
 		return Addr{}, ErrNoAddrWithPrefix
 	}
-	return networkFromSwarm(params.Swarm, findAddr)
+	waitReady := func(ctx context.Context) error {
+		return nil
+	}
+	return networkFromSwarm(params.Swarm, findAddr, waitReady)
 }

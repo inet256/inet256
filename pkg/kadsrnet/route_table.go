@@ -174,6 +174,8 @@ func (rt *kadRouteTable) Get(dst Addr) *Route {
 }
 
 func (rt *kadRouteTable) Delete(dst Addr) bool {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 	e := rt.cache.Delete(dst[:])
 	return e != nil
 }

@@ -5,56 +5,35 @@ import (
 	sync "sync"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/kademlia"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
 const crawlerPingTimeout = 10 * time.Second
 
-type sendQueryFunc = func(ctx context.Context, dst Addr, q *QueryRoutes) error
+type sendBodyAlongFunc = func(ctx context.Context, dst Addr, r *Route, b *Body) error
 
 // crawler is responsible for populating the route table
 type crawler struct {
 	routeTable RouteTable
 	pinger     *pinger
 	infoSrv    *infoService
-	sqf        sendQueryFunc
+	routeSrv   *routeService
+	log        *logrus.Logger
 
 	mu           sync.Mutex
 	peerMonitors map[Addr]struct{}
 }
 
-func newCrawler(rt RouteTable, pinger *pinger, infoSrv *infoService, sqf sendQueryFunc) *crawler {
+func newCrawler(rt RouteTable, routeSrv *routeService, pinger *pinger, infoSrv *infoService, log *logrus.Logger) *crawler {
 	return &crawler{
 		routeTable:   rt,
 		pinger:       pinger,
 		infoSrv:      infoSrv,
-		sqf:          sqf,
+		routeSrv:     routeSrv,
+		log:          log,
 		peerMonitors: make(map[Addr]struct{}),
 	}
-}
-
-func (c *crawler) onRoutes(ctx context.Context, from Addr, routes []*Route) error {
-	confirmedRoutes, err := c.confirmRoutes(ctx, from, routes)
-	if err != nil {
-		return err
-	}
-	var todoPeers []p2p.PeerID
-	for _, r := range confirmedRoutes {
-		if c.routeTable.Add(r) {
-			dst := idFromBytes(r.Dst)
-			todoPeers = append(todoPeers, dst)
-		}
-	}
-	for _, peer := range todoPeers {
-		if err := c.crawlSingle(ctx, peer); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // confirmRoutes first ensures we have the peer info for the peer, and then sends
@@ -72,22 +51,15 @@ func (c *crawler) confirmRoutes(ctx context.Context, from Addr, routes []*Route)
 			continue
 		}
 		r2 := ConcatRoutes(baseRoute, r)
-		if !c.routeTable.WouldAdd(r2) {
-			continue
-		}
 		if len(r2.Path) > MaxPathLen {
 			continue
 		}
+		if !c.routeTable.WouldAdd(r2) {
+			continue
+		}
 		eg.Go(func() error {
-			// ensure we have their info
-			_, err := c.infoSrv.get(ctx, idFromBytes(r2.Dst), r2)
-			if err != nil {
-				return err
-			}
-			// ensure the route works
-			_, err = c.pinger.ping(ctx, idFromBytes(r2.Dst), r2.Path)
-			if err != nil {
-				return err
+			if err := c.confirmRoute(ctx, r2); err != nil {
+				return nil
 			}
 			mu.Lock()
 			confirmedRoutes = append(confirmedRoutes, r2)
@@ -103,53 +75,44 @@ func (c *crawler) confirmRoutes(ctx context.Context, from Addr, routes []*Route)
 	return confirmedRoutes, nil
 }
 
-func (c *crawler) onQueryRoutes(locus []byte, nbits int, limit int) (*RouteList, error) {
-	var stopIter = errors.New("stop iteration")
-	var routes []*Route
-	if err := c.routeTable.ForEach(func(r *Route) error {
-		if kademlia.HasPrefix(r.Dst, locus, nbits) {
-			routes = append(routes, r)
-		}
-		if len(routes) < limit {
-			return nil
-		}
-		return stopIter
-	}); err != nil && err != stopIter {
-		return nil, err
+func (c *crawler) confirmRoute(ctx context.Context, r *Route) error {
+	// send our info.
+	// ensure we have their info
+	_, err := c.infoSrv.get(ctx, idFromBytes(r.Dst), r)
+	if err != nil {
+		return err
 	}
-	localAddr := c.routeTable.LocalAddr()
-	return &RouteList{
-		Src:    localAddr[:],
-		Routes: routes,
-	}, nil
+	// ensure the route works
+	_, err = c.pinger.ping(ctx, idFromBytes(r.Dst), r.Path)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (c *crawler) run(ctx context.Context) {
+func (c *crawler) run(ctx context.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	lastRun := time.Now().Unix()
 	for {
-		thisRun := time.Now().Unix()
-		if err := c.crawlAll(ctx, lastRun); err != nil {
-			logrus.Error("error crawling: ", err)
-		}
-		lastRun = thisRun
 		select {
 		case <-ctx.Done():
+			return ctx.Err()
 		case <-ticker.C:
+		}
+		if err := c.crawlAll(ctx); err != nil {
+			logrus.Error("error crawling: ", err)
 		}
 	}
 }
 
-func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
+func (c *crawler) crawlAll(ctx context.Context) (retErr error) {
 	var routes []*Route
 	c.routeTable.ForEach(func(r *Route) error {
 		routes = append(routes, r)
 		return nil
 	})
 	for _, r := range routes {
-		dst := idFromBytes(r.Dst)
-		err := c.crawlSingle(ctx, dst)
+		err := c.crawlSingle(ctx, r)
 		if retErr == nil {
 			retErr = err
 		}
@@ -157,15 +120,58 @@ func (c *crawler) crawlAll(ctx context.Context, lastRun int64) (retErr error) {
 	return retErr
 }
 
-func (c *crawler) crawlSingle(ctx context.Context, dst Addr) error {
+// crawlSingle starts crawling from a peer that has already been confirmed.
+func (c *crawler) crawlSingle(ctx context.Context, r *Route) error {
+	dst := idFromBytes(r.Dst)
+	if currentRoute := c.routeTable.Get(dst); BestRoute(r, currentRoute) == currentRoute {
+		return nil
+	}
 	// TODO: this is a leaky abstraction
 	nbits := c.routeTable.(*routeTable).cache.(*kadRouteTable).MustMatchBits()
 	localAddr := c.routeTable.LocalAddr()
-	return c.sqf(ctx, dst, &QueryRoutes{
+	routeList, err := c.routeSrv.queryRoutes(ctx, r, &QueryRoutes{
 		Locus: localAddr[:],
 		Nbits: uint32(nbits),
 		Limit: 10,
 	})
+	if err != nil {
+		return err
+	}
+	confirmedRoutes, err := c.confirmRoutes(ctx, idFromBytes(routeList.Src), routeList.Routes)
+	if err != nil {
+		return err
+	}
+	for _, r := range confirmedRoutes {
+		c.addRoute(r)
+	}
+	eg := errgroup.Group{}
+	for _, r := range confirmedRoutes {
+		r := r
+		eg.Go(func() error {
+			return c.crawlSingle(ctx, r)
+		})
+	}
+	return eg.Wait()
+}
+
+// investigate starts crawling a peer, but confirms their route first.
+// it should be called after getting a query from a peer.
+func (c *crawler) investigate(ctx context.Context, r *Route) error {
+	if !c.routeTable.WouldAdd(r) {
+		return nil
+	}
+	if err := c.confirmRoute(ctx, r); err != nil {
+		return err
+	}
+	c.addRoute(r)
+	return c.crawlSingle(ctx, r)
+}
+
+func (c *crawler) addRoute(r *Route) {
+	if c.routeTable.Add(r) {
+		dst := idFromBytes(r.Dst)
+		c.spawnMonitor(dst)
+	}
 }
 
 func (c *crawler) spawnMonitor(dst Addr) {
@@ -189,7 +195,7 @@ func (c *crawler) deleteMonitor(x Addr) {
 	delete(c.peerMonitors, x)
 }
 
-// monitorRoute pings dst, using path in a loop, and returns when it stops
+// monitorPeer pings dst, using path in a loop, and returns when it stops
 // responding.
 // when route monitor returns the entry is cleared from the cache
 func (c *crawler) monitorPeer(ctx context.Context, dst Addr) {

@@ -107,10 +107,20 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 			Logger:     logger,
 		})
 	}
+	waitReadyNetworks(t, nets)
+	t.Log("successfully initialized", N, "networks")
+	t.Cleanup(func() {
+		for _, n := range nets {
+			require.NoError(t, n.Close())
+		}
+	})
+	return nets
+}
 
+func waitReadyNetworks(t *testing.T, nets []Network) {
 	ctx, cf := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cf()
-	for i := 0; i < N; i++ {
+	for i := 0; i < len(nets); i++ {
 		err := nets[i].WaitReady(ctx)
 		require.NoError(t, err)
 		select {
@@ -119,13 +129,6 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 		default:
 		}
 	}
-	t.Log("successfully initialized", N, "networks")
-	t.Cleanup(func() {
-		for _, n := range nets {
-			require.NoError(t, n.Close())
-		}
-	})
-	return nets
 }
 
 func randomPairs(n int, fn func(i, j int)) {

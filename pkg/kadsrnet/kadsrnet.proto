@@ -31,10 +31,11 @@ message Body {
 }
 
 message PeerInfoReq {
+    bytes asker_public_key = 1;
 }
 
 message PeerInfo {
-    bytes public_key = 2;
+    bytes public_key = 1;
 }
 
 message QueryRoutes {
