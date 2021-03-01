@@ -151,14 +151,22 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, strin
 
 func DefaultConfig() Config {
 	return Config{
-		Networks: []string{"onehop"},
+		Networks: DefaultNetworks(),
 		APIAddr:  DefaultAPIAddr,
 		Transports: []TransportSpec{
 			{
-				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0")),
+				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0:0")),
 			},
 		},
 	}
+}
+
+func DefaultNetworks() []string {
+	var names []string
+	for name := range networkNames {
+		names = append(names, name)
+	}
+	return names
 }
 
 func LoadConfig(p string) (*Config, error) {

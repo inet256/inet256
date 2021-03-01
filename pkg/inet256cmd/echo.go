@@ -25,7 +25,7 @@ var echoCmd = &cobra.Command{
 		logrus.Info(n.LocalAddr())
 		ctx := context.Background()
 		n.OnRecv(func(src, dst inet256.Addr, data []byte) {
-			if err := n.Tell(ctx, dst, data); err != nil {
+			if err := n.Tell(ctx, src, data); err != nil {
 				logrus.Error(err)
 				return
 			}

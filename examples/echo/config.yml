@@ -1,0 +1,10 @@
+private_key_path: "private_key.pem"
+api_addr: 127.0.0.1:25600
+networks:
+  - kad+sr
+transports:
+  - udp: 0.0.0.0:0
+    nat_upnp: false
+peers: []
+discovery: []
+autopeering: []
