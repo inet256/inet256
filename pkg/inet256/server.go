@@ -24,6 +24,8 @@ type Server struct {
 
 	mu    sync.Mutex
 	nodes map[p2p.PeerID]Node
+
+	log *logrus.Logger
 }
 
 func NewServer(params Params) *Server {
@@ -52,6 +54,7 @@ func NewServer(params Params) *Server {
 			Peers:      ChainPeerStore{memPeers, params.Peers},
 		}),
 		nodes: make(map[p2p.PeerID]Node),
+		log:   logrus.New(),
 	}
 }
 
@@ -63,6 +66,7 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 		if _, exists := s.nodes[id]; exists {
 			return nil, errors.Errorf("node already exists")
 		}
+		s.log.Infof("creating node %v", id)
 
 		swarm := s.memrealm.NewSwarmWithKey(privateKey)
 
@@ -100,6 +104,7 @@ func (s *Server) DeleteNode(privateKey p2p.PrivateKey) error {
 	if !exists {
 		return nil
 	}
+	s.log.Infof("deleting node %v", id)
 	err := n.Close()
 	delete(s.nodes, id)
 	return err

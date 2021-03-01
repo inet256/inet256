@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type Params struct {
@@ -86,7 +87,10 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256.
 	}
 	defer l.Close()
 	logrus.Println("API listening on: ", l.Addr())
-	gs := grpc.NewServer()
+	gs := grpc.NewServer(grpc.KeepaliveParams(keepalive.ServerParameters{
+		Time:    1 * time.Second,
+		Timeout: 5 * time.Second,
+	}))
 	srv := inet256grpc.NewServer(s)
 	inet256grpc.RegisterINET256Server(gs, srv)
 	go func() {

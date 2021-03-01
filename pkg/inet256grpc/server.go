@@ -105,7 +105,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err := s.addServer(ctx, privKey, id, srv); err != nil {
 		return err
 	}
-	defer s.removeServer(id, srv)
+	defer s.removeServer(id, privKey, srv)
 
 	for {
 		msg, err := srv.Recv()
@@ -179,7 +179,7 @@ func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.P
 	return nil
 }
 
-func (s *Server) removeServer(id p2p.PeerID, srv INET256_ConnectServer) {
+func (s *Server) removeServer(id p2p.PeerID, privKey p2p.PrivateKey, srv INET256_ConnectServer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	srvs := s.active[id]
@@ -190,7 +190,7 @@ func (s *Server) removeServer(id p2p.PeerID, srv INET256_ConnectServer) {
 			} else {
 				srvs = srvs[:i]
 			}
-			return
+			break
 		}
 	}
 	s.active[id] = srvs
@@ -198,7 +198,7 @@ func (s *Server) removeServer(id p2p.PeerID, srv INET256_ConnectServer) {
 	if len(s.active[id]) > 0 {
 		return
 	}
-	if err := s.nodes[id].Close(); err != nil {
+	if err := s.s.DeleteNode(privKey); err != nil {
 		logrus.Error(err)
 	}
 	delete(s.nodes, id)
