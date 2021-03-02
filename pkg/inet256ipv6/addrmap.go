@@ -90,3 +90,9 @@ func ceilDiv(x int, z int) int {
 	}
 	return x / z
 }
+
+func IPv6FromBytes(x []byte) IPv6Addr {
+	a := IPv6Addr{}
+	copy(a[:], x)
+	return a
+}
