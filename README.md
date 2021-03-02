@@ -40,7 +40,7 @@ Networks can be selected in the configuration file.
 Right now we have a network `Kademlia + Source Routing`, which uses an algothirm similar to CJDNS's.
 
 We are eager to add other protocols.
-Check out `pkg/floodnet` for an example of a naive flooding protocol.
+Check out `networks/floodnet` for an example of a naive flooding protocol.
 It's a good place to start.
 
 ## What is Provided
