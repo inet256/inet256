@@ -13,8 +13,8 @@ func init() {
 }
 
 var portalCmd = &cobra.Command{
-	Use:   "ipv6-portal",
-	Short: "runs an IPv6 portal",
+	Use:   "ip6-portal",
+	Short: "runs an IP6 portal",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		privateKey := generateKey()
 		n, err := newClient(privateKey)
