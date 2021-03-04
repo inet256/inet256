@@ -47,6 +47,11 @@ func (s noise2PeerSwarm) LocalAddrs() (ys []p2p.Addr) {
 	return ys
 }
 
+func (s noise2PeerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+	id := target.(p2p.PeerID)
+	return s.Swarm.LookupPublicKey(ctx, noiseswarm.Addr{ID: id, Addr: id})
+}
+
 func (s noise2PeerSwarm) LocalID() p2p.PeerID {
 	return s.Swarm.LocalAddrs()[0].(noiseswarm.Addr).ID
 }
