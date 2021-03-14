@@ -45,12 +45,6 @@ github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kB
 github.com/bkaradzic/go-lz4 v0.0.0-20160924222819-7224d8d8f27e h1:2augTYh6E+XoNrrivZJBadpThP/dsvYKj0nzqfQ8tM4=
 github.com/bkaradzic/go-lz4 v0.0.0-20160924222819-7224d8d8f27e/go.mod h1:0YdlkowM3VswSROI7qDxhRvJ3sLhlFrRRwjwegp5jy4=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
-github.com/brendoncarroll/go-p2p v0.0.0-20210303040651-c0c1f79cc258 h1:psSMj4ep68Dct5I9l4BE1sXYORrQYCHfq0R12BDoQiQ=
-github.com/brendoncarroll/go-p2p v0.0.0-20210303040651-c0c1f79cc258/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
-github.com/brendoncarroll/go-p2p v0.0.0-20210314134745-d7f0901582d8 h1:e9n8pBTQZ3kCsQJ2LBIXN11D344ypamS7j5VudeAptM=
-github.com/brendoncarroll/go-p2p v0.0.0-20210314134745-d7f0901582d8/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
-github.com/brendoncarroll/go-p2p v0.0.0-20210314144607-815134486983 h1:V5RwVnTLP7h01t1dXYWZmBNEsPOV25ahr1mMmYTRfzc=
-github.com/brendoncarroll/go-p2p v0.0.0-20210314144607-815134486983/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
 github.com/brendoncarroll/go-p2p v0.0.0-20210314145115-d8d6872f0fbf h1:1qRjgTNDifkKj+o9z1VJBDErdff4b0qAH3nMh4CcAds=
 github.com/brendoncarroll/go-p2p v0.0.0-20210314145115-d8d6872f0fbf/go.mod h1:tNaUqIc5sCWnjAu3QvRZ4fM8B1U84+T3aCBOUtLvxkc=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=
