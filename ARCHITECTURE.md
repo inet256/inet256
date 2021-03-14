@@ -23,7 +23,7 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 |    Kad + SR    |    Network 2   |   Network 3 |
 |                |                |             |
 |-----------------------------------------------|
-|         Multiplexing & Packet Aggregation     |
+|         Multiplexing & Packet Fragmentation   |
 |-----------------------------------------------|
 |              Encryption Layer (NPF)           |
 |-----------------------------------------------|
@@ -50,7 +50,7 @@ This layer also ensures the MTU for one-hop traffic is a reasonable size.
 
 All data leaving the node is encrypted until the next hop.  All data traveling through a network is encrypted until it reaches it's destination.
 
-There is no fragmentation at the network layer, only at the one hop layer if the MTU is less than 2^16.
+There is no fragmentation at the network layer, only at the one hop layer if the MTU is less than 2^16-1.
 If a message is fragmented, it is reassembled at the next hop, before the network algorithms see it.
 Application data is never fragmented, and then passed to the networks.
 
