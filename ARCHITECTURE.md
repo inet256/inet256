@@ -23,7 +23,7 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 |    Kad + SR    |    Network 2   |   Network 3 |
 |                |                |             |
 |-----------------------------------------------|
-|         Multiplexing & Packet Fragmentation   |
+|      Multiplexing & Packet Fragmentation      |
 |-----------------------------------------------|
 |              Encryption Layer (NPF)           |
 |-----------------------------------------------|
