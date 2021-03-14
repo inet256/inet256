@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
+
+const MinMTU = 1 << 15
 
 // RecvFunc can be passed to Network.OnRecv as a callback to receive messages
 type RecvFunc func(src, dst Addr, data []byte)
@@ -20,7 +24,7 @@ func NoOpRecvFunc(src, dst Addr, data []byte) {}
 // Network is a network for sending messages between peers
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
-	OnRecv(fn RecvFunc)
+	Recv(fn RecvFunc) error
 	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 
@@ -55,7 +59,6 @@ type NetworkSpec struct {
 type multiNetwork struct {
 	networks []Network
 
-	mu      sync.Mutex
 	addrMap sync.Map
 }
 
@@ -71,17 +74,26 @@ func newMultiNetwork(networks ...Network) Network {
 }
 
 func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
-	network := mn.whichNetwork(ctx, dst)
-	if network == nil {
-		return ErrAddrUnreachable{dst}
+	if len(mn.networks) == 1 {
+		// TODO: remove this once findAddr is working properly
+		return mn.networks[0].Tell(ctx, dst, data)
+	}
+	network, err := mn.whichNetwork(ctx, dst)
+	if err != nil {
+		return err
 	}
 	return network.Tell(ctx, dst, data)
 }
 
-func (mn *multiNetwork) OnRecv(fn RecvFunc) {
+func (mn *multiNetwork) Recv(fn RecvFunc) error {
+	eg := errgroup.Group{}
 	for _, n := range mn.networks {
-		n.OnRecv(fn)
+		n := n
+		eg.Go(func() error {
+			return n.Recv(fn)
+		})
 	}
+	return eg.Wait()
 }
 
 func (mn *multiNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -90,16 +102,19 @@ func (mn *multiNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) 
 }
 
 func (mn *multiNetwork) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
-	network := mn.whichNetwork(ctx, target)
-	if network == nil {
-		return nil, ErrAddrUnreachable{target}
+	network, err := mn.whichNetwork(ctx, target)
+	if err != nil {
+		return nil, err
 	}
 	return network.LookupPublicKey(ctx, target)
 }
 
 func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
-	ntwk := mn.whichNetwork(ctx, target)
-	return ntwk.MTU(ctx, target)
+	network, err := mn.whichNetwork(ctx, target)
+	if err != nil {
+		return MinMTU
+	}
+	return network.MTU(ctx, target)
 }
 
 func (mn *multiNetwork) LocalAddr() Addr {
@@ -130,10 +145,17 @@ func (mn *multiNetwork) Close() (retErr error) {
 }
 
 func (mn *multiNetwork) addrWithPrefix(ctx context.Context, prefix []byte, nbits int) (addr Addr, network Network, err error) {
+	var cf context.CancelFunc
+	if deadline, ok := ctx.Deadline(); ok {
+		now := time.Now()
+		ctx, cf = context.WithTimeout(ctx, deadline.Sub(now)/3)
+	} else {
+		ctx, cf = context.WithCancel(ctx)
+	}
+	defer cf()
+
 	addrs := make([]Addr, len(mn.networks))
 	errs := make([]error, len(mn.networks))
-	ctx, cf := context.WithCancel(ctx)
-	defer cf()
 	wg := sync.WaitGroup{}
 	wg.Add(len(mn.networks))
 	for i, network := range mn.networks[:] {
@@ -156,17 +178,17 @@ func (mn *multiNetwork) addrWithPrefix(ctx context.Context, prefix []byte, nbits
 	return Addr{}, nil, fmt.Errorf("errors occurred %v", addrs)
 }
 
-func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) Network {
+func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) (Network, error) {
 	x, exists := mn.addrMap.Load(addr)
 	if exists {
-		return x.(Network)
+		return x.(Network), nil
 	}
 	_, network, err := mn.addrWithPrefix(ctx, addr[:], len(addr)*8)
 	if err != nil {
-		return nil
+		return nil, errors.Wrap(err, "selecting network")
 	}
 	mn.addrMap.Store(addr, network)
-	return network
+	return network, nil
 }
 
 type chainNetwork []Network
@@ -186,10 +208,15 @@ func (n chainNetwork) Tell(ctx context.Context, dst Addr, data []byte) (retErr e
 	return retErr
 }
 
-func (n chainNetwork) OnRecv(fn RecvFunc) {
+func (n chainNetwork) Recv(fn RecvFunc) error {
+	eg := errgroup.Group{}
 	for _, n2 := range n {
-		n2.OnRecv(fn)
+		n2 := n2
+		eg.Go(func() error {
+			return n2.Recv(fn)
+		})
 	}
+	return eg.Wait()
 }
 
 func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -250,15 +277,14 @@ func (n chainNetwork) WaitReady(ctx context.Context) error {
 type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
-	mu        sync.RWMutex
-	onRecv    RecvFunc
+	recvHub   *RecvHub
 }
 
 func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 	return &loopbackNetwork{
 		localAddr: p2p.NewPeerID(localKey),
 		localKey:  localKey,
-		onRecv:    NoOpRecvFunc,
+		recvHub:   NewRecvHub(),
 	}
 }
 
@@ -266,19 +292,12 @@ func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error
 	if dst != n.localAddr {
 		return ErrNoAddrWithPrefix
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.onRecv(dst, dst, data)
+	n.recvHub.Deliver(dst, dst, data)
 	return nil
 }
 
-func (n *loopbackNetwork) OnRecv(fn RecvFunc) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	if fn == nil {
-		fn = NoOpRecvFunc
-	}
-	n.onRecv = fn
+func (n *loopbackNetwork) Recv(fn RecvFunc) error {
+	return n.recvHub.Recv(fn)
 }
 
 func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {

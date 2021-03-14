@@ -2,6 +2,7 @@ package inet256test
 
 import (
 	"context"
+	"log"
 	"math"
 	"testing"
 	"time"
@@ -23,12 +24,13 @@ func TestServer(t *testing.T, nf inet256.NetworkFactory) {
 		nodes[i] = n
 	}
 	t.Log("created", N, "nodes")
-
-	for i := range nodes {
-		for j := range nodes {
-			TestSendRecvOne(t, nodes[i], nodes[j])
-		}
-	}
+	chans := setupChans(castNodeSlice(nodes))
+	log.Println(chans)
+	randomPairs(len(nodes), func(i, j int) {
+		log.Println("sending", nodes[i].LocalAddr(), nodes[j].LocalAddr())
+		log.Println("sending to chan", chans[j])
+		testSendRecvOne(t, nodes[i], nodes[j].LocalAddr(), chans[j])
+	})
 }
 
 func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
@@ -47,9 +49,8 @@ func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 		Peers:      ps,
 		PrivateKey: pk,
 	})
-	if err := s.MainNode().WaitReady(ctx); err != nil {
-		require.NoError(t, err)
-	}
+	err := s.MainNode().WaitReady(ctx)
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, s.Close())
 	})

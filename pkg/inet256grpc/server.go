@@ -173,7 +173,7 @@ func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.P
 			return err
 		}
 		s.nodes[id] = n
-		n.OnRecv(s.toClients)
+		go n.Recv(s.toClients)
 	}
 	s.active[id] = append(s.active[id], &serverWrapper{INET256_ConnectServer: srv})
 	return nil

@@ -5,8 +5,10 @@ import (
 	sync "sync"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/sha3"
 )
 
 type sendAlongFunc = func(ctx context.Context, dst Addr, r *Route, body *Body) error
@@ -24,6 +26,21 @@ func newInfoService(store *PeerInfoStore, rt RouteTable, send sendAlongFunc) *in
 		store:      store,
 		send:       send,
 	}
+}
+
+func (s *infoService) findAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
+	if kademlia.HasPrefix(s.store.localAddr[:], prefix, nbits) {
+		return s.store.localAddr, nil
+	}
+	for _, peerID := range s.store.oneHopPeers.ListPeers() {
+		if kademlia.HasPrefix(peerID[:], prefix, nbits) {
+			return hashPublicKey(s.store.Get(peerID).PublicKey), nil
+		}
+	}
+	if peerInfo := s.store.Lookup(prefix, nbits); peerInfo != nil {
+		return hashPublicKey(peerInfo.PublicKey), nil
+	}
+	return Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
 func (s *infoService) get(ctx context.Context, target Addr, r *Route) (*PeerInfo, error) {
@@ -118,4 +135,10 @@ func addrFromInfo(info *PeerInfo) (Addr, error) {
 		return Addr{}, nil
 	}
 	return p2p.NewPeerID(pubKey), nil
+}
+
+func hashPublicKey(x []byte) Addr {
+	y := Addr{}
+	sha3.ShakeSum256(y[:], x)
+	return y
 }

@@ -24,14 +24,12 @@ var echoCmd = &cobra.Command{
 		defer n.Close()
 		logrus.Info(n.LocalAddr())
 		ctx := context.Background()
-		n.OnRecv(func(src, dst inet256.Addr, data []byte) {
+		return n.Recv(func(src, dst inet256.Addr, data []byte) {
 			if err := n.Tell(ctx, src, data); err != nil {
 				logrus.Error(err)
 				return
 			}
 			logrus.Infof("echoed %d bytes from %v", len(data), src)
 		})
-		<-ctx.Done()
-		return ctx.Err()
 	},
 }

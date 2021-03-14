@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/swarmutil"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,8 +19,8 @@ type asker struct {
 	counts    map[string]uint32
 	responses map[responseKey]chan []byte
 
-	onAsk  p2p.AskHandler
-	onTell p2p.TellHandler
+	askHub  *swarmutil.AskHub
+	tellHub *swarmutil.TellHub
 }
 
 func newAsker(s p2p.Swarm) *asker {
@@ -28,44 +29,37 @@ func newAsker(s p2p.Swarm) *asker {
 
 		counts:    make(map[string]uint32),
 		responses: make(map[responseKey]chan []byte),
-
-		onAsk:  p2p.NoOpAskHandler,
-		onTell: p2p.NoOpTellHandler,
+		askHub:    swarmutil.NewAskHub(),
+		tellHub:   swarmutil.NewTellHub(),
 	}
-	s.OnTell(a.fromBelow)
+	go s.ServeTells(a.fromBelow)
 	return a
 }
 
-func (a *asker) OnTell(fn p2p.TellHandler) {
-	if fn == nil {
-		fn = p2p.NoOpTellHandler
-	}
-	a.onTell = fn
+func (a *asker) ServeTells(fn p2p.TellHandler) error {
+	return a.tellHub.ServeTells(fn)
 }
 
-func (a *asker) OnAsk(fn p2p.AskHandler) {
-	if fn == nil {
-		fn = p2p.NoOpAskHandler
-	}
-	a.onAsk = fn
+func (a *asker) ServeAsks(fn p2p.AskHandler) error {
+	return a.askHub.ServeAsks(fn)
 }
 
-func (a *asker) Tell(ctx context.Context, dst p2p.Addr, data []byte) error {
+func (a *asker) Tell(ctx context.Context, dst p2p.Addr, data p2p.IOVec) error {
 	m := make(message, 8)
 	m.setAsk(false)
-	m = append(m, data...)
-	return a.Swarm.Tell(ctx, dst, m)
+	v := append(p2p.IOVec{m}, data...)
+	return a.Swarm.Tell(ctx, dst, v)
 }
 
 func (a *asker) MTU(ctx context.Context, dst p2p.Addr) int {
 	return a.Swarm.MTU(ctx, dst) - 8
 }
 
-func (a *asker) Ask(ctx context.Context, dst p2p.Addr, data []byte) ([]byte, error) {
+func (a *asker) Ask(ctx context.Context, dst p2p.Addr, data p2p.IOVec) ([]byte, error) {
 	m := make(message, 8)
 	m.setAsk(true)
 	m.setResponse(false)
-	m = append(m, data...)
+	vec := append(p2p.IOVec{m}, data...)
 
 	a.mu.Lock()
 	n := a.counts[dst.Key()]
@@ -84,7 +78,7 @@ func (a *asker) Ask(ctx context.Context, dst p2p.Addr, data []byte) ([]byte, err
 		defer a.mu.Unlock()
 		delete(a.responses, rkey)
 	}()
-	if err := a.Swarm.Tell(ctx, dst, m); err != nil {
+	if err := a.Swarm.Tell(ctx, dst, vec); err != nil {
 		return nil, err
 	}
 	select {
@@ -106,8 +100,7 @@ func (a *asker) fromBelow(msg *p2p.Message) {
 	// tell
 	case !m.isAsk():
 		msg.Payload = m.getPayload()
-		th := a.getOnTell()
-		th(msg)
+		a.tellHub.DeliverTell(msg)
 
 	// request
 	case m.isAsk() && !m.isResponse():
@@ -125,9 +118,8 @@ func (a *asker) fromBelow(msg *p2p.Message) {
 			resp.setIndex(m.index())
 			buf := bytes.Buffer{}
 			buf.Write(resp[:8])
-			onAsk := a.getOnAsk()
-			onAsk(ctx, &msg2, &buf)
-			if err := a.Swarm.Tell(ctx, src, buf.Bytes()); err != nil {
+			a.askHub.DeliverAsk(ctx, &msg2, &buf)
+			if err := a.Swarm.Tell(ctx, src, p2p.IOVec{buf.Bytes()}); err != nil {
 				logrus.Error(err)
 			}
 		}()
@@ -148,18 +140,6 @@ func (a *asker) fromBelow(msg *p2p.Message) {
 		}
 		a.mu.Unlock()
 	}
-}
-
-func (a *asker) getOnTell() p2p.TellHandler {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.onTell
-}
-
-func (a *asker) getOnAsk() p2p.AskHandler {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.onAsk
 }
 
 type responseKey struct {

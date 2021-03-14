@@ -49,8 +49,8 @@ func TestDial(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		done := make(chan struct{})
-		c.OnRecv(func(dst, src inet256.Addr, payload []byte) {
+		done := make(chan struct{}, 1)
+		go c.Recv(func(dst, src inet256.Addr, payload []byte) {
 			done <- struct{}{}
 		})
 		err = c.Tell(ctx, p2p.NewPeerID(privateKey.Public()), []byte("this shouldn't break"))

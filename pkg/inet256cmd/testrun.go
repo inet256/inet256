@@ -34,7 +34,7 @@ var testRunCmd = &cobra.Command{
 				node := s.MainNode()
 				cmd.Printf("ADDR: %v\n", node.LocalAddr())
 				cmd.Printf("LISTENERS: %v\n", node.TransportAddrs())
-				node.OnRecv(func(src, dst inet256.Addr, data []byte) {
+				go node.Recv(func(src, dst inet256.Addr, data []byte) {
 					cmd.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
 				})
 

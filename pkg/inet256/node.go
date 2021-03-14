@@ -68,8 +68,8 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, data)
 }
 
-func (n *node) OnRecv(fn RecvFunc) {
-	n.network.OnRecv(fn)
+func (n *node) Recv(fn RecvFunc) error {
+	return n.network.Recv(fn)
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {

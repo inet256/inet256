@@ -22,16 +22,16 @@ func SwarmFromNetwork(network Network, publicKey p2p.PublicKey) peerswarm.Swarm 
 	}
 }
 
-func (s *netAdapter) Tell(ctx context.Context, dst p2p.Addr, data []byte) error {
-	return s.TellPeer(ctx, dst.(p2p.PeerID), data)
+func (s *netAdapter) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
+	return s.TellPeer(ctx, dst.(p2p.PeerID), v)
 }
 
-func (s *netAdapter) TellPeer(ctx context.Context, dst p2p.PeerID, data []byte) error {
-	return s.network.Tell(ctx, dst, data)
+func (s *netAdapter) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) error {
+	return s.network.Tell(ctx, dst, p2p.VecBytes(v))
 }
 
-func (s *netAdapter) OnTell(fn p2p.TellHandler) {
-	s.network.OnRecv(func(src, dst Addr, data []byte) {
+func (s *netAdapter) ServeTells(fn p2p.TellHandler) error {
+	return s.network.Recv(func(src, dst Addr, data []byte) {
 		fn(&p2p.Message{
 			Dst:     dst,
 			Src:     src,
@@ -89,11 +89,11 @@ func networkFromSwarm(x PeerSwarm, findAddr FindAddrFunc, waitFunc WaitReadyFunc
 }
 
 func (n *swarmAdapter) Tell(ctx context.Context, dst Addr, data []byte) error {
-	return n.peerswarm.TellPeer(ctx, dst, data)
+	return n.peerswarm.TellPeer(ctx, dst, p2p.IOVec{data})
 }
 
-func (n *swarmAdapter) OnRecv(fn RecvFunc) {
-	n.peerswarm.OnTell(func(msg *p2p.Message) {
+func (n *swarmAdapter) Recv(fn RecvFunc) error {
+	return n.peerswarm.ServeTells(func(msg *p2p.Message) {
 		fn(msg.Src.(p2p.PeerID), msg.Dst.(p2p.PeerID), msg.Payload)
 	})
 }

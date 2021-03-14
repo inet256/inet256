@@ -29,28 +29,27 @@ func New(inner p2p.Swarm, privateKey p2p.PrivateKey) p2p.SecureSwarm {
 		inner:      inner,
 		onTell:     p2p.NoOpTellHandler,
 	}
-	s.inner.OnTell(s.fromBelow)
 	return s
 }
 
-func (s *Swarm) Tell(ctx context.Context, addr p2p.Addr, data []byte) error {
+func (s *Swarm) Tell(ctx context.Context, addr p2p.Addr, data p2p.IOVec) error {
 	dst := addr.(Addr)
 	pubKeyData := p2p.MarshalPublicKey(s.privateKey.Public())
 	msg := message{
 		SrcPublicKey: pubKeyData,
-		Payload:      data,
+		Payload:      p2p.VecBytes(data),
 	}
 	msgData, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	return s.inner.Tell(ctx, dst.Addr, msgData)
+	return s.inner.Tell(ctx, dst.Addr, p2p.IOVec{msgData})
 }
 
-func (s *Swarm) OnTell(fn p2p.TellHandler) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.onTell = fn
+func (s *Swarm) ServeTells(fn p2p.TellHandler) error {
+	return s.inner.ServeTells(func(msg *p2p.Message) {
+		s.fromBelow(msg, fn)
+	})
 }
 
 func (s *Swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
@@ -101,7 +100,7 @@ func (s *Swarm) ParseAddr(data []byte) (p2p.Addr, error) {
 	}, nil
 }
 
-func (s *Swarm) fromBelow(msg *p2p.Message) {
+func (s *Swarm) fromBelow(msg *p2p.Message, th p2p.TellHandler) {
 	dst := s.LocalAddr()
 	msg2 := message{}
 	if err := json.Unmarshal(msg.Payload, &msg2); err != nil {
@@ -121,10 +120,7 @@ func (s *Swarm) fromBelow(msg *p2p.Message) {
 		Dst:     Addr{ID: dst.ID, Addr: msg.Dst},
 		Payload: msg2.Payload,
 	}
-	s.mu.RLock()
-	onTell := s.onTell
-	s.mu.RUnlock()
-	onTell(&msg3)
+	th(&msg3)
 }
 
 type message struct {

@@ -32,28 +32,28 @@ func NewSwarm(endpoint string, privateKey p2p.PrivateKey) (peerswarm.AskSwarm, e
 	return s, nil
 }
 
-func (s *Swarm) Tell(ctx context.Context, dst p2p.Addr, data []byte) error {
+func (s *Swarm) Tell(ctx context.Context, dst p2p.Addr, data p2p.IOVec) error {
 	return s.asker.Tell(ctx, dst, data)
 }
 
-func (s *Swarm) TellPeer(ctx context.Context, dst p2p.PeerID, data []byte) error {
+func (s *Swarm) TellPeer(ctx context.Context, dst p2p.PeerID, data p2p.IOVec) error {
 	return s.asker.Tell(ctx, dst, data)
 }
 
-func (s *Swarm) OnTell(fn p2p.TellHandler) {
-	s.asker.OnTell(fn)
+func (s *Swarm) ServeTells(fn p2p.TellHandler) error {
+	return s.asker.ServeTells(fn)
 }
 
-func (s *Swarm) Ask(ctx context.Context, dst p2p.Addr, data []byte) ([]byte, error) {
+func (s *Swarm) Ask(ctx context.Context, dst p2p.Addr, data p2p.IOVec) ([]byte, error) {
 	return s.asker.Ask(ctx, dst, data)
 }
 
-func (s *Swarm) AskPeer(ctx context.Context, dst p2p.PeerID, data []byte) ([]byte, error) {
+func (s *Swarm) AskPeer(ctx context.Context, dst p2p.PeerID, data p2p.IOVec) ([]byte, error) {
 	return s.asker.Ask(ctx, dst, data)
 }
 
-func (s *Swarm) OnAsk(fn p2p.AskHandler) {
-	s.asker.OnAsk(fn)
+func (s *Swarm) ServeAsks(fn p2p.AskHandler) error {
+	return s.asker.ServeAsks(fn)
 }
 
 func (s *Swarm) LocalAddrs() []p2p.Addr {
