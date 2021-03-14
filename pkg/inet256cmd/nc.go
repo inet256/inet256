@@ -36,7 +36,7 @@ var ncCmd = &cobra.Command{
 		}
 		defer n.Close()
 		logrus.Info(n.LocalAddr())
-		n.OnRecv(func(src, _ inet256.Addr, data []byte) {
+		go n.Recv(func(src, _ inet256.Addr, data []byte) {
 			if src != remote {
 				logrus.Warnf("discarding message from %v", src)
 				return

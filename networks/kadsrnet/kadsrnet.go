@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"log"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -51,8 +50,7 @@ type Network struct {
 
 	cf context.CancelFunc
 
-	mu     sync.RWMutex
-	onRecv inet256.RecvFunc
+	recvHub *inet256.RecvHub
 }
 
 func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet, log *logrus.Logger) *Network {
@@ -77,6 +75,8 @@ func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet
 		routeTable: routeTable,
 		peerInfos:  peerInfos,
 		cf:         cf,
+
+		recvHub: inet256.NewRecvHub(),
 	}
 	// request/response services
 	n.pinger = newPinger(n.sendBodyAlong)
@@ -85,7 +85,12 @@ func New(privateKey p2p.PrivateKey, swarm peerswarm.Swarm, peers inet256.PeerSet
 
 	n.crawler = newCrawler(n.routeTable, n.routeSrv, n.pinger, n.infoSrv, n.log)
 
-	n.swarm.OnTell(n.fromBelow)
+	go func() {
+		err := n.swarm.ServeTells(n.fromBelow)
+		logrus.Error(err)
+		n.recvHub.CloseWithError(err)
+	}()
+
 	go n.runLoop(ctx)
 	return n
 }
@@ -95,17 +100,12 @@ func (n *Network) Tell(ctx context.Context, addr Addr, data []byte) error {
 	return n.sendBodyTo(ctx, addr, body)
 }
 
-func (n *Network) OnRecv(fn inet256.RecvFunc) {
-	if fn == nil {
-		fn = inet256.NoOpRecvFunc
-	}
-	n.mu.Lock()
-	n.onRecv = fn
-	n.mu.Unlock()
+func (n *Network) Recv(fn inet256.RecvFunc) error {
+	return n.recvHub.Recv(fn)
 }
 
 func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
-	return Addr{}, nil
+	return n.infoSrv.findAddr(ctx, prefix, nbits)
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
@@ -190,10 +190,7 @@ func (n *Network) DumpRoutes() {
 }
 
 func (n *Network) toAbove(src, dst Addr, data []byte) {
-	n.mu.RLock()
-	onRecv := n.onRecv
-	n.mu.RUnlock()
-	onRecv(src, dst, data)
+	n.recvHub.Deliver(src, dst, data)
 }
 
 func (n *Network) fromBelow(msg *p2p.Message) {
@@ -279,7 +276,7 @@ func (n *Network) sendMessage(ctx context.Context, next Addr, msg *Message) erro
 	if err != nil {
 		panic(err)
 	}
-	return n.swarm.TellPeer(ctx, next, data)
+	return n.swarm.TellPeer(ctx, next, p2p.IOVec{data})
 }
 
 func (n *Network) handleMessage(ctx context.Context, prev Addr, msg *Message) error {
@@ -342,10 +339,10 @@ func (n *Network) getPublicKey(ctx context.Context, msg *Message, body *Body) p2
 
 func (n *Network) handleBody(ctx context.Context, prev Addr, msg *Message, body *Body) (err error) {
 	src := idFromBytes(msg.Src)
-	//log := n.log.WithFields(logrus.Fields{"src": src, "dst": n.localAddr})
+	// log := n.log.WithFields(logrus.Fields{"src": src, "dst": n.localAddr})
 	switch body := body.GetBody().(type) {
 	case *Body_Data:
-		//log.Debugf("recv data len=%d", len(body.Data))
+		// log.Debugf("recv data len=%d", len(body.Data))
 		n.toAbove(src, n.localAddr, body.Data)
 		return nil
 
@@ -437,8 +434,7 @@ func (n *Network) forward(ctx context.Context, prev Addr, msg *Message) error {
 	if err != nil {
 		panic(err)
 	}
-
-	return n.swarm.Tell(ctx, next, data)
+	return n.swarm.Tell(ctx, next, p2p.IOVec{data})
 }
 
 func (n *Network) improveRoute(msg *Message) error {

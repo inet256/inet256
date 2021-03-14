@@ -43,40 +43,36 @@ func TestNetwork(t *testing.T, nf NetworkFactory) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
-			nets := setupNetworks(t, len(tc.Topology), tc.Topology, nf)
+			nets := setupNetworks(t, tc.Topology, nf)
+			chans := setupChans(nets)
 			t.Log("topology:", tc.Topology)
 			randomPairs(len(nets), func(i, j int) {
-				TestSendRecvOne(t, nets[i], nets[j])
+				testSendRecvOne(t, nets[i], nets[j].LocalAddr(), chans[j])
 			})
 		})
 	}
 }
 
-func TestSendRecvOne(t testing.TB, from, to Network) {
+func testSendRecvOne(t testing.TB, from Network, dst Addr, queue chan Message) {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	actualData := "test data"
-	ch := make(chan bool, 1)
-	to.OnRecv(func(src, dst Addr, data []byte) {
-		match := string(data) == actualData
-		select {
-		case ch <- match:
-		default:
-		}
-	})
-	err := from.Tell(ctx, to.LocalAddr(), []byte(actualData))
+
+	err := from.Tell(ctx, dst, []byte(actualData))
 	require.NoError(t, err)
+
 	select {
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
-	case match := <-ch:
-		require.True(t, match)
+	case msg := <-queue:
+		require.Equal(t, actualData, string(msg.Payload))
 	}
+	drain(queue)
 }
 
-func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
+func setupNetworks(t *testing.T, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	r := memswarm.NewRealm()
-
+	N := len(adjList)
 	swarms := make([]p2p.SecureSwarm, N)
 	peerSwarms := make([]peerswarm.Swarm, N)
 	peerStores := make([]PeerStore, N)
@@ -118,7 +114,7 @@ func setupNetworks(t *testing.T, N int, adjList p2ptest.AdjList, nf NetworkFacto
 }
 
 func waitReadyNetworks(t *testing.T, nets []Network) {
-	ctx, cf := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	for i := 0; i < len(nets); i++ {
 		err := nets[i].WaitReady(ctx)
@@ -131,6 +127,32 @@ func waitReadyNetworks(t *testing.T, nets []Network) {
 	}
 }
 
+func setupChan(nwk Network) chan Message {
+	ch := make(chan Message, 10)
+	go func() {
+		err := nwk.Recv(func(src, dst inet256.Addr, data []byte) {
+			ch <- Message{
+				Src:     src,
+				Dst:     dst,
+				Payload: append([]byte{}, data...),
+			}
+		})
+		close(ch)
+		if err != p2p.ErrSwarmClosed {
+			logrus.Error(err)
+		}
+	}()
+	return ch
+}
+
+func setupChans(nets []Network) []chan Message {
+	chans := make([]chan Message, len(nets))
+	for i := range nets {
+		chans[i] = setupChan(nets[i])
+	}
+	return chans
+}
+
 func randomPairs(n int, fn func(i, j int)) {
 	for _, i := range rand.Perm(n) {
 		for _, j := range rand.Perm(n) {
@@ -138,6 +160,14 @@ func randomPairs(n int, fn func(i, j int)) {
 				fn(i, j)
 			}
 		}
+	}
+}
+
+func drain(x chan Message) {
+	select {
+	case <-x:
+	default:
+		return
 	}
 }
 
@@ -149,4 +179,18 @@ func newTestLogger(t *testing.T) *logrus.Logger {
 		ForceColors: true,
 	})
 	return logger
+}
+
+type Message struct {
+	Src     inet256.Addr
+	Dst     inet256.Addr
+	Payload []byte
+}
+
+func castNodeSlice(nodes []inet256.Node) []Network {
+	nets := make([]Network, len(nodes))
+	for i := range nodes {
+		nets[i] = nodes[i]
+	}
+	return nets
 }

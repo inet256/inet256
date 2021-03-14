@@ -23,12 +23,10 @@ func TestServer(t *testing.T, nf inet256.NetworkFactory) {
 		nodes[i] = n
 	}
 	t.Log("created", N, "nodes")
-
-	for i := range nodes {
-		for j := range nodes {
-			TestSendRecvOne(t, nodes[i], nodes[j])
-		}
-	}
+	chans := setupChans(castNodeSlice(nodes))
+	randomPairs(len(nodes), func(i, j int) {
+		testSendRecvOne(t, nodes[i], nodes[j].LocalAddr(), chans[j])
+	})
 }
 
 func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
@@ -47,9 +45,8 @@ func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 		Peers:      ps,
 		PrivateKey: pk,
 	})
-	if err := s.MainNode().WaitReady(ctx); err != nil {
-		require.NoError(t, err)
-	}
+	err := s.MainNode().WaitReady(ctx)
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, s.Close())
 	})

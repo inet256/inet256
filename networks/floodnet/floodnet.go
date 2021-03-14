@@ -28,9 +28,10 @@ type Network struct {
 	onehop     inet256.PeerSet
 	swarm      peerswarm.Swarm
 
-	mu     sync.RWMutex
-	onRecv inet256.RecvFunc
-	peers  map[p2p.PeerID]p2p.PublicKey
+	mu    sync.RWMutex
+	peers map[p2p.PeerID]p2p.PublicKey
+
+	recvHub *inet256.RecvHub
 }
 
 func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet) inet256.Network {
@@ -40,10 +41,10 @@ func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet) 
 		onehop:     onehop,
 		swarm:      ps,
 
-		onRecv: inet256.NoOpRecvFunc,
-		peers:  make(map[p2p.PeerID]p2p.PublicKey),
+		peers:   make(map[p2p.PeerID]p2p.PublicKey),
+		recvHub: inet256.NewRecvHub(),
 	}
-	ps.OnTell(n.fromBelow)
+	go n.swarm.ServeTells(n.fromBelow)
 	return n
 }
 
@@ -56,13 +57,8 @@ func (n *Network) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.broadcast(ctx, msgData, n.localAddr)
 }
 
-func (n *Network) OnRecv(fn inet256.RecvFunc) {
-	if fn == nil {
-		fn = inet256.NoOpRecvFunc
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.onRecv = fn
+func (n *Network) Recv(fn inet256.RecvFunc) error {
+	return n.recvHub.Recv(fn)
 }
 
 func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -148,7 +144,7 @@ func (n *Network) fromBelow(m *p2p.Message) {
 		case modeAdvertise:
 		case modeData:
 			if bytes.Equal(n.localAddr[:], msg.Dst) {
-				n.getOnRecv()(src, n.localAddr, msg.Payload)
+				n.recvHub.Deliver(src, n.localAddr, msg.Payload)
 				return nil
 			}
 		}
@@ -166,7 +162,7 @@ func (n *Network) fromBelow(m *p2p.Message) {
 			panic(err)
 		}
 		if n.onehop.Contains(dst) {
-			return n.swarm.TellPeer(ctx, dst, data)
+			return n.swarm.TellPeer(ctx, dst, p2p.IOVec{data})
 		}
 		return n.broadcast(ctx, data, m.Src.(inet256.Addr))
 	}()
@@ -182,15 +178,6 @@ func (n *Network) addPeer(pubKey p2p.PublicKey) {
 	n.mu.Unlock()
 }
 
-func (n *Network) getOnRecv() inet256.RecvFunc {
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-	if n.onRecv != nil {
-		return n.onRecv
-	}
-	return inet256.NoOpRecvFunc
-}
-
 func (n *Network) broadcast(ctx context.Context, data []byte, exclude inet256.Addr) error {
 	eg := errgroup.Group{}
 	for _, id := range n.onehop.ListPeers() {
@@ -199,7 +186,7 @@ func (n *Network) broadcast(ctx context.Context, data []byte, exclude inet256.Ad
 		}
 		id := id
 		eg.Go(func() error {
-			return n.swarm.TellPeer(ctx, id, data)
+			return n.swarm.TellPeer(ctx, id, p2p.IOVec{data})
 		})
 	}
 	return eg.Wait()

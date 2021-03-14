@@ -26,8 +26,8 @@ func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
 	return secnet
 }
 
-func (s noise2PeerSwarm) OnTell(fn p2p.TellHandler) {
-	s.Swarm.OnTell(func(x *p2p.Message) {
+func (s noise2PeerSwarm) ServeTells(fn p2p.TellHandler) error {
+	return s.Swarm.ServeTells(func(x *p2p.Message) {
 		fn(&p2p.Message{
 			Src:     x.Src.(noiseswarm.Addr).ID,
 			Dst:     x.Dst.(noiseswarm.Addr).ID,
@@ -36,7 +36,7 @@ func (s noise2PeerSwarm) OnTell(fn p2p.TellHandler) {
 	})
 }
 
-func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data []byte) error {
+func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data p2p.IOVec) error {
 	return s.Swarm.Tell(ctx, noiseswarm.Addr{ID: id, Addr: id}, data)
 }
 

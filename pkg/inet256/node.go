@@ -5,7 +5,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/intmux"
-	"github.com/brendoncarroll/go-p2p/s/aggswarm"
+	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 )
 
@@ -39,7 +39,7 @@ func NewNode(params Params) Node {
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
-		s = aggswarm.NewSecure(s, TransportMTU)
+		s = fragswarm.NewSecure(s, TransportMTU)
 		ps := NewPeerSwarm(s, NewAddrSource(s, params.Peers))
 		networks[i] = nspec.Factory(NetworkParams{
 			PrivateKey: params.PrivateKey,
@@ -68,8 +68,8 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, data)
 }
 
-func (n *node) OnRecv(fn RecvFunc) {
-	n.network.OnRecv(fn)
+func (n *node) Recv(fn RecvFunc) error {
+	return n.network.Recv(fn)
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {

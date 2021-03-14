@@ -24,9 +24,7 @@ type client struct {
 	localAddr  inet256.Addr
 	cf         context.CancelFunc
 
-	mu     sync.RWMutex
-	onRecv inet256.RecvFunc
-
+	recvHub *inet256.RecvHub
 	workers []*worker
 }
 
@@ -46,16 +44,13 @@ func NewNodeFromGRPC(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKe
 		inetClient: inetClient,
 		privKey:    privKey,
 		localAddr:  p2p.NewPeerID(privKey.Public()),
-		onRecv:     inet256.NoOpRecvFunc,
+		recvHub:    inet256.NewRecvHub(),
 		workers:    make([]*worker, runtime.GOMAXPROCS(0)),
 	}
-	onRecvFn := func(src, dst inet256.Addr, payload []byte) {
-		c.mu.RLock()
-		defer c.mu.RUnlock()
-		c.onRecv(src, dst, payload)
-	}
 	for i := range c.workers {
-		c.workers[i] = newWorker(c.connect, onRecvFn)
+		c.workers[i] = newWorker(c.connect, func(src, dst inet256.Addr, data []byte) {
+			c.recvHub.Deliver(src, dst, data)
+		})
 	}
 	go c.runLoop(ctx)
 
@@ -91,13 +86,8 @@ func (c *client) Tell(ctx context.Context, dst inet256.Addr, data []byte) error 
 	return c.pickWorker().tell(ctx, dst, data)
 }
 
-func (c *client) OnRecv(fn inet256.RecvFunc) {
-	if fn == nil {
-		fn = inet256.NoOpRecvFunc
-	}
-	c.mu.Lock()
-	c.mu.Unlock()
-	c.onRecv = fn
+func (c *client) Recv(fn inet256.RecvFunc) error {
+	return c.recvHub.Recv(fn)
 }
 
 func (c *client) Close() error {
