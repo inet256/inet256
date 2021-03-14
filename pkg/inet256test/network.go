@@ -138,7 +138,9 @@ func setupChan(nwk Network) chan Message {
 			}
 		})
 		close(ch)
-		logrus.Error(err)
+		if err != p2p.ErrSwarmClosed {
+			logrus.Error(err)
+		}
 	}()
 	return ch
 }

@@ -2,7 +2,6 @@ package inet256test
 
 import (
 	"context"
-	"log"
 	"math"
 	"testing"
 	"time"
@@ -25,10 +24,7 @@ func TestServer(t *testing.T, nf inet256.NetworkFactory) {
 	}
 	t.Log("created", N, "nodes")
 	chans := setupChans(castNodeSlice(nodes))
-	log.Println(chans)
 	randomPairs(len(nodes), func(i, j int) {
-		log.Println("sending", nodes[i].LocalAddr(), nodes[j].LocalAddr())
-		log.Println("sending to chan", chans[j])
 		testSendRecvOne(t, nodes[i], nodes[j].LocalAddr(), chans[j])
 	})
 }
