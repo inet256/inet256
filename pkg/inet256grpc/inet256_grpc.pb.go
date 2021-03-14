@@ -19,13 +19,13 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type INET256Client interface {
 	GenerateKey(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error)
-	LookupSelf(ctx context.Context, in *LookupSelfReq, opts ...grpc.CallOption) (*PeerInfo, error)
-	Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*PeerInfo, error)
+	Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*LookupRes, error)
+	MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error)
+	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error)
 	// Connect starts a session for sending and receiving messages
 	// The first message must contain a private key. The corresponding public key will
 	// be used to derive an address
 	Connect(ctx context.Context, opts ...grpc.CallOption) (INET256_ConnectClient, error)
-	MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error)
 }
 
 type iNET256Client struct {
@@ -45,18 +45,27 @@ func (c *iNET256Client) GenerateKey(ctx context.Context, in *emptypb.Empty, opts
 	return out, nil
 }
 
-func (c *iNET256Client) LookupSelf(ctx context.Context, in *LookupSelfReq, opts ...grpc.CallOption) (*PeerInfo, error) {
-	out := new(PeerInfo)
-	err := c.cc.Invoke(ctx, "/inet256.INET256/LookupSelf", in, out, opts...)
+func (c *iNET256Client) Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*LookupRes, error) {
+	out := new(LookupRes)
+	err := c.cc.Invoke(ctx, "/inet256.INET256/Lookup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iNET256Client) Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*PeerInfo, error) {
-	out := new(PeerInfo)
-	err := c.cc.Invoke(ctx, "/inet256.INET256/Lookup", in, out, opts...)
+func (c *iNET256Client) MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error) {
+	out := new(MTURes)
+	err := c.cc.Invoke(ctx, "/inet256.INET256/MTU", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iNET256Client) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error) {
+	out := new(Status)
+	err := c.cc.Invoke(ctx, "/inet256.INET256/GetStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,27 +103,18 @@ func (x *iNET256ConnectClient) Recv() (*ConnectMsg, error) {
 	return m, nil
 }
 
-func (c *iNET256Client) MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error) {
-	out := new(MTURes)
-	err := c.cc.Invoke(ctx, "/inet256.INET256/MTU", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // INET256Server is the server API for INET256 service.
 // All implementations must embed UnimplementedINET256Server
 // for forward compatibility
 type INET256Server interface {
 	GenerateKey(context.Context, *emptypb.Empty) (*GenerateKeyRes, error)
-	LookupSelf(context.Context, *LookupSelfReq) (*PeerInfo, error)
-	Lookup(context.Context, *LookupReq) (*PeerInfo, error)
+	Lookup(context.Context, *LookupReq) (*LookupRes, error)
+	MTU(context.Context, *MTUReq) (*MTURes, error)
+	GetStatus(context.Context, *emptypb.Empty) (*Status, error)
 	// Connect starts a session for sending and receiving messages
 	// The first message must contain a private key. The corresponding public key will
 	// be used to derive an address
 	Connect(INET256_ConnectServer) error
-	MTU(context.Context, *MTUReq) (*MTURes, error)
 	mustEmbedUnimplementedINET256Server()
 }
 
@@ -125,17 +125,17 @@ type UnimplementedINET256Server struct {
 func (*UnimplementedINET256Server) GenerateKey(context.Context, *emptypb.Empty) (*GenerateKeyRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GenerateKey not implemented")
 }
-func (*UnimplementedINET256Server) LookupSelf(context.Context, *LookupSelfReq) (*PeerInfo, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method LookupSelf not implemented")
-}
-func (*UnimplementedINET256Server) Lookup(context.Context, *LookupReq) (*PeerInfo, error) {
+func (*UnimplementedINET256Server) Lookup(context.Context, *LookupReq) (*LookupRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Lookup not implemented")
-}
-func (*UnimplementedINET256Server) Connect(INET256_ConnectServer) error {
-	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
 func (*UnimplementedINET256Server) MTU(context.Context, *MTUReq) (*MTURes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MTU not implemented")
+}
+func (*UnimplementedINET256Server) GetStatus(context.Context, *emptypb.Empty) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (*UnimplementedINET256Server) Connect(INET256_ConnectServer) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
 func (*UnimplementedINET256Server) mustEmbedUnimplementedINET256Server() {}
 
@@ -161,24 +161,6 @@ func _INET256_GenerateKey_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _INET256_LookupSelf_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LookupSelfReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(INET256Server).LookupSelf(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inet256.INET256/LookupSelf",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(INET256Server).LookupSelf(ctx, req.(*LookupSelfReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _INET256_Lookup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LookupReq)
 	if err := dec(in); err != nil {
@@ -193,6 +175,42 @@ func _INET256_Lookup_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(INET256Server).Lookup(ctx, req.(*LookupReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _INET256_MTU_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MTUReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(INET256Server).MTU(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inet256.INET256/MTU",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(INET256Server).MTU(ctx, req.(*MTUReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _INET256_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(INET256Server).GetStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inet256.INET256/GetStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(INET256Server).GetStatus(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -223,24 +241,6 @@ func (x *iNET256ConnectServer) Recv() (*ConnectMsg, error) {
 	return m, nil
 }
 
-func _INET256_MTU_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MTUReq)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(INET256Server).MTU(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inet256.INET256/MTU",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(INET256Server).MTU(ctx, req.(*MTUReq))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _INET256_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "inet256.INET256",
 	HandlerType: (*INET256Server)(nil),
@@ -250,16 +250,16 @@ var _INET256_serviceDesc = grpc.ServiceDesc{
 			Handler:    _INET256_GenerateKey_Handler,
 		},
 		{
-			MethodName: "LookupSelf",
-			Handler:    _INET256_LookupSelf_Handler,
-		},
-		{
 			MethodName: "Lookup",
 			Handler:    _INET256_Lookup_Handler,
 		},
 		{
 			MethodName: "MTU",
 			Handler:    _INET256_MTU_Handler,
+		},
+		{
+			MethodName: "GetStatus",
+			Handler:    _INET256_GetStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

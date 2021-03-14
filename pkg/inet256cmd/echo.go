@@ -16,14 +16,14 @@ var echoCmd = &cobra.Command{
 	Use:   "echo",
 	Short: "echo starts a server which echos all messages",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		pk := generateKey()
-		n, err := newClient(pk)
+		n, err := newNode(ctx, pk)
 		if err != nil {
 			return err
 		}
 		defer n.Close()
 		logrus.Info(n.LocalAddr())
-		ctx := context.Background()
 		return n.Recv(func(src, dst inet256.Addr, data []byte) {
 			if err := n.Tell(ctx, src, data); err != nil {
 				logrus.Error(err)

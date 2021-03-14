@@ -32,8 +32,8 @@ var testRunCmd = &cobra.Command{
 		eg.Go(func() error {
 			return d.DoWithServer(ctx, func(s *inet256.Server) error {
 				node := s.MainNode()
-				cmd.Printf("ADDR: %v\n", node.LocalAddr())
-				cmd.Printf("LISTENERS: %v\n", node.TransportAddrs())
+				cmd.Printf("ADDR: %v\n", s.LocalAddr())
+				cmd.Printf("LISTENERS: %v\n", s.TransportAddrs())
 				go node.Recv(func(src, dst inet256.Addr, data []byte) {
 					cmd.Printf("RECV: src=%v dst=%v data=%v\n", src, dst, string(data))
 				})

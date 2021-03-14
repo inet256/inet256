@@ -20,7 +20,6 @@ type Params struct {
 
 type Node interface {
 	Network
-	TransportAddrs() []string
 	ListOneHop() []p2p.PeerID
 }
 

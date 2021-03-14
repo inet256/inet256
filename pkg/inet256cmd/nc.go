@@ -30,7 +30,7 @@ var ncCmd = &cobra.Command{
 		in := cmd.InOrStdin()
 		out := cmd.OutOrStdout()
 		pk := generateKey()
-		n, err := newClient(pk)
+		n, err := newNode(ctx, pk)
 		if err != nil {
 			return err
 		}
@@ -42,6 +42,7 @@ var ncCmd = &cobra.Command{
 				return
 			}
 			out.Write(data)
+			out.Write([]byte("\n"))
 		})
 		scn := bufio.NewScanner(in)
 		for scn.Scan() {

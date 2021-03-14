@@ -20,8 +20,9 @@ var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "ping an inet256 node",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := context.Background()
 		privKey := generateKey()
-		node, err := newClient(privKey)
+		node, err := newNode(ctx, privKey)
 		if err != nil {
 			return err
 		}
@@ -36,12 +37,20 @@ var pingCmd = &cobra.Command{
 			return errors.New("arg not long enough to be address")
 		}
 
-		ctx := context.Background()
 		fmt.Println("pinging", dst)
 		return node.Tell(ctx, dst, []byte("ping"))
 	},
 }
 
-func newClient(privateKey p2p.PrivateKey) (inet256.Network, error) {
+func newClient() (inet256.Service, error) {
+	return inet256client.NewClient(defaultAPIAddr)
+}
+
+func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Network, error) {
+	c, err := newClient()
+	if err != nil {
+		return nil, err
+	}
+	return c.CreateNode(ctx, privateKey)
 	return inet256client.NewNode(defaultAPIAddr, privateKey)
 }

@@ -2,7 +2,6 @@ package inet256grpc
 
 import (
 	"context"
-	"crypto"
 	"crypto/ed25519"
 	"io"
 	mrand "math/rand"
@@ -13,12 +12,13 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var _ INET256Server = &Server{}
 
 type Server struct {
-	s *inet256.Server
+	s inet256.Service
 
 	mu     sync.RWMutex
 	nodes  map[p2p.PeerID]inet256.Node
@@ -27,7 +27,7 @@ type Server struct {
 	UnimplementedINET256Server
 }
 
-func NewServer(s *inet256.Server) *Server {
+func NewServer(s inet256.Service) *Server {
 	return &Server{
 		s:      s,
 		nodes:  make(map[p2p.PeerID]inet256.Node),
@@ -49,31 +49,14 @@ func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyR
 	}, nil
 }
 
-func (s *Server) LookupSelf(ctx context.Context, req *LookupSelfReq) (*PeerInfo, error) {
-	privKey, err := inet256.ParsePrivateKey(req.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-	privKey2, ok := privKey.(interface{ Public() crypto.PublicKey })
-	if !ok {
-		return nil, errors.Errorf("unsupported key")
-	}
-	pubKey := privKey2.Public()
-	peerID := p2p.NewPeerID(pubKey)
-	return &PeerInfo{
-		Addr:      peerID[:],
-		PublicKey: p2p.MarshalPublicKey(pubKey),
-	}, nil
-}
-
-func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*PeerInfo, error) {
+func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*LookupRes, error) {
 	target := inet256.Addr{}
 	copy(target[:], req.TargetAddr)
 	pubKey, err := s.s.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
-	return &PeerInfo{
+	return &LookupRes{
 		Addr:      target[:],
 		PublicKey: p2p.MarshalPublicKey(pubKey),
 	}, nil
@@ -84,6 +67,15 @@ func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 	mtu := s.s.MTU(ctx, target)
 	return &MTURes{
 		Mtu: int64(mtu),
+	}, nil
+}
+
+func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, error) {
+	mainAddr := s.s.MainAddr()
+	return &Status{
+		LocalAddr:      mainAddr[:],
+		PeerStatus:     PeerStatusToProto(s.s.PeerStatus()),
+		TransportAddrs: s.s.TransportAddrs(),
 	}, nil
 }
 
@@ -125,10 +117,6 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		}
 	}
 	return nil
-}
-
-func (s *Server) findAddr(ctx context.Context, prefix []byte) (inet256.Addr, error) {
-	return s.s.FindAddr(ctx, prefix, len(prefix)*8)
 }
 
 func (s *Server) toClients(src, dst inet256.Addr, payload []byte) {

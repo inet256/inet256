@@ -3,6 +3,7 @@ package inet256
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
@@ -12,6 +13,26 @@ import (
 )
 
 const nameMemSwarm = "memory"
+
+type PeerStatus struct {
+	Addr       Addr
+	LastSeen   map[string]time.Time
+	Uploaded   uint64
+	Downloaded uint64
+}
+
+type Service interface {
+	CreateNode(ctx context.Context, privKey p2p.PrivateKey) (Node, error)
+	DeleteNode(privKey p2p.PrivateKey) error
+
+	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
+	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
+	MTU(ctx context.Context, addr Addr) int
+
+	MainAddr() Addr
+	TransportAddrs() []string
+	PeerStatus() []PeerStatus
+}
 
 type Server struct {
 	params Params
@@ -136,6 +157,26 @@ func (s *Server) TransportAddrs() (ret []string) {
 		ret = append(ret, string(data))
 	}
 	return ret
+}
+
+func (s *Server) PeerStatus() []PeerStatus {
+	var ret []PeerStatus
+	for _, id := range s.params.Peers.ListPeers() {
+		lastSeen := make(map[string]time.Time)
+		for _, addr := range s.params.Peers.ListAddrs(id) {
+			// TODO: expose the last time the transport sent us a message
+			lastSeen[addr] = time.Time{}
+		}
+		ret = append(ret, PeerStatus{
+			Addr:     id,
+			LastSeen: lastSeen,
+		})
+	}
+	return ret
+}
+
+func (s *Server) MainAddr() Addr {
+	return s.MainNode().LocalAddr()
 }
 
 func (s *Server) MainNode() Node {
