@@ -58,7 +58,7 @@ var createPortalConfigCmd = &cobra.Command{
 	Short: "writes a default config for an IPv6 portal to stdout",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		out := cmd.OutOrStdout()
-		config := inet256ipv6.DefaultPortalConfig(inet256ipv6.WorthItBits)
+		config := inet256ipv6.DefaultPortalConfig()
 		data, err := yaml.Marshal(config)
 		if err != nil {
 			panic(err)

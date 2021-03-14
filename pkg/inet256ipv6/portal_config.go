@@ -34,8 +34,8 @@ func (c *PortalConfig) GetAllowFunc() AllowFunc {
 	}
 }
 
-func DefaultPortalConfig(goalBits int) PortalConfig {
-	_, privKey, err := MineAddr(context.Background(), rand.Reader, goalBits)
+func DefaultPortalConfig() PortalConfig {
+	_, privKey, err := MineAddr(context.Background(), rand.Reader, WorthItBits)
 	if err != nil {
 		panic(err)
 	}
