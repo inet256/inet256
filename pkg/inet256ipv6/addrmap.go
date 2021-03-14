@@ -26,7 +26,7 @@ func IPv6ToPrefix(x net.IP) ([]byte, int, error) {
 	c := make([]byte, 16)
 	n := bitCopy(c, 0, x, bitOff)
 
-	data, l := uncompress(c[:n/8])
+	data, l := uncompress(c[:ceilDiv(n, 8)])
 	return data, l, nil
 }
 
