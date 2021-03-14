@@ -40,11 +40,11 @@ var portalCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		n, err := newClient(privateKey)
+		ctx := context.Background()
+		n, err := newNode(ctx, privateKey)
 		if err != nil {
 			return err
 		}
-		ctx := context.Background()
 		return inet256ipv6.RunPortal(ctx, inet256ipv6.PortalParams{
 			AllowFunc: config.GetAllowFunc(),
 			Network:   n,
