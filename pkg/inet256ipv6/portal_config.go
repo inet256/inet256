@@ -1,7 +1,8 @@
 package inet256ipv6
 
 import (
-	"crypto/ed25519"
+	"context"
+	"crypto/rand"
 	"encoding/base64"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -33,8 +34,8 @@ func (c *PortalConfig) GetAllowFunc() AllowFunc {
 	}
 }
 
-func DefaultPortalConfig() PortalConfig {
-	_, privKey, err := ed25519.GenerateKey(nil)
+func DefaultPortalConfig(goalBits int) PortalConfig {
+	_, privKey, err := MineAddr(context.Background(), rand.Reader, goalBits)
 	if err != nil {
 		panic(err)
 	}

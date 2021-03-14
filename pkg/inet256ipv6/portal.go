@@ -34,7 +34,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 	if af == nil {
 		af = AllowAll
 	}
-	dev, err := tun.CreateTUN("utun", 1<<15)
+	dev, err := tun.CreateTUN("utun", inet256.MinMTU)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 }
 
 func (p *portal) inboundLoop(ctx context.Context) error {
-	p.network.OnRecv(func(src, dst inet256.Addr, data []byte) {
+	return p.network.Recv(func(src, dst inet256.Addr, data []byte) {
 		if !p.af(src) {
 			return
 		}
@@ -146,10 +146,6 @@ func (p *portal) inboundLoop(ctx context.Context) error {
 			p.log.Warn("ignoring INET256 message: ", err)
 		}
 	})
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 func (p *portal) handleInbound(src inet256.Addr, data []byte) error {
@@ -161,7 +157,7 @@ func (p *portal) handleInbound(src inet256.Addr, data []byte) error {
 	if !header.Src.Equal(srcIP) {
 		return errors.Errorf("dropping inbound message from wrong source")
 	}
-	_, err = p.dev.Write(data, tunOffset)
+	_, err = p.dev.Write(data, 0)
 	return err
 }
 
