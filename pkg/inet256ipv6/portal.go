@@ -5,6 +5,8 @@ import (
 	"net"
 	"os/exec"
 	"runtime"
+	"sync"
+	"time"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
@@ -14,7 +16,10 @@ import (
 	"golang.zx2c4.com/wireguard/tun"
 )
 
-const tunOffset = 4
+const (
+	tunOffset     = 4
+	cacheEntryTTL = 10 * time.Minute
+)
 
 type AllowFunc = func(inet256.Addr) bool
 
@@ -71,6 +76,7 @@ type portal struct {
 
 	network inet256.Network
 	dev     tun.Device
+	cache   sync.Map
 }
 
 func (p *portal) run(ctx context.Context) error {
@@ -98,6 +104,25 @@ func (p *portal) run(ctx context.Context) error {
 			}
 		}
 	})
+	eg.Go(func() error {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			now := time.Now()
+			p.cache.Range(func(k, v interface{}) bool {
+				ent := v.(*cacheEntry)
+				if now.Sub(ent.createdAt) > cacheEntryTTL {
+					p.cache.Delete(k)
+				}
+				return true
+			})
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
+		}
+	})
 	return eg.Wait()
 }
 
@@ -115,7 +140,7 @@ func (p *portal) outboundLoop(ctx context.Context) error {
 		}
 		data := buf[tunOffset:n]
 		if err := p.handleOutbound(ctx, data); err != nil {
-			p.log.Warn("skipping packet: ", err)
+			p.log.Warn("outbound: dropping packet: ", err)
 		}
 	}
 }
@@ -126,13 +151,20 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	prefix, nbits, err := IPv6ToPrefix(header.Dst)
-	if err != nil {
-		return err
-	}
-	dst, err := network.FindAddr(ctx, prefix, nbits)
-	if err != nil {
-		return err
+	var dst inet256.Addr
+	if e := p.getEntry(IPv6FromBytes(header.Dst)); e != nil {
+		dst = e.addr
+	} else {
+		prefix, nbits, err := IPv6ToPrefix(header.Dst)
+		if err != nil {
+			return err
+		}
+		dst, err = network.FindAddr(ctx, prefix, nbits)
+		if err != nil {
+			return err
+		}
+		ent := &cacheEntry{addr: dst, createdAt: time.Now()}
+		p.putEntry(IPv6FromBytes(header.Dst), ent)
 	}
 	return network.Tell(ctx, dst, data)
 }
@@ -143,7 +175,7 @@ func (p *portal) inboundLoop(ctx context.Context) error {
 			return
 		}
 		if err := p.handleInbound(src, data); err != nil {
-			p.log.Warn("ignoring INET256 message: ", err)
+			p.log.Warn("inbound: ignoring INET256 message: ", err)
 		}
 	})
 }
@@ -159,6 +191,18 @@ func (p *portal) handleInbound(src inet256.Addr, data []byte) error {
 	}
 	_, err = p.dev.Write(data, 0)
 	return err
+}
+
+func (p *portal) putEntry(key IPv6Addr, e *cacheEntry) {
+	p.cache.LoadOrStore(key, e)
+}
+
+func (p *portal) getEntry(key IPv6Addr) *cacheEntry {
+	v, ok := p.cache.Load(key)
+	if !ok {
+		return nil
+	}
+	return v.(*cacheEntry)
 }
 
 func configureInterface(iface string, ipAddr net.IP) error {
@@ -178,4 +222,9 @@ func ifconfigCmd(args ...string) error {
 	}
 	logrus.Info("ifconfig output:", string(output))
 	return nil
+}
+
+type cacheEntry struct {
+	addr      inet256.Addr
+	createdAt time.Time
 }
