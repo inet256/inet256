@@ -38,7 +38,8 @@ func TestBoth(t *testing.T) {
 
 		ip := INet256ToIPv6(addr)
 		t.Logf("IP: %v", ip)
-		prefix, n := IPv6ToPrefix(ip)
+		prefix, n, err := IPv6ToPrefix(ip)
+		require.NoError(t, err)
 		prefix = prefix[:n/8-1]
 		require.True(t, bytes.HasPrefix(addr[:], prefix), "ADDR: %x PREFIX: %x", addr[:], prefix)
 	}

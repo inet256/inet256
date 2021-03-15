@@ -53,14 +53,13 @@ The library also provides discovery services, and methods for serializing and cr
 Notably, the discovery services and NAT management provide a way for users to link all their devices to INET256 without touching a VPS or DNS entry, or forwarding a port.
 It models friend-to-friend communication, and unreliable messages well, making it better suited for overlay networks than, for example: libp2p, which is more suited for public networks, with reliable communication.
 
-### Tooling (Help From Above)
+### Utilities/Applications (Help From Above)
 This project will provide tools for using INET256 networks, some of which are not yet implemented
 
-- [x] INET256 to IPv6 mapping. Inspired by Yggdrasil
-- [ ] A TUN device using the mapping.
-- [ ] NAT Table using the mapping. No port mappings Layer 3 only.
+- [x] IPv6 Portal (TUN Device). Similar to CJDNS and Yggdrasil.
+- [ ] NAT Table from IPv6 to INET256. No port mappings, layer 3 only.
 - [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
-- [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to wireguard.
+- [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to WireGuard.
 
 ## License
 Code in this repository is by default licensed under the GPL as defined in `LICENSE`.

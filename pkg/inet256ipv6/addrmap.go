@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 )
 
 var Subnet net.IPNet
@@ -16,16 +17,17 @@ func init() {
 	Subnet = *ipnet
 }
 
-func IPv6ToPrefix(x net.IP) ([]byte, int) {
+func IPv6ToPrefix(x net.IP) ([]byte, int, error) {
 	if !Subnet.Contains(x) {
-		panic("ip not in subnet")
+		return nil, 0, errors.Errorf("ip %v not in subnet", x)
 	}
 	bitOff, _ := Subnet.Mask.Size()
 
 	c := make([]byte, 16)
 	n := bitCopy(c, 0, x, bitOff)
 
-	return uncompress(c[:n/8])
+	data, l := uncompress(c[:ceilDiv(n, 8)])
+	return data, l, nil
 }
 
 func INet256ToIPv6(x inet256.Addr) net.IP {
@@ -89,4 +91,10 @@ func ceilDiv(x int, z int) int {
 		return (x / z) + 1
 	}
 	return x / z
+}
+
+func IPv6FromBytes(x []byte) IPv6Addr {
+	a := IPv6Addr{}
+	copy(a[:], x)
+	return a
 }
