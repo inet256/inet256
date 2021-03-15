@@ -52,5 +52,4 @@ func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Network, e
 		return nil, err
 	}
 	return c.CreateNode(ctx, privateKey)
-	return inet256client.NewNode(defaultAPIAddr, privateKey)
 }
