@@ -39,7 +39,7 @@ func NewNode(params Params) Node {
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
 		s = fragswarm.NewSecure(s, TransportMTU)
-		ps := NewPeerSwarm(s, NewAddrSource(s, params.Peers))
+		ps := NewPeerSwarm(s, params.Peers)
 		networks[i] = nspec.Factory(NetworkParams{
 			PrivateKey: params.PrivateKey,
 			Swarm:      ps,
