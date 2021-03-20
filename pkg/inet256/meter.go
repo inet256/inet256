@@ -10,13 +10,11 @@ type meter struct {
 }
 
 func (m *meter) Tx(k Addr, x int) uint64 {
-	var v uint64
-	actual, _ := m.tx.LoadOrStore(k, &v)
+	actual, _ := m.tx.LoadOrStore(k, new(uint64))
 	return atomic.AddUint64(actual.(*uint64), uint64(x))
 }
 
 func (m *meter) Rx(k Addr, x int) uint64 {
-	var v uint64
-	actual, _ := m.rx.LoadOrStore(k, &v)
+	actual, _ := m.rx.LoadOrStore(k, new(uint64))
 	return atomic.AddUint64(actual.(*uint64), uint64(x))
 }

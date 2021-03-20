@@ -2,6 +2,7 @@ package inet256
 
 import (
 	"context"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/intmux"
@@ -20,20 +21,22 @@ type Params struct {
 
 type Node interface {
 	Network
+
 	ListOneHop() []p2p.PeerID
 }
 
 type node struct {
 	params Params
 
-	baseSwarm p2p.SecureSwarm
-	network   Network
+	transportSwarm p2p.SecureSwarm
+	basePeerSwarm  *peerSwarm
+	network        Network
 }
 
 func NewNode(params Params) Node {
-	baseSwarm := multiswarm.NewSecure(params.Swarms)
-	peerSwarm := newPeerSwarm(baseSwarm, params.Peers)
-	mux := intmux.WrapSecureSwarm(peerSwarm)
+	transportSwarm := multiswarm.NewSecure(params.Swarms)
+	basePeerSwarm := newPeerSwarm(transportSwarm, params.Peers)
+	mux := intmux.WrapSecureSwarm(basePeerSwarm)
 
 	// create multi network
 	networks := make([]Network, len(params.Networks))
@@ -58,9 +61,10 @@ func NewNode(params Params) Node {
 	)
 
 	return &node{
-		params:    params,
-		baseSwarm: baseSwarm,
-		network:   network,
+		params:         params,
+		transportSwarm: transportSwarm,
+		basePeerSwarm:  basePeerSwarm,
+		network:        network,
 	}
 }
 
@@ -89,11 +93,15 @@ func (n *node) MTU(ctx context.Context, target Addr) int {
 }
 
 func (n *node) TransportAddrs() (ret []string) {
-	for _, addr := range n.baseSwarm.LocalAddrs() {
+	for _, addr := range n.transportSwarm.LocalAddrs() {
 		data, _ := addr.MarshalText()
 		ret = append(ret, string(data))
 	}
 	return ret
+}
+
+func (n *node) LastSeen(id p2p.PeerID) map[string]time.Time {
+	return n.basePeerSwarm.LastSeen(id)
 }
 
 func (n *node) ListOneHop() []Addr {

@@ -63,7 +63,7 @@ func (rt *routeTable) Add(r *Route) bool {
 func (rt *routeTable) Get(dst Addr) *Route {
 	switch {
 	case dst == rt.localAddr:
-		return nil
+		return &Route{Dst: dst[:]}
 	case rt.oneHopPeers.Contains(dst):
 		linkIndex := rt.linkMap.ID2Int(dst)
 		if linkIndex < 1 {
@@ -141,7 +141,8 @@ func (rt *routeTable) WouldAdd(r *Route) bool {
 func (rt *routeTable) ForEach(fn func(*Route) error) error {
 	// one hope peers
 	for _, peerID := range rt.oneHopPeers.ListPeers() {
-		if err := fn(rt.Get(peerID)); err != nil {
+		r := rt.Get(peerID)
+		if err := fn(r); err != nil {
 			return err
 		}
 	}

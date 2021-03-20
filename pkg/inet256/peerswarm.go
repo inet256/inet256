@@ -18,6 +18,8 @@ const (
 	channelData      = 127
 )
 
+var _ PeerSwarm = &peerSwarm{}
+
 // peerSwarm manages the mapping from transport addresses to peerIDs.
 // a peer can be reachable at many addresses in the transport swarm.
 // Some of the addresses may not even be in the PeerStore
@@ -29,9 +31,10 @@ type peerSwarm struct {
 	mux       intmux.SecureMux
 	tm        *transportMonitor
 	dataSwarm p2p.SecureSwarm
+	meter     meter
 }
 
-func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) PeerSwarm {
+func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) *peerSwarm {
 	mux := intmux.WrapSecureSwarm(x)
 	return &peerSwarm{
 		peerStore: peerStore,
@@ -53,6 +56,7 @@ func (s *peerSwarm) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) e
 	if err != nil {
 		return err
 	}
+	s.meter.Tx(dst, p2p.VecSize(v))
 	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
@@ -66,6 +70,7 @@ func (s *peerSwarm) ServeTells(fn p2p.TellHandler) error {
 			Payload: msg.Payload,
 		}
 		s.tm.Mark(srcID, msg.Src, time.Now())
+		s.meter.Rx(srcID, len(msg.Payload))
 		fn(msg2)
 	})
 }
@@ -116,6 +121,14 @@ func (s *peerSwarm) selectAddr(x p2p.PeerID) (p2p.Addr, error) {
 
 func (s *peerSwarm) LastSeen(id p2p.PeerID) map[string]time.Time {
 	return s.tm.LastSeen(id)
+}
+
+func (s *peerSwarm) GetTx(id p2p.PeerID) uint64 {
+	return s.meter.Tx(id, 0)
+}
+
+func (s *peerSwarm) GetRx(id p2p.PeerID) uint64 {
+	return s.meter.Rx(id, 0)
 }
 
 type peerSwarmWrapper struct {

@@ -161,15 +161,14 @@ func (s *Server) TransportAddrs() (ret []string) {
 
 func (s *Server) PeerStatus() []PeerStatus {
 	var ret []PeerStatus
+	mainNode := s.mainNode.(*node)
 	for _, id := range s.params.Peers.ListPeers() {
-		lastSeen := make(map[string]time.Time)
-		for _, addr := range s.params.Peers.ListAddrs(id) {
-			// TODO: expose the last time the transport sent us a message
-			lastSeen[addr] = time.Time{}
-		}
+		lastSeen := mainNode.LastSeen(id)
 		ret = append(ret, PeerStatus{
-			Addr:     id,
-			LastSeen: lastSeen,
+			Addr:       id,
+			LastSeen:   lastSeen,
+			Uploaded:   mainNode.basePeerSwarm.GetTx(id),
+			Downloaded: mainNode.basePeerSwarm.GetRx(id),
 		})
 	}
 	return ret
