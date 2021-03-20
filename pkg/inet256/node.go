@@ -32,14 +32,15 @@ type node struct {
 
 func NewNode(params Params) Node {
 	baseSwarm := multiswarm.NewSecure(params.Swarms)
-	mux := intmux.WrapSecureSwarm(baseSwarm)
+	peerSwarm := newPeerSwarm(baseSwarm, params.Peers)
+	mux := intmux.WrapSecureSwarm(peerSwarm)
 
 	// create multi network
 	networks := make([]Network, len(params.Networks))
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
 		s = fragswarm.NewSecure(s, TransportMTU)
-		ps := NewPeerSwarm(s, params.Peers)
+		ps := castPeerSwarm(s)
 		networks[i] = nspec.Factory(NetworkParams{
 			PrivateKey: params.PrivateKey,
 			Swarm:      ps,

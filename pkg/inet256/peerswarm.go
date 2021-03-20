@@ -31,7 +31,7 @@ type peerSwarm struct {
 	dataSwarm p2p.SecureSwarm
 }
 
-func NewPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) PeerSwarm {
+func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) PeerSwarm {
 	mux := intmux.WrapSecureSwarm(x)
 	return &peerSwarm{
 		peerStore: peerStore,
@@ -52,17 +52,20 @@ func (s *peerSwarm) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) e
 	if err != nil {
 		return err
 	}
-	return s.inner.Tell(ctx, addr, v)
+	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
 func (s *peerSwarm) ServeTells(fn p2p.TellHandler) error {
-	return s.inner.ServeTells(func(msg *p2p.Message) {
-		srcKey := p2p.LookupPublicKeyInHandler(s.inner, msg.Src)
+	return s.dataSwarm.ServeTells(func(msg *p2p.Message) {
+		srcKey := p2p.LookupPublicKeyInHandler(s.dataSwarm, msg.Src)
+		srcID := p2p.NewPeerID(srcKey)
+		dstID := p2p.NewPeerID(s.PublicKey())
 		msg2 := &p2p.Message{
-			Src:     p2p.NewPeerID(srcKey),
-			Dst:     p2p.NewPeerID(s.PublicKey()),
+			Src:     srcID,
+			Dst:     dstID,
 			Payload: msg.Payload,
 		}
+		s.tm.Mark(srcID, msg.Src, time.Now())
 		fn(msg2)
 	})
 }
@@ -95,11 +98,15 @@ func (s *peerSwarm) MTU(ctx context.Context, target p2p.Addr) int {
 		// TODO: figure out what to do here
 		return 512
 	}
-	return s.inner.MTU(ctx, addr)
+	return s.dataSwarm.MTU(ctx, addr)
 }
 
 func (s *peerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
-	return s.inner.LookupPublicKey(ctx, target)
+	addr, err := s.selectAddr(target.(p2p.PeerID))
+	if err != nil {
+		return nil, err
+	}
+	return s.dataSwarm.LookupPublicKey(ctx, addr)
 }
 
 func (s *peerSwarm) selectAddr(x p2p.PeerID) (p2p.Addr, error) {
@@ -111,6 +118,18 @@ func (s *peerSwarm) selectAddr(x p2p.PeerID) (p2p.Addr, error) {
 
 func (s *peerSwarm) LastSeen(id p2p.PeerID) map[string]time.Time {
 	return s.tm.LastSeen(id)
+}
+
+type peerSwarmWrapper struct {
+	p2p.SecureSwarm
+}
+
+func castPeerSwarm(x p2p.SecureSwarm) peerSwarmWrapper {
+	return peerSwarmWrapper{x}
+}
+
+func (s peerSwarmWrapper) TellPeer(ctx context.Context, id p2p.PeerID, v p2p.IOVec) error {
+	return s.SecureSwarm.Tell(ctx, id, v)
 }
 
 type noise2PeerSwarm struct {

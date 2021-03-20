@@ -15,9 +15,10 @@ import (
 // transportMonitor sends out heartbeats to all addresses in the peer store
 // and keeps track of where heartbeats are coming from.
 type transportMonitor struct {
-	x         p2p.SecureSwarm
-	peerStore PeerStore
-	cf        context.CancelFunc
+	x           p2p.SecureSwarm
+	peerStore   PeerStore
+	expireAfter time.Duration
+	cf          context.CancelFunc
 
 	mu        sync.RWMutex
 	sightings map[p2p.PeerID]map[string]time.Time
@@ -25,16 +26,20 @@ type transportMonitor struct {
 }
 
 func newTransportMonitor(x p2p.SecureSwarm, peerStore PeerStore) *transportMonitor {
+	const expireAfter = 10 * time.Minute
 	ctx, cf := context.WithCancel(context.Background())
 	tm := &transportMonitor{
-		x:         x,
-		peerStore: peerStore,
-		cf:        cf,
-		sightings: make(map[p2p.PeerID]map[string]time.Time),
+		x:           x,
+		peerStore:   peerStore,
+		cf:          cf,
+		expireAfter: expireAfter,
+		sightings:   make(map[p2p.PeerID]map[string]time.Time),
+		addrs:       make(map[string]p2p.Addr),
 	}
+	go x.ServeTells(tm.handleTell)
+	tm.heartbeat(ctx)
 	go tm.heartbeatLoop(ctx)
 	go tm.cleanupLoop(ctx)
-	go x.ServeTells(tm.handleTell)
 	return tm
 }
 
@@ -64,6 +69,7 @@ func (tm *transportMonitor) heartbeatLoop(ctx context.Context) {
 }
 
 func (tm *transportMonitor) heartbeat(ctx context.Context) error {
+	data := []byte(time.Now().String())
 	eg := errgroup.Group{}
 	for _, id := range tm.peerStore.ListPeers() {
 		id := id
@@ -74,7 +80,7 @@ func (tm *transportMonitor) heartbeat(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				return tm.x.Tell(ctx, addr, p2p.IOVec{})
+				return tm.x.Tell(ctx, addr, p2p.IOVec{data})
 			})
 		}
 	}
@@ -87,12 +93,13 @@ func (tm *transportMonitor) Mark(id p2p.PeerID, a p2p.Addr, t time.Time) {
 	defer tm.mu.Unlock()
 	m := tm.sightings[id]
 	if m == nil {
-		tm.sightings[id] = make(map[string]time.Time)
-		m = tm.sightings[id]
+		m = make(map[string]time.Time)
+		tm.sightings[id] = m
 	}
 	current := m[string(data)]
 	if t.After(current) {
 		m[string(data)] = t
+		tm.addrs[string(data)] = a
 	}
 }
 
@@ -106,8 +113,12 @@ func (tm *transportMonitor) PickAddr(id p2p.PeerID) (p2p.Addr, error) {
 		var latestTime time.Time
 		for addr, seenAt := range m {
 			if seenAt.After(latestTime) {
+				var exists bool
 				latestTime = seenAt
-				latestAddr = tm.addrs[addr]
+				latestAddr, exists = tm.addrs[addr]
+				if !exists {
+					panic("missing address")
+				}
 			}
 		}
 		if latestAddr != nil {
@@ -135,26 +146,30 @@ func (tm *transportMonitor) LastSeen(id p2p.PeerID) map[string]time.Time {
 }
 
 func (tm *transportMonitor) cleanupLoop(ctx context.Context) {
-	const expireAfter = 10 * time.Minute
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	for {
-		func() {
-			now := time.Now()
-			tm.mu.Lock()
-			defer tm.mu.Unlock()
-			for _, addrs := range tm.sightings {
-				for addr, lastSeen := range addrs {
-					if now.Sub(lastSeen) > expireAfter {
-						delete(addrs, addr)
-					}
-				}
-			}
-		}()
+		now := time.Now()
+		tm.cleanupOnce(ctx, now)
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+		}
+	}
+}
+
+func (tm *transportMonitor) cleanupOnce(ctx context.Context, now time.Time) {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+	for id, addrs := range tm.sightings {
+		for addr, lastSeen := range addrs {
+			if now.Sub(lastSeen) > tm.expireAfter {
+				delete(addrs, addr)
+			}
+		}
+		if len(tm.sightings) == 0 {
+			delete(tm.sightings, id)
 		}
 	}
 }
