@@ -2,6 +2,7 @@ package inet256
 
 import (
 	"context"
+	"log"
 	mrand "math/rand"
 	"sync"
 	"time"
@@ -104,6 +105,10 @@ func (tm *transportMonitor) Mark(id p2p.PeerID, a p2p.Addr, t time.Time) {
 }
 
 func (tm *transportMonitor) PickAddr(id p2p.PeerID) (p2p.Addr, error) {
+	if !tm.peerStore.Contains(id) {
+		log.Println(tm.peerStore.ListPeers())
+		return nil, errors.Errorf("cannot pick address for peer not in store %v", id)
+	}
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	// check for a known good address.

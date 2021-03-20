@@ -8,7 +8,6 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/intmux"
 	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
-	"github.com/pkg/errors"
 )
 
 // PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
@@ -26,6 +25,7 @@ type peerSwarm struct {
 	peerStore PeerStore
 	inner     p2p.SecureSwarm
 
+	localID   p2p.PeerID
 	mux       intmux.SecureMux
 	tm        *transportMonitor
 	dataSwarm p2p.SecureSwarm
@@ -36,6 +36,7 @@ func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) PeerSwarm {
 	return &peerSwarm{
 		peerStore: peerStore,
 		inner:     x,
+		localID:   p2p.NewPeerID(x.PublicKey()),
 
 		mux:       mux,
 		tm:        newTransportMonitor(mux.Open(channelHeartbeat), peerStore),
@@ -59,10 +60,9 @@ func (s *peerSwarm) ServeTells(fn p2p.TellHandler) error {
 	return s.dataSwarm.ServeTells(func(msg *p2p.Message) {
 		srcKey := p2p.LookupPublicKeyInHandler(s.dataSwarm, msg.Src)
 		srcID := p2p.NewPeerID(srcKey)
-		dstID := p2p.NewPeerID(s.PublicKey())
 		msg2 := &p2p.Message{
 			Src:     srcID,
-			Dst:     dstID,
+			Dst:     s.localID,
 			Payload: msg.Payload,
 		}
 		s.tm.Mark(srcID, msg.Src, time.Now())
@@ -75,9 +75,7 @@ func (s *peerSwarm) PublicKey() p2p.PublicKey {
 }
 
 func (s *peerSwarm) LocalAddrs() []p2p.Addr {
-	return []p2p.Addr{
-		p2p.NewPeerID(s.PublicKey()),
-	}
+	return []p2p.Addr{s.localID}
 }
 
 func (s *peerSwarm) ParseAddr(data []byte) (p2p.Addr, error) {
@@ -102,6 +100,9 @@ func (s *peerSwarm) MTU(ctx context.Context, target p2p.Addr) int {
 }
 
 func (s *peerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+	if !s.peerStore.Contains(target.(p2p.PeerID)) {
+		return nil, p2p.ErrPublicKeyNotFound
+	}
 	addr, err := s.selectAddr(target.(p2p.PeerID))
 	if err != nil {
 		return nil, err
@@ -110,9 +111,6 @@ func (s *peerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.P
 }
 
 func (s *peerSwarm) selectAddr(x p2p.PeerID) (p2p.Addr, error) {
-	if !s.peerStore.Contains(x) {
-		return nil, errors.Errorf("cannot pick address for peer not in store %v", x)
-	}
 	return s.tm.PickAddr(x)
 }
 
