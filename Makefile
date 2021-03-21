@@ -6,7 +6,12 @@ protobuf:
 	cd ./networks/kadsrnet && ./build.sh
 
 install:
-	go install ./cmd/inet256	
+	go install ./cmd/inet256
+
+build:
+	GOOS=darwin GOARCH=amd64 go build -o ./build-outputs/inet256_darwin-amd64 ./cmd/inet256 
+	GOOS=linux GOARCH=amd64 go build -o ./build-outputs/inet256_linux-amd64 ./cmd/inet256 
+	GOOS=windows GOARCH=amd64 go build -o ./build-outputs/inet256_windows-amd64 ./cmd/inet256
 
 test: protobuf
 	go test --race ./pkg/...
