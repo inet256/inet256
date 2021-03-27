@@ -34,6 +34,10 @@ type peerSwarm struct {
 	meter     meter
 }
 
+func NewPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) peerswarm.Swarm {
+	return newPeerSwarm(x, peerStore)
+}
+
 func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) *peerSwarm {
 	mux := intmux.WrapSecureSwarm(x)
 	return &peerSwarm{

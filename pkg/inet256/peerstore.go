@@ -4,8 +4,6 @@ import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
-	"github.com/sirupsen/logrus"
 )
 
 // PeerStore stores information about peers
@@ -91,23 +89,6 @@ func (s *peerStore) ListAddrs(id p2p.PeerID) []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.m[id]
-}
-
-func NewAddrSource(swarm p2p.Swarm, store PeerStore) peerswarm.AddrSource {
-	return func(id p2p.PeerID) []p2p.Addr {
-		xs := store.ListAddrs(id)
-		var ys []p2p.Addr
-		for i := range xs {
-			y, err := swarm.ParseAddr([]byte(xs[i]))
-			if err != nil {
-				logrus.Infof("%+v", swarm)
-				logrus.Errorf("parsing addr %v, got error %v", xs[i], err)
-				continue
-			}
-			ys = append(ys, y)
-		}
-		return ys
-	}
 }
 
 var _ PeerStore = ChainPeerStore{}
