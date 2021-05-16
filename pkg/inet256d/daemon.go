@@ -7,10 +7,9 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/autopeering"
-	"github.com/inet256/inet256/pkg/discovery/celldisco"
+	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -19,7 +18,7 @@ import (
 
 type Params struct {
 	MainNodeParams      inet256.Params
-	DiscoveryServices   []p2p.DiscoveryService
+	DiscoveryServices   []discovery.Service
 	AutoPeeringServices []autopeering.Service
 	APIAddr             string
 }
@@ -43,15 +42,30 @@ func New(p Params) *Daemon {
 func (d *Daemon) Run(ctx context.Context) error {
 	nodeParams := d.params.MainNodeParams
 	localID := p2p.NewPeerID(nodeParams.PrivateKey.Public())
-	dscSrvs := d.params.DiscoveryServices
+
 	// discovery
-	peerStores := []inet256.PeerStore{nodeParams.Peers}
-	for range dscSrvs {
-		peerStores = append(peerStores, inet256.NewPeerStore())
+	dscSrvs := d.params.DiscoveryServices
+	dscPeerStores := make([]inet256.PeerStore, len(dscSrvs))
+	for i := range dscSrvs {
+		// initialize and copy peers, since discovery services don't add peers.
+		dscPeerStores[i] = inet256.NewPeerStore()
+		copyPeers(dscPeerStores[i], d.params.MainNodeParams.Peers)
 	}
 
+	// auto-peering
+	apSrvs := d.params.AutoPeeringServices
+	apPeerStores := make([]inet256.PeerStore, len(apSrvs))
+	for i := range apSrvs {
+		apPeerStores[i] = inet256.NewPeerStore()
+	}
+
+	peerStores := []inet256.PeerStore{d.params.MainNodeParams.Peers}
+	peerStores = append(peerStores, dscPeerStores...)
+	peerStores = append(peerStores, apPeerStores...)
+
 	// server
-	s := inet256.NewServer(d.params.MainNodeParams)
+	nodeParams.Peers = inet256.ChainPeerStore(peerStores)
+	s := inet256.NewServer(nodeParams)
 	defer func() {
 		if err := s.Close(); err != nil {
 			d.log.Error(err)
@@ -66,7 +80,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runGRPCServer(ctx, d.params.APIAddr, s)
 	})
 	eg.Go(func() error {
-		return d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, s.TransportAddrs, peerStores[1:])
+		d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, s.TransportAddrs, dscPeerStores)
+		return nil
+	})
+	eg.Go(func() error {
+		d.runAutoPeeringServices(ctx, localID, d.params.AutoPeeringServices, apPeerStores, s.TransportAddrs)
+		return nil
 	})
 	return eg.Wait()
 }
@@ -100,66 +119,8 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256.
 	return gs.Serve(l)
 }
 
-func (d *Daemon) runDiscoveryServices(ctx context.Context, localID p2p.PeerID, ds []p2p.DiscoveryService, localAddrs func() []string, ps []inet256.PeerStore) error {
-	eg := errgroup.Group{}
-	for i := range ds {
-		disc := ds[i]
-		p := ps[i]
-		eg.Go(func() error {
-			return d.runDiscoveryService(ctx, localID, disc, localAddrs, p)
-		})
-	}
-	return eg.Wait()
-}
-
-func (d *Daemon) runDiscoveryService(ctx context.Context, localID p2p.PeerID, ds p2p.DiscoveryService, localAddrs func() []string, ps inet256.PeerStore) error {
-	eg := errgroup.Group{}
-	// announce loop
-	eg.Go(func() error {
-		ttl := 60 * time.Second
-		ticker := time.NewTicker(60 * time.Second / 2)
-		defer ticker.Stop()
-		for {
-			addrs := localAddrs()
-			if err := ds.Announce(ctx, localID, addrs, ttl); err != nil {
-				logrus.Error("announce error:", err)
-			}
-			// TODO: announce, and find, add each to the store
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
-			}
-		}
-	})
-	// Find loop
-	eg.Go(func() error {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		for {
-			for _, id := range ps.ListPeers() {
-				addrs, err := ds.Find(ctx, localID)
-				if err != nil {
-					logrus.Error("find errored: ", err)
-					continue
-				}
-				ps.SetAddrs(id, addrs)
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
-			}
-		}
-	})
-	return eg.Wait()
-}
-
-func makeDiscoveryService(spec DiscoverySpec) (p2p.DiscoveryService, error) {
-	switch {
-	case spec.Cell != nil:
-		return celldisco.New(*spec.Cell)
-	default:
-		return nil, errors.Errorf("empty discovery spec")
+func copyPeers(dst, src inet256.PeerStore) {
+	for _, id := range src.ListPeers() {
+		dst.Add(id)
 	}
 }

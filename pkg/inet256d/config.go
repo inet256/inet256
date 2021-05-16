@@ -11,6 +11,8 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
 	"github.com/inet256/inet256/pkg/autopeering"
+	"github.com/inet256/inet256/pkg/discovery"
+	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -24,8 +26,9 @@ type PeerSpec struct {
 }
 
 type TransportSpec struct {
+	QUIC *QUICTransportSpec `yaml:"quic,omitempty"`
+
 	UDP      *UDPTransportSpec      `yaml:"udp,omitempty"`
-	QUIC     *QUICTransportSpec     `yaml:"quic,omitempty"`
 	Ethernet *EthernetTransportSpec `yaml:"ethernet,omitempty"`
 
 	NATUPnP bool `yaml:"nat_upnp"`
@@ -46,7 +49,7 @@ type LocalDiscoverySpec struct {
 	MulticastAddr string `yaml:"multicast_addr"`
 }
 
-type AutopeerSpec struct {
+type AutoPeeringSpec struct {
 }
 
 type Config struct {
@@ -56,8 +59,8 @@ type Config struct {
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
-	Discovery   []DiscoverySpec `yaml:"discovery"`
-	AutoPeering []AutopeerSpec  `yaml:"autopeering"`
+	Discovery   []DiscoverySpec   `yaml:"discovery"`
+	AutoPeering []AutoPeeringSpec `yaml:"autopeering"`
 }
 
 func (c Config) GetAPIAddr() string {
@@ -113,6 +116,24 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		}
 		nspecs = append(nspecs, nspec)
 	}
+	// discovery
+	dscSrvs := []discovery.Service{}
+	for _, spec := range c.Discovery {
+		dscSrv, err := makeDiscoveryService(spec)
+		if err != nil {
+			return nil, err
+		}
+		dscSrvs = append(dscSrvs, dscSrv)
+	}
+	// autopeering
+	apSrvs := []autopeering.Service{}
+	for _, spec := range c.AutoPeering {
+		apSrv, err := makeAutoPeeringService(spec)
+		if err != nil {
+			return nil, err
+		}
+		apSrvs = append(apSrvs, apSrv)
+	}
 
 	params := &Params{
 		MainNodeParams: inet256.Params{
@@ -121,8 +142,8 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			Networks:   nspecs,
 			Peers:      peers,
 		},
-		DiscoveryServices:   []p2p.DiscoveryService{},
-		AutoPeeringServices: []autopeering.Service{},
+		DiscoveryServices:   dscSrvs,
+		AutoPeeringServices: apSrvs,
 		APIAddr:             c.APIAddr,
 	}
 	return params, nil
@@ -146,6 +167,22 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, strin
 		return nil, "", errors.Errorf("ethernet transport not implemented")
 	default:
 		return nil, "", errors.Errorf("empty transport spec")
+	}
+}
+
+func makeDiscoveryService(spec DiscoverySpec) (discovery.Service, error) {
+	switch {
+	case spec.Cell != nil:
+		return celldisco.New(*spec.Cell)
+	default:
+		return nil, errors.Errorf("empty discovery spec")
+	}
+}
+
+func makeAutoPeeringService(spec AutoPeeringSpec) (autopeering.Service, error) {
+	switch {
+	default:
+		return nil, errors.Errorf("empty autopeering spec")
 	}
 }
 
