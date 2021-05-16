@@ -13,6 +13,8 @@ A 256 bit address space for peer-to-peer hosts/applications.
 
 [Architecture](./ARCHITECTURE.md)
 
+[Spec](./docs/10_Spec.md)
+
 ## Features
 - Stable addresses derived from public keys
 - Secure communication to other nodes in the network
@@ -22,13 +24,6 @@ A 256 bit address space for peer-to-peer hosts/applications.
 - Addresses are plentiful. Spawn a new node for each process. Every process gets its own address, no need for ports.
 - IPv6/IPv4 can run above or below INET256.
 - Autopeering and transport address discovery help make peering easy.
-
-## Spec
-Addresses are determined by 256 bits of `SHAKE-256` of the `PKIX ASN.1 DER` encoding of the public key.
-
-More about that design decision in `docs/`
-
-Take a look in `ARCHITECTURE.md` for more about the interface for network protocols.
 
 ## Network Routing Protocols
 This project separates a modern communication API from the routing algorithm that powers it.
