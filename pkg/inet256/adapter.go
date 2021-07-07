@@ -27,7 +27,7 @@ func (s *netAdapter) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error 
 }
 
 func (s *netAdapter) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) error {
-	return s.network.Tell(ctx, dst, p2p.VecBytes(v))
+	return s.network.Tell(ctx, dst, p2p.VecBytes(nil, v))
 }
 
 func (s *netAdapter) ServeTells(fn p2p.TellHandler) error {

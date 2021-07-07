@@ -3,7 +3,7 @@ private_key_path: ./inet256_private1.pem
 api_addr: 127.0.0.1:25601
 
 networks:
-- onehop
+- kad+sr 
 
 transports:
 - udp: "0.0.0.0:44444"

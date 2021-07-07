@@ -19,7 +19,7 @@ const (
 func SignMessage(privateKey p2p.PrivateKey, now time.Time, m *Message) error {
 	m.Timestamp = now.Unix()
 	msgBytes := formatSigTarget(m)
-	sig, err := p2p.Sign(privateKey, SigPurpose, msgBytes)
+	sig, err := p2p.Sign(nil, privateKey, SigPurpose, msgBytes)
 	if err != nil {
 		return err
 	}
