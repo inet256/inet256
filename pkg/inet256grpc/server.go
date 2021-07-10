@@ -119,7 +119,21 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	return nil
 }
 
-func (s *Server) toClients(src, dst inet256.Addr, payload []byte) {
+func (s *Server) toClientLoop(ctx context.Context, node inet256.Node) error {
+	buf := make([]byte, inet256.TransportMTU)
+	for {
+		var src, dst inet256.Addr
+		n, err := node.Recv(ctx, &src, &dst, buf)
+		if err != nil {
+			return err
+		}
+		if err := s.toClient(src, dst, buf[:n]); err != nil {
+			logrus.Errorf("error sending to client: %v", err)
+		}
+	}
+}
+
+func (s *Server) toClient(src, dst inet256.Addr, payload []byte) error {
 	s.mu.RLock()
 	var srv INET256_ConnectServer
 	srvs := s.active[dst]
@@ -127,21 +141,16 @@ func (s *Server) toClients(src, dst inet256.Addr, payload []byte) {
 		srv = srvs[mrand.Intn(len(srvs))]
 	}
 	s.mu.RUnlock()
-
 	if srv == nil {
-		logrus.Error("no active clients")
-		return
+		return errors.Errorf("no active clients")
 	}
-
-	if err := srv.Send(&ConnectMsg{
+	return srv.Send(&ConnectMsg{
 		Datagram: &Datagram{
 			Src:     src[:],
 			Dst:     dst[:],
 			Payload: payload,
 		},
-	}); err != nil {
-		logrus.Error(err)
-	}
+	})
 }
 
 func (s *Server) fromClient(ctx context.Context, src, dst inet256.Addr, payload []byte) error {
@@ -156,12 +165,16 @@ func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.P
 	defer s.mu.Unlock()
 	_, exists := s.nodes[id]
 	if !exists {
-		n, err := s.s.CreateNode(ctx, privKey)
+		node, err := s.s.CreateNode(ctx, privKey)
 		if err != nil {
 			return err
 		}
-		s.nodes[id] = n
-		go n.Recv(s.toClients)
+		s.nodes[id] = node
+		go func() {
+			if err := s.toClientLoop(ctx, node); err != nil {
+				logrus.Error(err)
+			}
+		}()
 	}
 	s.active[id] = append(s.active[id], &serverWrapper{INET256_ConnectServer: srv})
 	return nil

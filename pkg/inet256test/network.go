@@ -14,6 +14,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 type (
@@ -43,34 +44,40 @@ func TestNetwork(t *testing.T, nf NetworkFactory) {
 	}
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
-			nets := setupNetworks(t, tc.Topology, nf)
-			chans := setupChans(nets)
+			nets := SetupNetworks(t, tc.Topology, nf)
 			t.Log("topology:", tc.Topology)
 			randomPairs(len(nets), func(i, j int) {
-				testSendRecvOne(t, nets[i], nets[j].LocalAddr(), chans[j])
+				TestSendRecvOne(t, nets[i], nets[j])
 			})
 		})
 	}
 }
 
-func testSendRecvOne(t testing.TB, from Network, dst Addr, queue chan Message) {
+func TestSendRecvOne(t testing.TB, src, dst Network) {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
-	actualData := "test data"
 
-	err := from.Tell(ctx, dst, []byte(actualData))
-	require.NoError(t, err)
-
-	select {
-	case <-ctx.Done():
-		require.NoError(t, ctx.Err())
-	case msg := <-queue:
-		require.Equal(t, actualData, string(msg.Payload))
-	}
-	drain(queue)
+	eg := errgroup.Group{}
+	var recieved string
+	eg.Go(func() error {
+		var srcAddr, dstAddr inet256.Addr
+		buf := make([]byte, inet256.TransportMTU)
+		n, err := dst.Recv(ctx, &srcAddr, &dstAddr, buf)
+		if err != nil {
+			return err
+		}
+		recieved = string(buf[:n])
+		return nil
+	})
+	sent := "test data"
+	eg.Go(func() error {
+		return src.Tell(ctx, dst.LocalAddr(), []byte(sent))
+	})
+	require.NoError(t, eg.Wait())
+	require.Equal(t, sent, recieved)
 }
 
-func setupNetworks(t *testing.T, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
+func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	r := memswarm.NewRealm()
 	N := len(adjList)
 	swarms := make([]p2p.SecureSwarm, N)
@@ -103,7 +110,7 @@ func setupNetworks(t *testing.T, adjList p2ptest.AdjList, nf NetworkFactory) []N
 			Logger:     logger,
 		})
 	}
-	waitReadyNetworks(t, nets)
+	bootstrapNetworks(t, nets)
 	t.Log("successfully initialized", N, "networks")
 	t.Cleanup(func() {
 		for _, n := range nets {
@@ -113,44 +120,18 @@ func setupNetworks(t *testing.T, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	return nets
 }
 
-func waitReadyNetworks(t *testing.T, nets []Network) {
+func bootstrapNetworks(t testing.TB, nets []Network) {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	for i := 0; i < len(nets); i++ {
-		err := nets[i].WaitReady(ctx)
+		err := nets[i].Bootstrap(ctx)
 		require.NoError(t, err)
 		select {
 		case <-ctx.Done():
-			require.NoError(t, ctx.Err(), "timeout waiting for init")
+			require.NoError(t, ctx.Err(), "timeout waiting for bootstrap")
 		default:
 		}
 	}
-}
-
-func setupChan(nwk Network) chan Message {
-	ch := make(chan Message, 10)
-	go func() {
-		err := nwk.Recv(func(src, dst inet256.Addr, data []byte) {
-			ch <- Message{
-				Src:     src,
-				Dst:     dst,
-				Payload: append([]byte{}, data...),
-			}
-		})
-		close(ch)
-		if err != p2p.ErrSwarmClosed {
-			logrus.Error(err)
-		}
-	}()
-	return ch
-}
-
-func setupChans(nets []Network) []chan Message {
-	chans := make([]chan Message, len(nets))
-	for i := range nets {
-		chans[i] = setupChan(nets[i])
-	}
-	return chans
 }
 
 func randomPairs(n int, fn func(i, j int)) {
@@ -163,15 +144,7 @@ func randomPairs(n int, fn func(i, j int)) {
 	}
 }
 
-func drain(x chan Message) {
-	select {
-	case <-x:
-	default:
-		return
-	}
-}
-
-func newTestLogger(t *testing.T) *logrus.Logger {
+func newTestLogger(t testing.TB) *logrus.Logger {
 	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	logger.SetOutput(os.Stderr)
@@ -179,18 +152,4 @@ func newTestLogger(t *testing.T) *logrus.Logger {
 		ForceColors: true,
 	})
 	return logger
-}
-
-type Message struct {
-	Src     inet256.Addr
-	Dst     inet256.Addr
-	Payload []byte
-}
-
-func castNodeSlice(nodes []inet256.Node) []Network {
-	nets := make([]Network, len(nodes))
-	for i := range nodes {
-		nets[i] = nodes[i]
-	}
-	return nets
 }

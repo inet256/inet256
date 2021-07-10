@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
@@ -26,8 +25,6 @@ type PeerSpec struct {
 }
 
 type TransportSpec struct {
-	QUIC *QUICTransportSpec `yaml:"quic,omitempty"`
-
 	UDP      *UDPTransportSpec      `yaml:"udp,omitempty"`
 	Ethernet *EthernetTransportSpec `yaml:"ethernet,omitempty"`
 
@@ -35,7 +32,6 @@ type TransportSpec struct {
 }
 
 type UDPTransportSpec string
-type QUICTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
@@ -94,11 +90,8 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		if tspec.NATUPnP {
 			sw = upnpswarm.WrapSwarm(sw)
 		}
-		secSw, ok := sw.(p2p.SecureSwarm)
-		if !ok {
-			secSw = noiseswarm.New(sw, privateKey)
-			swname = "noise+" + swname
-		}
+		secSw, err := quicswarm.New(sw, privateKey)
+		swname = "quic+" + swname
 		swarms[swname] = secSw
 	}
 	// peers
@@ -157,12 +150,6 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, strin
 			return nil, "", err
 		}
 		return s, "udp", nil
-	case spec.QUIC != nil:
-		s, err := quicswarm.New(string(*spec.QUIC), privKey)
-		if err != nil {
-			return nil, "", err
-		}
-		return s, "quic", err
 	case spec.Ethernet != nil:
 		return nil, "", errors.Errorf("ethernet transport not implemented")
 	default:

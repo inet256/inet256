@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -30,27 +31,40 @@ var ncCmd = &cobra.Command{
 		in := cmd.InOrStdin()
 		out := cmd.OutOrStdout()
 		pk := generateKey()
-		n, err := newNode(ctx, pk)
+		node, err := newNode(ctx, pk)
 		if err != nil {
 			return err
 		}
-		defer n.Close()
-		logrus.Info(n.LocalAddr())
-		go n.Recv(func(src, _ inet256.Addr, data []byte) {
-			if src != remote {
-				logrus.Warnf("discarding message from %v", src)
-				return
+		defer node.Close()
+		logrus.Info(node.LocalAddr())
+		eg := errgroup.Group{}
+		eg.Go(func() error {
+			buf := make([]byte, inet256.TransportMTU)
+			var src, dst inet256.Addr
+			for {
+				n, err := node.Recv(ctx, &src, &dst, buf)
+				if err != nil {
+					return err
+				}
+				if src != remote {
+					logrus.Warnf("discarding message from %v", src)
+					continue
+				}
+				data := buf[:n]
+				out.Write(data)
+				out.Write([]byte("\n"))
 			}
-			out.Write(data)
-			out.Write([]byte("\n"))
 		})
-		scn := bufio.NewScanner(in)
-		for scn.Scan() {
-			if err := n.Tell(ctx, remote, scn.Bytes()); err != nil {
-				return err
+		eg.Go(func() error {
+			scn := bufio.NewScanner(in)
+			for scn.Scan() {
+				if err := node.Tell(ctx, remote, scn.Bytes()); err != nil {
+					return err
+				}
 			}
-		}
-		return scn.Err()
+			return scn.Err()
+		})
+		return eg.Wait()
 	},
 }
 

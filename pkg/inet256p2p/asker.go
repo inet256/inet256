@@ -1,7 +1,6 @@
 package inet256p2p
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,16 +32,35 @@ func newAsker(s p2p.Swarm) *asker {
 		askHub:    swarmutil.NewAskHub(),
 		tellHub:   swarmutil.NewTellHub(),
 	}
-	go s.ServeTells(a.fromBelow)
+	go a.recvLoop(context.Background())
 	return a
 }
 
-func (a *asker) ServeTells(fn p2p.TellHandler) error {
-	return a.tellHub.ServeTells(fn)
+func (a *asker) recvLoop(ctx context.Context) error {
+	buf := make([]byte, a.Swarm.MaxIncomingSize())
+	for {
+		var src, dst p2p.Addr
+		n, err := a.Swarm.Recv(ctx, &src, &dst, buf)
+		if err != nil {
+			return err
+		}
+		data := buf[:n]
+		if err := a.handleMessage(ctx, p2p.Message{
+			Src:     src,
+			Dst:     dst,
+			Payload: data,
+		}); err != nil {
+			logrus.Error(err)
+		}
+	}
 }
 
-func (a *asker) ServeAsks(fn p2p.AskHandler) error {
-	return a.askHub.ServeAsks(fn)
+func (a *asker) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	return a.tellHub.Recv(ctx, src, dst, buf)
+}
+
+func (a *asker) ServeAsk(ctx context.Context, fn p2p.AskHandler) error {
+	return a.askHub.ServeAsk(ctx, fn)
 }
 
 func (a *asker) Tell(ctx context.Context, dst p2p.Addr, data p2p.IOVec) error {
@@ -55,7 +74,7 @@ func (a *asker) MTU(ctx context.Context, dst p2p.Addr) int {
 	return a.Swarm.MTU(ctx, dst) - 8
 }
 
-func (a *asker) Ask(ctx context.Context, dst p2p.Addr, data p2p.IOVec) ([]byte, error) {
+func (a *asker) Ask(ctx context.Context, resp []byte, dst p2p.Addr, data p2p.IOVec) (int, error) {
 	m := make(message, 8)
 	m.setAsk(true)
 	m.setResponse(false)
@@ -79,20 +98,20 @@ func (a *asker) Ask(ctx context.Context, dst p2p.Addr, data p2p.IOVec) ([]byte, 
 		delete(a.responses, rkey)
 	}()
 	if err := a.Swarm.Tell(ctx, dst, vec); err != nil {
-		return nil, err
+		return 0, err
 	}
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return 0, ctx.Err()
 	case data := <-ch:
-		return data, nil
+		return copy(resp, data), nil
 	}
 }
 
-func (a *asker) fromBelow(msg *p2p.Message) {
+func (a *asker) handleMessage(ctx context.Context, msg p2p.Message) error {
 	m := message(msg.Payload)
 	if !m.isValidLen() {
-		logrus.Warn("got too short message from ", msg.Src)
+		return errors.Errorf("got too short message from %v", msg.Src)
 	}
 	src := msg.Src
 
@@ -100,29 +119,23 @@ func (a *asker) fromBelow(msg *p2p.Message) {
 	// tell
 	case !m.isAsk():
 		msg.Payload = m.getPayload()
-		a.tellHub.DeliverTell(msg)
+		return a.tellHub.Deliver(ctx, msg)
 
 	// request
 	case m.isAsk() && !m.isResponse():
-		// copy message
-		msg2 := *msg
-		m = append([]byte{}, m...) // copy m
+		msg2 := msg
 		msg2.Payload = m.getPayload()
-		go func() {
-			ctx := context.Background()
-			//	ctx, cf := context.WithTimeout(ctx, 10*time.Second)
-			//defer cf()
-			resp := newMessage()
-			resp.setAsk(true)
-			resp.setResponse(true)
-			resp.setIndex(m.index())
-			buf := bytes.Buffer{}
-			buf.Write(resp[:8])
-			a.askHub.DeliverAsk(ctx, &msg2, &buf)
-			if err := a.Swarm.Tell(ctx, src, p2p.IOVec{buf.Bytes()}); err != nil {
-				logrus.Error(err)
-			}
-		}()
+		resp := newMessage()
+		resp.setAsk(true)
+		resp.setResponse(true)
+		resp.setIndex(m.index())
+		respBuf := make([]byte, a.Swarm.MaxIncomingSize()-8)
+		n, err := a.askHub.Deliver(ctx, respBuf, msg2)
+		if err != nil {
+			return err
+		}
+		resp = append(resp, respBuf[:n]...)
+		return a.Swarm.Tell(ctx, src, p2p.IOVec{resp})
 
 	// response
 	case m.isAsk():
@@ -140,16 +153,12 @@ func (a *asker) fromBelow(msg *p2p.Message) {
 		}
 		a.mu.Unlock()
 	}
+	return nil
 }
 
 type responseKey struct {
 	Addr string
 	N    uint32
-}
-
-type askResp struct {
-	data []byte
-	err  error
 }
 
 // message format

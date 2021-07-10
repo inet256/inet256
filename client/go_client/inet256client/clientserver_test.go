@@ -1,7 +1,6 @@
 package inet256client
 
 import (
-	"context"
 	"net"
 	"testing"
 
@@ -10,8 +9,8 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
@@ -36,32 +35,8 @@ func TestDial(t *testing.T) {
 	inet256grpc.RegisterINET256Server(gs, s)
 	l, err := net.Listen("tcp", "127.0.0.1:25600")
 	require.NoError(t, err)
-	ctx := context.Background()
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		return gs.Serve(l)
-	})
-	eg.Go(func() error {
-		defer l.Close()
-		defer gs.Stop()
-		privateKey := p2ptest.NewTestKey(t, 1)
-		c, err := NewNode("127.0.0.1:25600", privateKey)
-		if err != nil {
-			return err
-		}
-		done := make(chan struct{}, 1)
-		go c.Recv(func(dst, src inet256.Addr, payload []byte) {
-			done <- struct{}{}
-		})
-		err = c.Tell(ctx, p2p.NewPeerID(privateKey.Public()), []byte("this shouldn't break"))
-		if err != nil {
-			return err
-		}
-		select {
-		case <-done:
-		}
-		defer c.Close()
-		return nil
-	})
-	require.NoError(t, eg.Wait())
+	go gs.Serve(l)
+	c, err := NewNode("127.0.0.1:25600", privateKey)
+	require.NoError(t, err)
+	inet256test.TestSendRecvOne(t, c, c)
 }

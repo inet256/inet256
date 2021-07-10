@@ -21,7 +21,7 @@ type node struct {
 	localAddr  inet256.Addr
 	cf         context.CancelFunc
 
-	recvHub *inet256.RecvHub
+	recvHub *inet256.TellHub
 	workers []*worker
 }
 
@@ -44,16 +44,14 @@ func newNode(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (*nod
 		inetClient: inetClient,
 		privKey:    privKey,
 		localAddr:  p2p.NewPeerID(privKey.Public()),
-		recvHub:    inet256.NewRecvHub(),
+		recvHub:    inet256.NewTellHub(),
 		workers:    make([]*worker, runtime.GOMAXPROCS(0)),
 	}
 	for i := range n.workers {
-		n.workers[i] = newWorker(n.connect, func(src, dst inet256.Addr, data []byte) {
-			n.recvHub.Deliver(src, dst, data)
-		})
+		n.workers[i] = newWorker(n.connect, n.recvHub)
 	}
 	go n.runLoop(ctx)
-	if err := n.workers[0].waitReady(ctx); err != nil {
+	if err := n.workers[0].bootstrap(ctx); err != nil {
 		return nil, err
 	}
 	return n, nil
@@ -63,8 +61,12 @@ func (n *node) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
 	return n.pickWorker().tell(ctx, dst, data)
 }
 
-func (n *node) Recv(fn inet256.RecvFunc) error {
-	return n.recvHub.Recv(fn)
+func (n *node) Recv(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
+	return n.recvHub.Recv(ctx, src, dst, buf)
+}
+
+func (n *node) WaitRecv(ctx context.Context) error {
+	return n.recvHub.Wait(ctx)
 }
 
 func (n *node) Close() error {
@@ -88,11 +90,11 @@ func (n *node) MTU(ctx context.Context, addr inet256.Addr) int {
 	return n.getClient().MTU(ctx, addr)
 }
 
-func (n *node) WaitReady(ctx context.Context) error {
+func (n *node) Bootstrap(ctx context.Context) error {
 	eg := errgroup.Group{}
 	for i := range n.workers {
 		w := n.workers[i]
-		eg.Go(func() error { return w.waitReady(ctx) })
+		eg.Go(func() error { return w.bootstrap(ctx) })
 	}
 	return eg.Wait()
 }
@@ -150,17 +152,17 @@ func (n *node) pickWorker() *worker {
 }
 
 type worker struct {
-	getCC  func(context.Context) (inet256grpc.INET256_ConnectClient, error)
-	onRecv inet256.RecvFunc
+	getCC func(context.Context) (inet256grpc.INET256_ConnectClient, error)
+	tells *inet256.TellHub
 
 	mu sync.RWMutex
 	cc inet256grpc.INET256_ConnectClient
 }
 
-func newWorker(fn func(context.Context) (inet256grpc.INET256_ConnectClient, error), onRecv inet256.RecvFunc) *worker {
+func newWorker(fn func(context.Context) (inet256grpc.INET256_ConnectClient, error), tells *inet256.TellHub) *worker {
 	return &worker{
-		getCC:  fn,
-		onRecv: onRecv,
+		getCC: fn,
+		tells: tells,
 	}
 }
 
@@ -176,13 +178,14 @@ func (w *worker) run(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			if msg.Datagram == nil {
-				continue
-			}
 			dg := msg.Datagram
-			src := inet256.AddrFromBytes(dg.Src)
-			dst := inet256.AddrFromBytes(dg.Dst)
-			w.onRecv(src, dst, dg.Payload)
+			if err := w.tells.Deliver(ctx, inet256.Message{
+				Src:     inet256.AddrFromBytes(dg.Src),
+				Dst:     inet256.AddrFromBytes(dg.Dst),
+				Payload: dg.Payload,
+			}); err != nil {
+				return err
+			}
 		}
 	})
 }
@@ -212,7 +215,7 @@ func (w *worker) getClient() inet256grpc.INET256_ConnectClient {
 	return w.cc
 }
 
-func (w *worker) waitReady(ctx context.Context) error {
+func (w *worker) bootstrap(ctx context.Context) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {

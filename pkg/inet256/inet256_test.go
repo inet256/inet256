@@ -1,4 +1,4 @@
-package inet256test
+package inet256_test
 
 import (
 	"context"
@@ -6,16 +6,14 @@ import (
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/stretchr/testify/require"
 )
 
-type Node = inet256.Node
-
-func TestLoopback(t *testing.T) {
-	s := newTestServer(t, inet256.OneHopFactory)
+func TestServerLoopback(t *testing.T) {
+	s := inet256test.NewTestServer(t, inet256.OneHopFactory)
 	mainNode := s.MainNode()
-	mainChan := setupChan(mainNode)
-	testSendRecvOne(t, mainNode, mainNode.LocalAddr(), mainChan)
+	inet256test.TestSendRecvOne(t, mainNode, mainNode)
 
 	const N = 5
 	ctx := context.Background()
@@ -26,16 +24,14 @@ func TestLoopback(t *testing.T) {
 		nodes[i], err = s.CreateNode(ctx, pk)
 		require.NoError(t, err)
 	}
-	chans := setupChans(castNodeSlice(nodes))
 	for i := range nodes {
-		testSendRecvOne(t, nodes[i], nodes[i].LocalAddr(), chans[i])
+		inet256test.TestSendRecvOne(t, nodes[i], nodes[i])
 	}
 }
 
 func TestServerOneHop(t *testing.T) {
-	s := newTestServer(t, inet256.OneHopFactory)
+	s := inet256test.NewTestServer(t, inet256.OneHopFactory)
 	main := s.MainNode()
-	mainChan := setupChan(main)
 
 	const N = 5
 	ctx := context.Background()
@@ -46,11 +42,10 @@ func TestServerOneHop(t *testing.T) {
 		nodes[i], err = s.CreateNode(ctx, pk)
 		require.NoError(t, err)
 	}
-	chans := setupChans(castNodeSlice(nodes))
 	for i := range nodes {
-		testSendRecvOne(t, main, nodes[i].LocalAddr(), chans[i])
+		inet256test.TestSendRecvOne(t, main, nodes[i])
 	}
 	for i := range nodes {
-		testSendRecvOne(t, nodes[i], main.LocalAddr(), mainChan)
+		inet256test.TestSendRecvOne(t, nodes[i], main)
 	}
 }

@@ -6,8 +6,9 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/intmux"
-	"github.com/brendoncarroll/go-p2p/s/noiseswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
+	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/sirupsen/logrus"
 )
 
 // PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
@@ -46,7 +47,7 @@ func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) *peerSwarm {
 		localID:   p2p.NewPeerID(x.PublicKey()),
 
 		mux:       mux,
-		tm:        newTransportMonitor(mux.Open(channelHeartbeat), peerStore),
+		tm:        newTransportMonitor(mux.Open(channelHeartbeat), peerStore, logrus.StandardLogger()),
 		dataSwarm: mux.Open(channelData),
 	}
 }
@@ -64,19 +65,22 @@ func (s *peerSwarm) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) e
 	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
-func (s *peerSwarm) ServeTells(fn p2p.TellHandler) error {
-	return s.dataSwarm.ServeTells(func(msg *p2p.Message) {
-		srcKey := p2p.LookupPublicKeyInHandler(s.dataSwarm, msg.Src)
-		srcID := p2p.NewPeerID(srcKey)
-		msg2 := &p2p.Message{
-			Src:     srcID,
-			Dst:     s.localID,
-			Payload: msg.Payload,
-		}
-		s.tm.Mark(srcID, msg.Src, time.Now())
-		s.meter.Rx(srcID, len(msg.Payload))
-		fn(msg2)
-	})
+func (s *peerSwarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	n, err := s.dataSwarm.Recv(ctx, src, dst, buf)
+	if err != nil {
+		return 0, err
+	}
+	srcKey, err := s.dataSwarm.LookupPublicKey(ctx, *src)
+	if err != nil {
+		return 0, err
+	}
+	srcID := p2p.NewPeerID(srcKey)
+	s.tm.Mark(srcID, *src, time.Now())
+	s.meter.Rx(srcID, n)
+
+	*src = srcID
+	*dst = s.localID
+	return n, nil
 }
 
 func (s *peerSwarm) PublicKey() p2p.PublicKey {
@@ -106,6 +110,10 @@ func (s *peerSwarm) MTU(ctx context.Context, target p2p.Addr) int {
 		return 512
 	}
 	return s.dataSwarm.MTU(ctx, addr)
+}
+
+func (s *peerSwarm) MaxIncomingSize() int {
+	return s.inner.MaxIncomingSize()
 }
 
 func (s *peerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
@@ -147,48 +155,55 @@ func (s peerSwarmWrapper) TellPeer(ctx context.Context, id p2p.PeerID, v p2p.IOV
 	return s.SecureSwarm.Tell(ctx, id, v)
 }
 
-type noise2PeerSwarm struct {
-	*noiseswarm.Swarm
+type quic2PeerSwarm struct {
+	*quicswarm.Swarm
 }
 
 func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
 	insecSw := SwarmFromNetwork(x, privateKey.Public())
-	noiseSw := noiseswarm.New(insecSw, privateKey)
-	secnet := networkFromSwarm(noise2PeerSwarm{noiseSw}, x.FindAddr, x.WaitReady)
+	noiseSw, err := quicswarm.New(insecSw, privateKey)
+	if err != nil {
+		panic(err)
+	}
+	secnet := networkFromSwarm(quic2PeerSwarm{noiseSw}, x.FindAddr, x.Bootstrap)
 	return secnet
 }
 
-func (s noise2PeerSwarm) ServeTells(fn p2p.TellHandler) error {
-	return s.Swarm.ServeTells(func(x *p2p.Message) {
-		fn(&p2p.Message{
-			Src:     x.Src.(noiseswarm.Addr).ID,
-			Dst:     x.Dst.(noiseswarm.Addr).ID,
-			Payload: x.Payload,
-		})
-	})
+func (s quic2PeerSwarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	n, err := s.Swarm.Recv(ctx, src, dst, buf)
+	if err != nil {
+		return 0, err
+	}
+	*src = (*src).(quicswarm.Addr).ID
+	*dst = (*dst).(quicswarm.Addr).ID
+	return n, nil
 }
 
-func (s noise2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data p2p.IOVec) error {
-	return s.Swarm.Tell(ctx, noiseswarm.Addr{ID: id, Addr: id}, data)
+func (s quic2PeerSwarm) Tell(ctx context.Context, id p2p.Addr, data p2p.IOVec) error {
+	return s.TellPeer(ctx, id.(p2p.PeerID), data)
 }
 
-func (s noise2PeerSwarm) LocalAddrs() (ys []p2p.Addr) {
+func (s quic2PeerSwarm) TellPeer(ctx context.Context, id p2p.PeerID, data p2p.IOVec) error {
+	return s.Swarm.Tell(ctx, quicswarm.Addr{ID: id, Addr: id}, data)
+}
+
+func (s quic2PeerSwarm) LocalAddrs() (ys []p2p.Addr) {
 	for _, x := range s.Swarm.LocalAddrs() {
-		ys = append(ys, x.(noiseswarm.Addr).ID)
+		ys = append(ys, x.(quicswarm.Addr).ID)
 	}
 	return ys
 }
 
-func (s noise2PeerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
+func (s quic2PeerSwarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
 	id := target.(p2p.PeerID)
-	return s.Swarm.LookupPublicKey(ctx, noiseswarm.Addr{ID: id, Addr: id})
+	return s.Swarm.LookupPublicKey(ctx, quicswarm.Addr{ID: id, Addr: id})
 }
 
-func (s noise2PeerSwarm) LocalID() p2p.PeerID {
-	return s.Swarm.LocalAddrs()[0].(noiseswarm.Addr).ID
+func (s quic2PeerSwarm) LocalID() p2p.PeerID {
+	return s.Swarm.LocalAddrs()[0].(quicswarm.Addr).ID
 }
 
-func (s noise2PeerSwarm) ParseAddr(x []byte) (p2p.Addr, error) {
+func (s quic2PeerSwarm) ParseAddr(x []byte) (p2p.Addr, error) {
 	id := p2p.PeerID{}
 	if err := id.UnmarshalText(x); err != nil {
 		return nil, err

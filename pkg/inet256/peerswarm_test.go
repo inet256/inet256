@@ -10,13 +10,11 @@ import (
 )
 
 func TestPeerSwarm(t *testing.T) {
-	swarmtest.TestSuiteSecureSwarm(t, func(t testing.TB, n int) []p2p.SecureSwarm {
+	swarmtest.TestSecureSwarm(t, func(t testing.TB, swarms []p2p.SecureSwarm) {
 		r := memswarm.NewRealm()
-		swarms := make([]p2p.SecureSwarm, n)
-		for i := 0; i < n; i++ {
+		for i := range swarms {
 			pk := p2ptest.NewTestKey(t, i)
 			swarms[i] = newPeerSwarm(r.NewSwarmWithKey(pk), NewPeerStore())
 		}
-		return swarms
 	})
 }
