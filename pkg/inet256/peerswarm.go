@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/intmux"
+	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/sirupsen/logrus"
@@ -29,7 +29,7 @@ type peerSwarm struct {
 	inner     p2p.SecureSwarm
 
 	localID   p2p.PeerID
-	mux       intmux.SecureMux
+	mux       p2pmux.IntSecureMux
 	tm        *transportMonitor
 	dataSwarm p2p.SecureSwarm
 	meter     meter
@@ -40,7 +40,7 @@ func NewPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) peerswarm.Swarm {
 }
 
 func newPeerSwarm(x p2p.SecureSwarm, peerStore PeerStore) *peerSwarm {
-	mux := intmux.WrapSecureSwarm(x)
+	mux := p2pmux.NewVarintSecureMux(x)
 	return &peerSwarm{
 		peerStore: peerStore,
 		inner:     x,

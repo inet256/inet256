@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/intmux"
+	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 )
@@ -36,7 +36,7 @@ type node struct {
 func NewNode(params Params) Node {
 	transportSwarm := multiswarm.NewSecure(params.Swarms)
 	basePeerSwarm := newPeerSwarm(transportSwarm, params.Peers)
-	mux := intmux.WrapSecureSwarm(basePeerSwarm)
+	mux := p2pmux.NewVarintSecureMux(basePeerSwarm)
 
 	// create multi network
 	networks := make([]Network, len(params.Networks))
