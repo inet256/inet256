@@ -100,6 +100,13 @@ func (s *peerSwarm) ParseAddr(data []byte) (p2p.Addr, error) {
 }
 
 func (s *peerSwarm) Close() error {
+	if err := s.tm.Close(); err != nil {
+		panic(err)
+		logrus.Error(err)
+	}
+	if err := s.dataSwarm.Close(); err != nil {
+		logrus.Error(err)
+	}
 	return s.inner.Close()
 }
 

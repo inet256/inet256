@@ -46,11 +46,29 @@ func TestNetwork(t *testing.T, nf NetworkFactory) {
 		t.Run(tc.Name, func(t *testing.T) {
 			nets := SetupNetworks(t, tc.Topology, nf)
 			t.Log("topology:", tc.Topology)
-			randomPairs(len(nets), func(i, j int) {
-				TestSendRecvOne(t, nets[i], nets[j])
+			t.Run("FindAddr", func(t *testing.T) {
+				randomPairs(len(nets), func(i, j int) {
+					TestFindAddr(t, nets[i], nets[j])
+				})
+			})
+			t.Run("SendRecvAll", func(t *testing.T) {
+				TestSendRecvAll(t, nets)
 			})
 		})
 	}
+}
+
+func TestFindAddr(t testing.TB, src, dst Network) {
+	ctx, cf := context.WithTimeout(context.Background(), time.Second)
+	defer cf()
+	dstAddr := dst.LocalAddr()
+	src.FindAddr(ctx, dstAddr[:], len(dstAddr)/8)
+}
+
+func TestSendRecvAll(t testing.TB, nets []Network) {
+	randomPairs(len(nets), func(i, j int) {
+		TestSendRecvOne(t, nets[i], nets[j])
+	})
 }
 
 func TestSendRecvOne(t testing.TB, src, dst Network) {
@@ -78,13 +96,13 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 }
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
-	r := memswarm.NewRealm()
 	N := len(adjList)
 	swarms := make([]p2p.SecureSwarm, N)
 	peerSwarms := make([]peerswarm.Swarm, N)
 	peerStores := make([]PeerStore, N)
 	keys := make([]p2p.PrivateKey, N)
 
+	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(keys[i])

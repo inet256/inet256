@@ -9,7 +9,7 @@ import (
 
 var _ peerswarm.Swarm = &netAdapter{}
 
-// netAdapter converts an inet256.Network into a swarm
+// netAdapter converts an inet256.Network into a peerswarm.Swarm
 type netAdapter struct {
 	publicKey p2p.PublicKey
 	network   Network
@@ -62,7 +62,7 @@ func (s *netAdapter) Close() error {
 }
 
 func (s *netAdapter) MaxIncomingSize() int {
-	return TransportMTU
+	return MaxMTU
 }
 
 func (s *netAdapter) ParseAddr(data []byte) (p2p.Addr, error) {

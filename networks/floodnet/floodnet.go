@@ -15,7 +15,7 @@ import (
 )
 
 func Factory(params inet256.NetworkParams) inet256.Network {
-	return New(params.PrivateKey, params.Swarm, params.Peers)
+	return New(params.PrivateKey, params.Swarm, params.Peers, params.Logger)
 }
 
 const maxHops = 10
@@ -27,24 +27,30 @@ type Network struct {
 	privateKey p2p.PrivateKey
 	onehop     inet256.PeerSet
 	swarm      peerswarm.Swarm
+	log        *inet256.Logger
 
 	mu    sync.RWMutex
 	peers map[p2p.PeerID]p2p.PublicKey
 
-	recvHub *inet256.RecvHub
+	recvHub *inet256.TellHub
 }
 
-func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet) inet256.Network {
+func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
 	n := &Network{
 		localAddr:  inet256.NewAddr(privateKey.Public()),
 		privateKey: privateKey,
 		onehop:     onehop,
 		swarm:      ps,
+		log:        log,
 
 		peers:   make(map[p2p.PeerID]p2p.PublicKey),
-		recvHub: inet256.NewRecvHub(),
+		recvHub: inet256.NewTellHub(),
 	}
-	go n.swarm.ServeTells(n.fromBelow)
+	go func() {
+		if err := n.recvLoop(context.Background()); err != nil {
+			logrus.Error(err)
+		}
+	}()
 	return n
 }
 
@@ -57,51 +63,56 @@ func (n *Network) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.broadcast(ctx, msgData, n.localAddr)
 }
 
-func (n *Network) Recv(fn inet256.RecvFunc) error {
-	return n.recvHub.Recv(fn)
+func (n *Network) Recv(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
+	return n.recvHub.Recv(ctx, src, dst, buf)
+}
+
+func (n *Network) WaitRecv(ctx context.Context) error {
+	return n.recvHub.Wait(ctx)
 }
 
 func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 	if err := n.solicit(ctx); err != nil {
 		return Addr{}, err
 	}
-	for i := 0; i < 10; i++ {
+	var ret Addr
+	err := n.poll(ctx, func() error {
 		n.mu.RLock()
+		defer n.mu.RUnlock()
 		for id := range n.peers {
 			if inet256.HasPrefix(id[:], prefix, nbits) {
-				n.mu.RUnlock()
-				return id, nil
+				ret = id
+				return nil
 			}
 		}
-		n.mu.RUnlock()
-		time.Sleep(500 * time.Millisecond)
-	}
-	return Addr{}, inet256.ErrNoAddrWithPrefix
+		return inet256.ErrNoAddrWithPrefix
+	})
+	return ret, err
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
 	if err := n.solicit(ctx); err != nil {
-		return Addr{}, err
+		return nil, err
 	}
-	for i := 0; i < 10; i++ {
+	var ret inet256.PublicKey
+	err := n.poll(ctx, func() error {
 		n.mu.RLock()
+		defer n.mu.RUnlock()
 		for id, pubKey := range n.peers {
 			if id == target {
-				n.mu.RUnlock()
-				return pubKey, nil
+				ret = pubKey
 			}
 		}
-		n.mu.RUnlock()
-		time.Sleep(500 * time.Millisecond)
-	}
-	return nil, inet256.ErrPublicKeyNotFound
+		return inet256.ErrPublicKeyNotFound
+	})
+	return ret, err
 }
 
 func (n *Network) LocalAddr() Addr {
 	return n.localAddr
 }
 
-func (n *Network) WaitReady(ctx context.Context) error {
+func (n *Network) Bootstrap(ctx context.Context) error {
 	return n.solicit(ctx)
 }
 
@@ -113,62 +124,73 @@ func (n *Network) Close() error {
 	return n.swarm.Close()
 }
 
-func (n *Network) fromBelow(m *p2p.Message) {
-	err := func() error {
-		msg := Message{}
-		if err := json.Unmarshal(m.Payload, &msg); err != nil {
-			return err
+func (n *Network) poll(ctx context.Context, fn func() error) error {
+	for {
+		err := fn()
+		if err == nil {
+			return nil
 		}
-		pubKey, err := inet256.ParsePublicKey(msg.SrcKey)
-		if err != nil {
+		select {
+		case <-ctx.Done():
 			return err
+		case <-time.After(10 * time.Millisecond):
 		}
-		n.addPeer(pubKey)
-		src, err := msg.GetSrc()
-		if err != nil {
-			return err
-		}
-		dst := msg.GetDst()
+	}
+}
 
-		ctx := context.Background()
-		switch msg.Mode {
-		case modeSolicit:
-			msgAdv := newMessage(n.privateKey, src, nil, maxHops, modeAdvertise)
-			data, err := json.Marshal(msgAdv)
-			if err != nil {
-				panic(err)
-			}
-			if err := n.broadcast(ctx, data, n.localAddr); err != nil {
-				return err
-			}
-		case modeAdvertise:
-		case modeData:
-			if bytes.Equal(n.localAddr[:], msg.Dst) {
-				n.recvHub.Deliver(src, n.localAddr, msg.Payload)
-				return nil
-			}
+func (nwk *Network) recvLoop(ctx context.Context) error {
+	buf := make([]byte, nwk.swarm.MaxIncomingSize())
+	for {
+		var src, dst p2p.Addr
+		n, err := nwk.swarm.Recv(ctx, &src, &dst, buf)
+		if err != nil {
+			return err
 		}
-		// forward
-		if bytes.Equal(n.localAddr[:], msg.Dst) {
-			return nil
+		msg := Message{}
+		if err := json.Unmarshal(buf[:n], &msg); err != nil {
+			return err
 		}
-		msg2 := msg
-		msg2.Hops--
-		if msg2.Hops < 0 {
-			return nil
-		}
-		data, err := json.Marshal(msg2)
+		go func() {
+			if err := nwk.fromBelow(ctx, src.(inet256.Addr), msg); err != nil {
+				nwk.log.Error("error handling message ", err)
+			}
+		}()
+	}
+}
+
+func (n *Network) fromBelow(ctx context.Context, from inet256.Addr, msg Message) error {
+	pubKey, err := inet256.ParsePublicKey(msg.SrcKey)
+	if err != nil {
+		return err
+	}
+	n.addPeer(pubKey)
+	src, err := msg.GetSrc()
+	if err != nil {
+		return err
+	}
+
+	switch msg.Mode {
+	case modeSolicit:
+		msgAdv := newMessage(n.privateKey, src, nil, maxHops, modeAdvertise)
+		data, err := json.Marshal(msgAdv)
 		if err != nil {
 			panic(err)
 		}
-		if n.onehop.Contains(dst) {
-			return n.swarm.TellPeer(ctx, dst, p2p.IOVec{data})
+		if err := n.swarm.TellPeer(ctx, from, p2p.IOVec{data}); err != nil {
+			return err
 		}
-		return n.broadcast(ctx, data, m.Src.(inet256.Addr))
-	}()
-	if err != nil {
-		logrus.Error(err)
+
+	case modeAdvertise:
+	case modeData:
+		if bytes.Equal(n.localAddr[:], msg.Dst) {
+			return n.recvHub.Deliver(ctx, inet256.Message{
+				Src:     src,
+				Dst:     n.localAddr,
+				Payload: msg.Payload,
+			})
+		}
 	}
+	return n.forward(ctx, from, msg)
 }
 
 func (n *Network) addPeer(pubKey p2p.PublicKey) {
@@ -176,6 +198,27 @@ func (n *Network) addPeer(pubKey p2p.PublicKey) {
 	n.mu.Lock()
 	n.peers[src] = pubKey
 	n.mu.Unlock()
+}
+
+func (n *Network) forward(ctx context.Context, from inet256.Addr, msg Message) error {
+	// forward
+	if bytes.Equal(n.localAddr[:], msg.Dst) {
+		return nil
+	}
+	msg2 := msg
+	msg2.Hops--
+	if msg2.Hops < 0 {
+		return nil
+	}
+	dst := msg.GetDst()
+	data, err := json.Marshal(msg2)
+	if err != nil {
+		panic(err)
+	}
+	if n.onehop.Contains(dst) {
+		return n.swarm.TellPeer(ctx, dst, p2p.IOVec{data})
+	}
+	return n.broadcast(ctx, data, from)
 }
 
 func (n *Network) broadcast(ctx context.Context, data []byte, exclude inet256.Addr) error {
