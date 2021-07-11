@@ -3,7 +3,6 @@
 
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
-	cd ./networks/kadsrnet && ./build.sh
 
 install:
 	go install ./cmd/inet256

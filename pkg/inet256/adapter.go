@@ -9,7 +9,7 @@ import (
 
 var _ peerswarm.Swarm = &netAdapter{}
 
-// netAdapter converts an inet256.Network into a swarm
+// netAdapter converts an inet256.Network into a peerswarm.Swarm
 type netAdapter struct {
 	publicKey p2p.PublicKey
 	network   Network
@@ -30,14 +30,15 @@ func (s *netAdapter) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) 
 	return s.network.Tell(ctx, dst, p2p.VecBytes(nil, v))
 }
 
-func (s *netAdapter) ServeTells(fn p2p.TellHandler) error {
-	return s.network.Recv(func(src, dst Addr, data []byte) {
-		fn(&p2p.Message{
-			Dst:     dst,
-			Src:     src,
-			Payload: data,
-		})
-	})
+func (s *netAdapter) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	var src2, dst2 Addr
+	n, err := s.network.Recv(ctx, &src2, &dst2, buf)
+	if err != nil {
+		return 0, err
+	}
+	*src = src2
+	*dst = dst2
+	return n, nil
 }
 
 func (s *netAdapter) LocalAddrs() []p2p.Addr {
@@ -60,6 +61,10 @@ func (s *netAdapter) Close() error {
 	return s.network.Close()
 }
 
+func (s *netAdapter) MaxIncomingSize() int {
+	return MaxMTU
+}
+
 func (s *netAdapter) ParseAddr(data []byte) (p2p.Addr, error) {
 	id := p2p.PeerID{}
 	if err := id.UnmarshalText(data); err != nil {
@@ -70,32 +75,55 @@ func (s *netAdapter) ParseAddr(data []byte) (p2p.Addr, error) {
 
 type FindAddrFunc = func(ctx context.Context, prefix []byte, nbits int) (Addr, error)
 
-type WaitReadyFunc = func(ctx context.Context) error
+type BootstrapFunc = func(ctx context.Context) error
 
 var _ Network = &swarmAdapter{}
 
 type swarmAdapter struct {
 	peerswarm     PeerSwarm
 	findAddr      FindAddrFunc
-	waitReadyFunc WaitReadyFunc
+	bootstrapFunc BootstrapFunc
+	tells         *TellHub
 }
 
-func networkFromSwarm(x PeerSwarm, findAddr FindAddrFunc, waitFunc WaitReadyFunc) Network {
-	return &swarmAdapter{
+func networkFromSwarm(x PeerSwarm, findAddr FindAddrFunc, bootstrapFunc BootstrapFunc) Network {
+	sa := &swarmAdapter{
 		peerswarm:     x,
 		findAddr:      findAddr,
-		waitReadyFunc: waitFunc,
+		bootstrapFunc: bootstrapFunc,
+		tells:         NewTellHub(),
 	}
+	ctx := context.Background()
+	go func() error {
+		buf := make([]byte, TransportMTU)
+		for {
+			var src, dst p2p.Addr
+			n, err := sa.peerswarm.Recv(ctx, &src, &dst, buf)
+			if err != nil {
+				return err
+			}
+			if err := sa.tells.Deliver(ctx, Message{
+				Src:     src.(p2p.PeerID),
+				Dst:     dst.(p2p.PeerID),
+				Payload: buf[:n],
+			}); err != nil {
+				return err
+			}
+		}
+	}()
+	return sa
 }
 
 func (n *swarmAdapter) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.peerswarm.TellPeer(ctx, dst, p2p.IOVec{data})
 }
 
-func (n *swarmAdapter) Recv(fn RecvFunc) error {
-	return n.peerswarm.ServeTells(func(msg *p2p.Message) {
-		fn(msg.Src.(p2p.PeerID), msg.Dst.(p2p.PeerID), msg.Payload)
-	})
+func (net *swarmAdapter) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return net.tells.Recv(ctx, src, dst, buf)
+}
+
+func (net *swarmAdapter) WaitRecv(ctx context.Context) error {
+	return net.tells.Wait(ctx)
 }
 
 func (n *swarmAdapter) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -110,8 +138,8 @@ func (n *swarmAdapter) LocalAddr() Addr {
 	return n.peerswarm.LocalAddrs()[0].(Addr)
 }
 
-func (n *swarmAdapter) WaitReady(ctx context.Context) error {
-	return n.waitReadyFunc(ctx)
+func (n *swarmAdapter) Bootstrap(ctx context.Context) error {
+	return n.bootstrapFunc(ctx)
 }
 
 func (n *swarmAdapter) Close() error {

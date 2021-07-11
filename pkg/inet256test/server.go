@@ -16,11 +16,11 @@ import (
 
 func TestServer(t *testing.T, nf inet256.NetworkFactory) {
 	t.Run("Send", func(t *testing.T) {
-		s := newTestServer(t, nf)
+		s := NewTestServer(t, nf)
 		testServerSend(t, s)
 	})
-	t.Run("Send", func(t *testing.T) {
-		srvs := newTestServers(t, nf, 2)
+	t.Run("SendMultiple", func(t *testing.T) {
+		srvs := NewTestServers(t, nf, 2)
 		testMultipleServers(t, srvs...)
 	})
 }
@@ -36,9 +36,8 @@ func testServerSend(t *testing.T, s *inet256.Server) {
 		nodes[i] = n
 	}
 	t.Log("created", N, "nodes")
-	chans := setupChans(castNodeSlice(nodes))
 	randomPairs(len(nodes), func(i, j int) {
-		testSendRecvOne(t, nodes[i], nodes[j].LocalAddr(), chans[j])
+		TestSendRecvOne(t, nodes[i], nodes[j])
 	})
 }
 
@@ -55,13 +54,12 @@ func testMultipleServers(t *testing.T, srvs ...*inet256.Server) {
 		}
 	}
 	t.Log("created", N, "nodes", "on each of", len(srvs), "servers")
-	chans := setupChans(castNodeSlice(nodes))
 	randomPairs(len(nodes), func(i, j int) {
-		testSendRecvOne(t, nodes[i], nodes[j].LocalAddr(), chans[j])
+		TestSendRecvOne(t, nodes[i], nodes[j])
 	})
 }
 
-func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
+func NewTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
@@ -77,7 +75,7 @@ func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 		Peers:      ps,
 		PrivateKey: pk,
 	})
-	err := s.MainNode().WaitReady(ctx)
+	err := s.MainNode().Bootstrap(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, s.Close())
@@ -85,7 +83,7 @@ func newTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 	return s
 }
 
-func newTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256.Server {
+func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256.Server {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	r := memswarm.NewRealm()
@@ -127,7 +125,7 @@ func newTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256.S
 	for _, s := range srvs {
 		s := s
 		eg.Go(func() error {
-			return s.MainNode().WaitReady(ctx)
+			return s.MainNode().Bootstrap(ctx)
 		})
 	}
 	require.NoError(t, eg.Wait())

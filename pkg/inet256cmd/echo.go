@@ -18,18 +18,25 @@ var echoCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 		pk := generateKey()
-		n, err := newNode(ctx, pk)
+		node, err := newNode(ctx, pk)
 		if err != nil {
 			return err
 		}
-		defer n.Close()
-		logrus.Info(n.LocalAddr())
-		return n.Recv(func(src, dst inet256.Addr, data []byte) {
-			if err := n.Tell(ctx, src, data); err != nil {
+		defer node.Close()
+		logrus.Info(node.LocalAddr())
+		buf := make([]byte, inet256.TransportMTU)
+		for {
+			var src, dst inet256.Addr
+			n, err := node.Recv(ctx, &src, &dst, buf)
+			if err != nil {
+				return err
+			}
+			data := buf[:n]
+			if err := node.Tell(ctx, src, data); err != nil {
 				logrus.Error(err)
-				return
+				continue
 			}
 			logrus.Infof("echoed %d bytes from %v", len(data), src)
-		})
+		}
 	},
 }

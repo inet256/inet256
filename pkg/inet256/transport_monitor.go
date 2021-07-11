@@ -9,7 +9,6 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -19,6 +18,7 @@ type transportMonitor struct {
 	x           p2p.SecureSwarm
 	peerStore   PeerStore
 	expireAfter time.Duration
+	log         *Logger
 	cf          context.CancelFunc
 
 	mu        sync.RWMutex
@@ -26,27 +26,36 @@ type transportMonitor struct {
 	addrs     map[string]p2p.Addr
 }
 
-func newTransportMonitor(x p2p.SecureSwarm, peerStore PeerStore) *transportMonitor {
+func newTransportMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *transportMonitor {
 	const expireAfter = 10 * time.Minute
 	ctx, cf := context.WithCancel(context.Background())
 	tm := &transportMonitor{
 		x:           x,
 		peerStore:   peerStore,
+		log:         log,
 		cf:          cf,
 		expireAfter: expireAfter,
 		sightings:   make(map[p2p.PeerID]map[string]time.Time),
 		addrs:       make(map[string]p2p.Addr),
 	}
-	go x.ServeTells(tm.handleTell)
+	go tm.recvLoop(ctx)
 	tm.heartbeat(ctx)
 	go tm.heartbeatLoop(ctx)
 	go tm.cleanupLoop(ctx)
 	return tm
 }
 
-func (tm *transportMonitor) handleTell(msg *p2p.Message) {
-	srcKey := p2p.LookupPublicKeyInHandler(tm.x, msg.Src)
-	tm.Mark(p2p.NewPeerID(srcKey), msg.Src, time.Now())
+func (tm *transportMonitor) recvLoop(ctx context.Context) error {
+	buf := make([]byte, tm.x.MaxIncomingSize())
+	for {
+		var src, dst p2p.Addr
+		_, err := tm.x.Recv(ctx, &src, &dst, buf)
+		if err != nil {
+			return err
+		}
+		srcKey := p2p.LookupPublicKeyInHandler(tm.x, src)
+		tm.Mark(p2p.NewPeerID(srcKey), src, time.Now())
+	}
 }
 
 func (tm *transportMonitor) heartbeatLoop(ctx context.Context) {
@@ -58,7 +67,7 @@ func (tm *transportMonitor) heartbeatLoop(ctx context.Context) {
 			ctx, cf := context.WithTimeout(ctx, period*2/3)
 			defer cf()
 			if err := tm.heartbeat(ctx); err != nil {
-				logrus.Error("during heartbeat: ", err)
+				tm.log.Error("during heartbeat: ", err)
 			}
 		}()
 		select {

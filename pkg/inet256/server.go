@@ -111,7 +111,7 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 	if err != nil {
 		return nil, err
 	}
-	if err := n.WaitReady(ctx); err != nil {
+	if err := n.Bootstrap(ctx); err != nil {
 		return nil, err
 	}
 	return n, nil

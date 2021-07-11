@@ -3,14 +3,14 @@ module github.com/inet256/inet256
 go 1.15
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20210707142254-c5e2f280ef4a
+	github.com/brendoncarroll/go-p2p v0.0.0-20210711165108-8e3676947493
 	github.com/golang/protobuf v1.4.3
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
+	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.zx2c4.com/wireguard v0.0.20201118
 	google.golang.org/grpc v1.33.2

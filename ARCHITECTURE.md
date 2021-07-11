@@ -14,7 +14,7 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 ```
                 Application Data :-)
 |-----------------------------------------------|
-|              Encryption Layer (NPF)           |
+|             Encryption Layer (QUIC)           |
 |-----------------------------------------------|
 | Network Selection                             |
 |-----------------------------------------------|
@@ -25,7 +25,7 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 |-----------------------------------------------|
 |      Multiplexing & Packet Fragmentation      |
 |-----------------------------------------------|
-|              Encryption Layer (NPF)           |
+|             Encryption Layer (QUIC)           |
 |-----------------------------------------------|
 | Transports:                                   |
 |       UDP     |   ETHERNET    |  MEMORY       |
@@ -35,7 +35,6 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
                         |___________________________________________|
 
 
-(NPF) - Noise Protocol Framework
 ```
 
 The life of a message through the stack starting as application data:

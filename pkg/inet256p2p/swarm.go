@@ -40,20 +40,20 @@ func (s *Swarm) TellPeer(ctx context.Context, dst p2p.PeerID, data p2p.IOVec) er
 	return s.asker.Tell(ctx, dst, data)
 }
 
-func (s *Swarm) ServeTells(fn p2p.TellHandler) error {
-	return s.asker.ServeTells(fn)
+func (s *Swarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	return s.asker.Recv(ctx, src, dst, buf)
 }
 
-func (s *Swarm) Ask(ctx context.Context, dst p2p.Addr, data p2p.IOVec) ([]byte, error) {
-	return s.asker.Ask(ctx, dst, data)
+func (s *Swarm) Ask(ctx context.Context, resp []byte, dst p2p.Addr, data p2p.IOVec) (int, error) {
+	return s.asker.Ask(ctx, resp, dst, data)
 }
 
-func (s *Swarm) AskPeer(ctx context.Context, dst p2p.PeerID, data p2p.IOVec) ([]byte, error) {
-	return s.asker.Ask(ctx, dst, data)
+func (s *Swarm) AskPeer(ctx context.Context, resp []byte, dst p2p.PeerID, data p2p.IOVec) (int, error) {
+	return s.asker.Ask(ctx, resp, dst, data)
 }
 
-func (s *Swarm) ServeAsks(fn p2p.AskHandler) error {
-	return s.asker.ServeAsks(fn)
+func (s *Swarm) ServeAsk(ctx context.Context, fn p2p.AskHandler) error {
+	return s.asker.ServeAsk(ctx, fn)
 }
 
 func (s *Swarm) LocalAddrs() []p2p.Addr {
@@ -70,6 +70,10 @@ func (s *Swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.Publi
 
 func (s *Swarm) MTU(ctx context.Context, target p2p.Addr) int {
 	return s.asker.MTU(ctx, target.(p2p.PeerID))
+}
+
+func (s *Swarm) MaxIncomingSize() int {
+	return inet256.MaxMTU
 }
 
 func (s *Swarm) Close() error {

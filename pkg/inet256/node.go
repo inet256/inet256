@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/intmux"
+	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 )
@@ -36,7 +36,7 @@ type node struct {
 func NewNode(params Params) Node {
 	transportSwarm := multiswarm.NewSecure(params.Swarms)
 	basePeerSwarm := newPeerSwarm(transportSwarm, params.Peers)
-	mux := intmux.WrapSecureSwarm(basePeerSwarm)
+	mux := p2pmux.NewVarintSecureMux(basePeerSwarm)
 
 	// create multi network
 	networks := make([]Network, len(params.Networks))
@@ -50,16 +50,12 @@ func NewNode(params Params) Node {
 			Peers:      params.Peers,
 		})
 	}
-
-	var network Network = newMultiNetwork(networks...)
-	// apply top layer of security
-	network = newSecureNetwork(params.PrivateKey, network)
-	// loopback
-	network = newChainNetwork(
+	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),
-		network,
+		newSecureNetwork(params.PrivateKey,
+			newMultiNetwork(networks...),
+		),
 	)
-
 	return &node{
 		params:         params,
 		transportSwarm: transportSwarm,
@@ -72,8 +68,12 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, data)
 }
 
-func (n *node) Recv(fn RecvFunc) error {
-	return n.network.Recv(fn)
+func (n *node) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return n.network.Recv(ctx, src, dst, buf)
+}
+
+func (n *node) WaitRecv(ctx context.Context) error {
+	return n.network.WaitRecv(ctx)
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {
@@ -108,8 +108,8 @@ func (n *node) ListOneHop() []Addr {
 	return n.params.Peers.ListPeers()
 }
 
-func (n *node) WaitReady(ctx context.Context) error {
-	return n.network.WaitReady(ctx)
+func (n *node) Bootstrap(ctx context.Context) error {
+	return n.network.Bootstrap(ctx)
 }
 
 func (n *node) Close() error {
