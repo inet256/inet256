@@ -129,7 +129,7 @@ func (mn *multiNetwork) addrWithPrefix(ctx context.Context, prefix []byte, nbits
 			return addr, mn.networks[i], nil
 		}
 	}
-	return Addr{}, nil, fmt.Errorf("errors occurred %v", addrs)
+	return Addr{}, nil, fmt.Errorf("errors occurred %v", errs)
 }
 
 func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) (Network, error) {
