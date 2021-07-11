@@ -58,10 +58,13 @@ service INET256 {
     rpc GenerateKey(google.protobuf.Empty) returns (GenerateKeyRes) {}
     rpc Lookup(LookupReq) returns (LookupRes) {}
     rpc MTU(MTUReq) returns (MTURes) {}
-    rpc GetStatus(google.protobuf.Empty) returns (Status) {}
 
     // Connect starts a session for sending and receiving messages
     // The first message must contain a private key. The corresponding public key will
     // be used to derive an address
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
+}
+
+service Management {
+    rpc GetStatus(google.protobuf.Empty) returns (Status) {}
 }

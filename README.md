@@ -54,6 +54,22 @@ This project will provide tools for using INET256 networks, some of which are no
 - [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
 - [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to WireGuard.
 
+
+## Code Tour
+- `pkg/inet256` API definitions.  Mostly things required by the spec.
+
+- `pkg/inet256srv` The reference implementation of an INET256 Service. 
+
+- `pkg/inet256d` The daemon that manages setting up transports, autopeering, discovery, the actual INET256 service, and the gRPC API.
+
+- `pkg/inet256ipv6` Logic for bridging INET256 to IPv6. Includes the IPv6 portal.
+
+- `pkg/inet256test` A test suite for Network implementations.
+
+- `networks/` Network implementations, routing logic is in these.
+
+- `client/` Client implementations, these connect to the daemon.
+
 ## License
 Code in this repository is by default licensed under the GPL as defined in `LICENSE`.
 Some of the sub-directories contain their own `LICENSE` files for the LGPL, or MPL as defined therein.

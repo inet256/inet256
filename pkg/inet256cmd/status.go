@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -22,7 +23,7 @@ var statusCmd = &cobra.Command{
 		}
 		var localAddr inet256.Addr
 		var transportAddrs []string
-		var peerStatuses []inet256.PeerStatus
+		var peerStatuses []inet256srv.PeerStatus
 		eg := errgroup.Group{}
 		eg.Go(func() error {
 			localAddr = c.MainAddr()

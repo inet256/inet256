@@ -1,4 +1,4 @@
-package inet256
+package inet256srv
 
 import (
 	"sync"

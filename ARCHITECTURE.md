@@ -1,5 +1,9 @@
 # INET256 Architecture
 
+This document describes the architecture of the reference implementation.
+Most of what is disussed here are implementation details, specific to this implementation.
+Also take a look at the API spec to see what is required vs incidental.
+
 INET256 is built around `Swarms` from the `go-p2p` library.
 
 Networks (routing algorithms) are given a private key, a `Swarm` and a `PeerSet`.
@@ -54,7 +58,7 @@ If a message is fragmented, it is reassembled at the next hop, before the networ
 Application data is never fragmented, and then passed to the networks.
 
 ## API
-The API presented to clients of INET256 is based on the `*Node` type in `pkg/inet256/`
+The API presented to clients of INET256 is based on the `Node` type in `pkg/inet256/`
 
 Client implementations can be found in `client/`
 

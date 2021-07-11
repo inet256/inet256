@@ -1,4 +1,4 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
@@ -8,30 +8,26 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 const nameMemSwarm = "memory"
 
+type Service interface {
+	inet256.Service
+
+	MainAddr() Addr
+	TransportAddrs() []string
+	PeerStatus() []PeerStatus
+}
+
 type PeerStatus struct {
 	Addr       Addr
 	LastSeen   map[string]time.Time
 	Uploaded   uint64
 	Downloaded uint64
-}
-
-type Service interface {
-	CreateNode(ctx context.Context, privKey p2p.PrivateKey) (Node, error)
-	DeleteNode(privKey p2p.PrivateKey) error
-
-	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
-	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
-	MTU(ctx context.Context, addr Addr) int
-
-	MainAddr() Addr
-	TransportAddrs() []string
-	PeerStatus() []PeerStatus
 }
 
 type Server struct {

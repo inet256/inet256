@@ -13,6 +13,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -95,7 +96,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		swarms[swname] = secSw
 	}
 	// peers
-	peers := inet256.NewPeerStore()
+	peers := inet256srv.NewPeerStore()
 	for _, pspec := range c.Peers {
 		peers.Add(pspec.ID)
 		peers.SetAddrs(pspec.ID, pspec.Addrs)
@@ -129,7 +130,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	}
 
 	params := &Params{
-		MainNodeParams: inet256.Params{
+		MainNodeParams: inet256srv.Params{
 			PrivateKey: privateKey,
 			Swarms:     swarms,
 			Networks:   nspecs,

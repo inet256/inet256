@@ -5,22 +5,27 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/pkg/errors"
+	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
 )
 
+// Message is the essential information carried Tell and Recv
+// provided as a struct for use in queues or other APIs
+type Message struct {
+	Src     Addr
+	Dst     Addr
+	Payload []byte
+}
+
+// PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
+type PeerSwarm = peerswarm.Swarm
+
 const (
+	TransportMTU = (1 << 16) - 1
+
 	MinMTU = 1 << 15
 	MaxMTU = 1 << 16
 )
-
-var (
-	ErrWouldBlock = errors.New("recv would block")
-)
-
-func IsErrWouldBlock(err error) bool {
-	return err == ErrWouldBlock
-}
 
 // Network is a network for sending messages between peers
 type Network interface {
@@ -60,6 +65,8 @@ type NetworkSpec struct {
 
 type Logger = logrus.Logger
 
+// RecvNonBlocking calls receive on the network, but immediately errors
+// if no data can be returned
 func RecvNonBlocking(n Network, src, dst *Addr, buf []byte) (int, error) {
 	return n.Recv(NonBlockingContext(), src, dst, buf)
 }

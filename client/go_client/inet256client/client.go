@@ -6,22 +6,28 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type client struct {
-	inetClient inet256grpc.INET256Client
-	log        *logrus.Logger
+	inetClient   inet256grpc.INET256Client
+	manageClient inet256grpc.ManagementClient
+	log          *logrus.Logger
 }
 
-func NewClient(endpoint string) (inet256.Service, error) {
+func NewExtendedClient(endpoint string) (inet256srv.Service, error) {
 	inetClient, err := dial(endpoint)
 	if err != nil {
 		return nil, err
 	}
 	return &client{inetClient: inetClient}, nil
+}
+
+func NewClient(endpoint string) (inet256.Service, error) {
+	return NewExtendedClient(endpoint)
 }
 
 func dial(endpoint string) (inet256grpc.INET256Client, error) {
@@ -79,7 +85,7 @@ func (c *client) MTU(ctx context.Context, target inet256.Addr) int {
 
 func (c *client) MainAddr() inet256.Addr {
 	ctx := context.Background()
-	res, err := c.inetClient.GetStatus(ctx, &emptypb.Empty{})
+	res, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.log.Error(err)
 		return inet256.Addr{}
@@ -89,7 +95,7 @@ func (c *client) MainAddr() inet256.Addr {
 
 func (c *client) TransportAddrs() []string {
 	ctx := context.Background()
-	res, err := c.inetClient.GetStatus(ctx, &emptypb.Empty{})
+	res, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.log.Error(err)
 		return nil
@@ -97,9 +103,9 @@ func (c *client) TransportAddrs() []string {
 	return res.GetTransportAddrs()
 }
 
-func (c *client) PeerStatus() []inet256.PeerStatus {
+func (c *client) PeerStatus() []inet256srv.PeerStatus {
 	ctx := context.Background()
-	req, err := c.inetClient.GetStatus(ctx, &emptypb.Empty{})
+	req, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.log.Error(err)
 		return nil

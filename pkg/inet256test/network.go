@@ -12,6 +12,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -106,8 +107,8 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(keys[i])
-		peerStores[i] = inet256.NewPeerStore()
-		peerSwarms[i] = inet256.NewPeerSwarm(swarms[i], peerStores[i])
+		peerStores[i] = inet256srv.NewPeerStore()
+		peerSwarms[i] = inet256srv.NewPeerSwarm(swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {

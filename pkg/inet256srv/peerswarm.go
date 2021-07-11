@@ -1,4 +1,4 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
@@ -8,16 +8,16 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/sirupsen/logrus"
 )
-
-// PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
-type PeerSwarm = peerswarm.Swarm
 
 const (
 	channelHeartbeat = 0
 	channelData      = 127
 )
+
+type PeerSwarm = inet256.PeerSwarm
 
 var _ PeerSwarm = &peerSwarm{}
 

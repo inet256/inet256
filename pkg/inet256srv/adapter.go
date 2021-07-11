@@ -1,10 +1,11 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 var _ peerswarm.Swarm = &netAdapter{}
@@ -62,7 +63,7 @@ func (s *netAdapter) Close() error {
 }
 
 func (s *netAdapter) MaxIncomingSize() int {
-	return MaxMTU
+	return inet256.MaxMTU
 }
 
 func (s *netAdapter) ParseAddr(data []byte) (p2p.Addr, error) {

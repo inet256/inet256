@@ -21,7 +21,6 @@ type INET256Client interface {
 	GenerateKey(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GenerateKeyRes, error)
 	Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*LookupRes, error)
 	MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error)
-	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error)
 	// Connect starts a session for sending and receiving messages
 	// The first message must contain a private key. The corresponding public key will
 	// be used to derive an address
@@ -57,15 +56,6 @@ func (c *iNET256Client) Lookup(ctx context.Context, in *LookupReq, opts ...grpc.
 func (c *iNET256Client) MTU(ctx context.Context, in *MTUReq, opts ...grpc.CallOption) (*MTURes, error) {
 	out := new(MTURes)
 	err := c.cc.Invoke(ctx, "/inet256.INET256/MTU", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *iNET256Client) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error) {
-	out := new(Status)
-	err := c.cc.Invoke(ctx, "/inet256.INET256/GetStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +100,6 @@ type INET256Server interface {
 	GenerateKey(context.Context, *emptypb.Empty) (*GenerateKeyRes, error)
 	Lookup(context.Context, *LookupReq) (*LookupRes, error)
 	MTU(context.Context, *MTUReq) (*MTURes, error)
-	GetStatus(context.Context, *emptypb.Empty) (*Status, error)
 	// Connect starts a session for sending and receiving messages
 	// The first message must contain a private key. The corresponding public key will
 	// be used to derive an address
@@ -130,9 +119,6 @@ func (*UnimplementedINET256Server) Lookup(context.Context, *LookupReq) (*LookupR
 }
 func (*UnimplementedINET256Server) MTU(context.Context, *MTUReq) (*MTURes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MTU not implemented")
-}
-func (*UnimplementedINET256Server) GetStatus(context.Context, *emptypb.Empty) (*Status, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
 }
 func (*UnimplementedINET256Server) Connect(INET256_ConnectServer) error {
 	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
@@ -197,24 +183,6 @@ func _INET256_MTU_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-func _INET256_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(INET256Server).GetStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inet256.INET256/GetStatus",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(INET256Server).GetStatus(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _INET256_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(INET256Server).Connect(&iNET256ConnectServer{stream})
 }
@@ -257,10 +225,6 @@ var _INET256_serviceDesc = grpc.ServiceDesc{
 			MethodName: "MTU",
 			Handler:    _INET256_MTU_Handler,
 		},
-		{
-			MethodName: "GetStatus",
-			Handler:    _INET256_GetStatus_Handler,
-		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -270,5 +234,81 @@ var _INET256_serviceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
+	Metadata: "inet256.proto",
+}
+
+// ManagementClient is the client API for Management service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ManagementClient interface {
+	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error)
+}
+
+type managementClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewManagementClient(cc grpc.ClientConnInterface) ManagementClient {
+	return &managementClient{cc}
+}
+
+func (c *managementClient) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error) {
+	out := new(Status)
+	err := c.cc.Invoke(ctx, "/inet256.Management/GetStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ManagementServer is the server API for Management service.
+// All implementations must embed UnimplementedManagementServer
+// for forward compatibility
+type ManagementServer interface {
+	GetStatus(context.Context, *emptypb.Empty) (*Status, error)
+	mustEmbedUnimplementedManagementServer()
+}
+
+// UnimplementedManagementServer must be embedded to have forward compatible implementations.
+type UnimplementedManagementServer struct {
+}
+
+func (*UnimplementedManagementServer) GetStatus(context.Context, *emptypb.Empty) (*Status, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (*UnimplementedManagementServer) mustEmbedUnimplementedManagementServer() {}
+
+func RegisterManagementServer(s *grpc.Server, srv ManagementServer) {
+	s.RegisterService(&_Management_serviceDesc, srv)
+}
+
+func _Management_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagementServer).GetStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inet256.Management/GetStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagementServer).GetStatus(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Management_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inet256.Management",
+	HandlerType: (*ManagementServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetStatus",
+			Handler:    _Management_GetStatus_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "inet256.proto",
 }

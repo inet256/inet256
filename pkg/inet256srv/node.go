@@ -1,4 +1,4 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
@@ -8,21 +8,22 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
-const TransportMTU = (1 << 16) - 1
+type PeerStore = inet256.PeerStore
+type PeerSet = inet256.PeerSet
+type NetworkSpec = inet256.NetworkSpec
+type Node = inet256.Node
+type Network = inet256.Network
+type Addr = inet256.Addr
+type NetworkParams = inet256.NetworkParams
 
 type Params struct {
 	p2p.PrivateKey
 	Swarms   map[string]p2p.SecureSwarm
 	Peers    PeerStore
 	Networks []NetworkSpec
-}
-
-type Node interface {
-	Network
-
-	ListOneHop() []p2p.PeerID
 }
 
 type node struct {
@@ -81,7 +82,7 @@ func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Add
 }
 
 func (n *node) LocalAddr() Addr {
-	return NewAddr(n.params.PrivateKey.Public())
+	return inet256.NewAddr(n.params.PrivateKey.Public())
 }
 
 func (n *node) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {

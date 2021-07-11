@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -25,6 +26,7 @@ type Server struct {
 	active map[p2p.PeerID][]INET256_ConnectServer
 
 	UnimplementedINET256Server
+	UnimplementedManagementServer
 }
 
 func NewServer(s inet256.Service) *Server {
@@ -71,11 +73,15 @@ func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 }
 
 func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, error) {
-	mainAddr := s.s.MainAddr()
+	srv, ok := s.s.(*inet256srv.Server)
+	if !ok {
+		return nil, errors.Errorf("server does not support GetStatus")
+	}
+	mainAddr := srv.MainAddr()
 	return &Status{
 		LocalAddr:      mainAddr[:],
-		PeerStatus:     PeerStatusToProto(s.s.PeerStatus()),
-		TransportAddrs: s.s.TransportAddrs(),
+		PeerStatus:     PeerStatusToProto(srv.PeerStatus()),
+		TransportAddrs: srv.TransportAddrs(),
 	}, nil
 }
 

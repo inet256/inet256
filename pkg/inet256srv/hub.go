@@ -1,18 +1,15 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
 	"io"
 	"sync"
 
+	"github.com/inet256/inet256/pkg/inet256"
 	"golang.org/x/sync/errgroup"
 )
 
-type Message struct {
-	Src     Addr
-	Dst     Addr
-	Payload []byte
-}
+type Message = inet256.Message
 
 type TellHub struct {
 	recvs chan *recvReq
@@ -200,8 +197,8 @@ func (s *Selector) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, e
 		if x < 0 {
 			return 0, ctx.Err()
 		}
-		n, err = RecvNonBlocking(s.networks[x], src, dst, buf)
-		if err != ErrWouldBlock {
+		n, err = inet256.RecvNonBlocking(s.networks[x], src, dst, buf)
+		if !inet256.IsErrWouldBlock(err) {
 			return n, err
 		}
 	}

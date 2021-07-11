@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -32,7 +33,7 @@ type Network struct {
 	mu    sync.RWMutex
 	peers map[p2p.PeerID]p2p.PublicKey
 
-	recvHub *inet256.TellHub
+	recvHub *inet256srv.TellHub
 }
 
 func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
@@ -44,7 +45,7 @@ func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, 
 		log:        log,
 
 		peers:   make(map[p2p.PeerID]p2p.PublicKey),
-		recvHub: inet256.NewTellHub(),
+		recvHub: inet256srv.NewTellHub(),
 	}
 	go func() {
 		if err := n.recvLoop(context.Background()); err != nil {

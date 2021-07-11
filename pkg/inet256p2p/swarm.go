@@ -7,6 +7,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 )
 
 var _ p2p.SecureAskSwarm = &Swarm{}
@@ -23,7 +24,7 @@ func NewSwarm(endpoint string, privateKey p2p.PrivateKey) (peerswarm.AskSwarm, e
 	if err != nil {
 		return nil, err
 	}
-	inetsw := inet256.SwarmFromNetwork(client, privateKey.Public())
+	inetsw := inet256srv.SwarmFromNetwork(client, privateKey.Public())
 	s := &Swarm{
 		publicKey:    privateKey.Public(),
 		inet256Swarm: inetsw,

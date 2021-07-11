@@ -10,6 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -17,7 +18,7 @@ import (
 )
 
 type Params struct {
-	MainNodeParams      inet256.Params
+	MainNodeParams      inet256srv.Params
 	DiscoveryServices   []discovery.Service
 	AutoPeeringServices []autopeering.Service
 	APIAddr             string
@@ -28,7 +29,7 @@ type Daemon struct {
 	log    *logrus.Logger
 
 	setupDone chan struct{}
-	s         *inet256.Server
+	s         *inet256srv.Server
 }
 
 func New(p Params) *Daemon {
@@ -48,7 +49,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	dscPeerStores := make([]inet256.PeerStore, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
-		dscPeerStores[i] = inet256.NewPeerStore()
+		dscPeerStores[i] = inet256srv.NewPeerStore()
 		copyPeers(dscPeerStores[i], d.params.MainNodeParams.Peers)
 	}
 
@@ -56,7 +57,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	apSrvs := d.params.AutoPeeringServices
 	apPeerStores := make([]inet256.PeerStore, len(apSrvs))
 	for i := range apSrvs {
-		apPeerStores[i] = inet256.NewPeerStore()
+		apPeerStores[i] = inet256srv.NewPeerStore()
 	}
 
 	peerStores := []inet256.PeerStore{d.params.MainNodeParams.Peers}
@@ -64,8 +65,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 	peerStores = append(peerStores, apPeerStores...)
 
 	// server
-	nodeParams.Peers = inet256.ChainPeerStore(peerStores)
-	s := inet256.NewServer(nodeParams)
+	nodeParams.Peers = inet256srv.ChainPeerStore(peerStores)
+	s := inet256srv.NewServer(nodeParams)
 	defer func() {
 		if err := s.Close(); err != nil {
 			d.log.Error(err)
@@ -90,7 +91,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *inet256.Server) error) error {
+func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *inet256srv.Server) error) error {
 	select {
 	case <-d.setupDone:
 		return cb(d.s)
@@ -99,7 +100,7 @@ func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *inet256.Server) er
 	}
 }
 
-func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256.Server) error {
+func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256srv.Server) error {
 	l, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		return err

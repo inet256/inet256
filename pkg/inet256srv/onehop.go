@@ -1,17 +1,19 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 func OneHopFactory(params NetworkParams) Network {
 	findAddr := func(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 		for _, id := range params.Peers.ListPeers() {
-			if HasPrefix(id[:], prefix, nbits) {
+			if inet256.HasPrefix(id[:], prefix, nbits) {
 				return id, nil
 			}
 		}
-		return Addr{}, ErrNoAddrWithPrefix
+		return Addr{}, inet256.ErrNoAddrWithPrefix
 	}
 	waitReady := func(ctx context.Context) error {
 		return nil

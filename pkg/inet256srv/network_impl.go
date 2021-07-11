@@ -1,4 +1,4 @@
-package inet256
+package inet256srv
 
 import (
 	"context"
@@ -8,9 +8,19 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+)
+
+type Logger = inet256.Logger
+
+const (
+	TransportMTU = inet256.TransportMTU
+
+	MinMTU = inet256.MinMTU
+	MaxMTU = inet256.MaxMTU
 )
 
 // multiNetwork presents multiple networks as a single network
@@ -179,7 +189,7 @@ func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (A
 			return addr, nil
 		}
 	}
-	return Addr{}, ErrNoAddrWithPrefix
+	return Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
 func (n chainNetwork) LookupPublicKey(ctx context.Context, x Addr) (p2p.PublicKey, error) {
@@ -189,7 +199,7 @@ func (n chainNetwork) LookupPublicKey(ctx context.Context, x Addr) (p2p.PublicKe
 			return pubKey, nil
 		}
 	}
-	return nil, ErrPublicKeyNotFound
+	return nil, inet256.ErrPublicKeyNotFound
 }
 
 func (n chainNetwork) LocalAddr() Addr {
@@ -251,7 +261,7 @@ func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 
 func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
 	if dst != n.localAddr {
-		return ErrAddrUnreachable{Addr: dst}
+		return inet256.ErrAddrUnreachable{Addr: dst}
 	}
 	return n.hub.Deliver(ctx, Message{Src: dst, Dst: dst, Payload: data})
 }
@@ -261,10 +271,10 @@ func (n *loopbackNetwork) Recv(ctx context.Context, src, dst *Addr, buf []byte) 
 }
 
 func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
-	if HasPrefix(n.localAddr[:], prefix, nbits) {
+	if inet256.HasPrefix(n.localAddr[:], prefix, nbits) {
 		return n.localAddr, nil
 	}
-	return Addr{}, ErrNoAddrWithPrefix
+	return Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
 func (n *loopbackNetwork) LocalAddr() Addr {
@@ -287,9 +297,9 @@ func (n *loopbackNetwork) Bootstrap(ctx context.Context) error {
 	return nil
 }
 
-func (n *loopbackNetwork) LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error) {
+func (n *loopbackNetwork) LookupPublicKey(ctx context.Context, addr Addr) (inet256.PublicKey, error) {
 	if addr == n.localAddr {
 		return n.localKey, nil
 	}
-	return nil, ErrPublicKeyNotFound
+	return nil, inet256.ErrPublicKeyNotFound
 }

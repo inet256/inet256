@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -21,7 +22,7 @@ type node struct {
 	localAddr  inet256.Addr
 	cf         context.CancelFunc
 
-	recvHub *inet256.TellHub
+	recvHub *inet256srv.TellHub
 	workers []*worker
 }
 
@@ -44,7 +45,7 @@ func newNode(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (*nod
 		inetClient: inetClient,
 		privKey:    privKey,
 		localAddr:  p2p.NewPeerID(privKey.Public()),
-		recvHub:    inet256.NewTellHub(),
+		recvHub:    inet256srv.NewTellHub(),
 		workers:    make([]*worker, runtime.GOMAXPROCS(0)),
 	}
 	for i := range n.workers {
@@ -153,13 +154,13 @@ func (n *node) pickWorker() *worker {
 
 type worker struct {
 	getCC func(context.Context) (inet256grpc.INET256_ConnectClient, error)
-	tells *inet256.TellHub
+	tells *inet256srv.TellHub
 
 	mu sync.RWMutex
 	cc inet256grpc.INET256_ConnectClient
 }
 
-func newWorker(fn func(context.Context) (inet256grpc.INET256_ConnectClient, error), tells *inet256.TellHub) *worker {
+func newWorker(fn func(context.Context) (inet256grpc.INET256_ConnectClient, error), tells *inet256srv.TellHub) *worker {
 	return &worker{
 		getCC: fn,
 		tells: tells,

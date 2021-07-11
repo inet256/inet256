@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
@@ -25,7 +26,7 @@ func TestServer(t *testing.T, nf inet256.NetworkFactory) {
 	})
 }
 
-func testServerSend(t *testing.T, s *inet256.Server) {
+func testServerSend(t *testing.T, s *inet256srv.Server) {
 	ctx := context.Background()
 	const N = 5
 	nodes := make([]inet256.Node, N)
@@ -41,7 +42,7 @@ func testServerSend(t *testing.T, s *inet256.Server) {
 	})
 }
 
-func testMultipleServers(t *testing.T, srvs ...*inet256.Server) {
+func testMultipleServers(t *testing.T, srvs ...*inet256srv.Server) {
 	ctx := context.Background()
 	const N = 5
 	nodes := make([]inet256.Node, len(srvs)*N)
@@ -59,12 +60,12 @@ func testMultipleServers(t *testing.T, srvs ...*inet256.Server) {
 	})
 }
 
-func NewTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
+func NewTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256srv.Server {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
-	ps := inet256.NewPeerStore()
-	s := inet256.NewServer(inet256.Params{
+	ps := inet256srv.NewPeerStore()
+	s := inet256srv.NewServer(inet256srv.Params{
 		Networks: []inet256.NetworkSpec{
 			{
 				Factory: nf,
@@ -83,16 +84,16 @@ func NewTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256.Server {
 	return s
 }
 
-func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256.Server {
+func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256srv.Server {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	r := memswarm.NewRealm()
 	stores := make([]inet256.PeerStore, n)
-	srvs := make([]*inet256.Server, n)
+	srvs := make([]*inet256srv.Server, n)
 	for i := range srvs {
 		pk := p2ptest.NewTestKey(t, math.MaxInt32+i)
-		stores[i] = inet256.NewPeerStore()
-		srvs[i] = inet256.NewServer(inet256.Params{
+		stores[i] = inet256srv.NewPeerStore()
+		srvs[i] = inet256srv.NewServer(inet256srv.Params{
 			Swarms: map[string]p2p.SecureSwarm{
 				"external": r.NewSwarmWithKey(pk),
 			},
