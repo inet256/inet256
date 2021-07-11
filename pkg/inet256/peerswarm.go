@@ -168,11 +168,11 @@ type quic2PeerSwarm struct {
 
 func newSecureNetwork(privateKey p2p.PrivateKey, x Network) Network {
 	insecSw := SwarmFromNetwork(x, privateKey.Public())
-	noiseSw, err := quicswarm.New(insecSw, privateKey)
+	quicSw, err := quicswarm.New(insecSw, privateKey)
 	if err != nil {
 		panic(err)
 	}
-	secnet := networkFromSwarm(quic2PeerSwarm{noiseSw}, x.FindAddr, x.Bootstrap)
+	secnet := networkFromSwarm(quic2PeerSwarm{quicSw}, x.FindAddr, x.Bootstrap)
 	return secnet
 }
 

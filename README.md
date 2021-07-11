@@ -18,11 +18,11 @@ A 256 bit address space for peer-to-peer hosts/applications.
 ## Features
 - Stable addresses derived from public keys
 - Secure communication to other nodes in the network
-- Best effort delivery like IP or UDP. At most once delivery, unlike IP and UDP.
+- Best-effort delivery like IP or UDP. At-most-once delivery, unlike IP and UDP.
 - Messages are never corrupted. If it gets there, it's correct.
 - Easy to add/remove/change routing algorithms.
 - Addresses are plentiful. Spawn a new node for each process. Every process gets its own address, no need for ports.
-- IPv6/IPv4 can run above or below INET256.
+- IPv6 Portal for IPv6 over INET256. Exposed as a TUN device.
 - Autopeering and transport address discovery help make peering easy.
 
 ## Network Routing Protocols
@@ -31,8 +31,6 @@ The autoconfiguring, distributed routing algorithms of the sort required are ver
 
 Users are ultimately in control of which networks they participate in.
 Networks can be selected in the configuration file.
-
-Right now we have a network `Kademlia + Source Routing`, which uses an algothirm similar to CJDNS's.
 
 We are eager to add other protocols.
 Check out `networks/floodnet` for an example of a naive flooding protocol.
@@ -58,7 +56,7 @@ This project will provide tools for using INET256 networks, some of which are no
 
 ## License
 Code in this repository is by default licensed under the GPL as defined in `LICENSE`.
-Some of the sub-directories contain their own `LICENSE` files for the LGPL as defined therein.
+Some of the sub-directories contain their own `LICENSE` files for the LGPL, or MPL as defined therein.
 That license applies to the sub-tree.
 
 In summary: you should be able to import an inet256 client in a language of your choice and do whatever you want.
