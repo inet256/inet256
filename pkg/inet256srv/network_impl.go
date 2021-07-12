@@ -207,13 +207,13 @@ func (n chainNetwork) LocalAddr() Addr {
 }
 
 func (n chainNetwork) Close() (retErr error) {
+	if err := n.selector.Close(); retErr == nil {
+		retErr = err
+	}
 	for _, n2 := range n.networks {
 		if err := n2.Close(); retErr == nil {
 			retErr = err
 		}
-	}
-	if err := n.selector.Close(); retErr == nil {
-		retErr = err
 	}
 	return retErr
 }

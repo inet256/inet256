@@ -7,7 +7,6 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -57,7 +56,7 @@ func NewServer(params Params) *Server {
 
 	memPeers := NewPeerStore()
 
-	return &Server{
+	s := &Server{
 		params: params,
 
 		memrealm:     r,
@@ -73,6 +72,7 @@ func NewServer(params Params) *Server {
 		nodes: make(map[p2p.PeerID]Node),
 		log:   logrus.New(),
 	}
+	return s
 }
 
 func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
@@ -83,8 +83,6 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 		if _, exists := s.nodes[id]; exists {
 			return nil, errors.Errorf("node already exists")
 		}
-		s.log.Infof("creating node %v", id)
-
 		swarm := s.memrealm.NewSwarmWithKey(privateKey)
 
 		ps := NewPeerStore()
@@ -108,8 +106,9 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 		return nil, err
 	}
 	if err := n.Bootstrap(ctx); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "while bootstrapping node")
 	}
+	s.log.WithFields(logrus.Fields{"addr": id}).Info("created node")
 	return n, nil
 }
 
@@ -121,9 +120,10 @@ func (s *Server) DeleteNode(privateKey p2p.PrivateKey) error {
 	if !exists {
 		return nil
 	}
-	s.log.Infof("deleting node %v", id)
 	err := n.Close()
+	s.mainMemPeers.Remove(id)
 	delete(s.nodes, id)
+	s.log.WithFields(logrus.Fields{"addr": id}).Info("deleted node")
 	return err
 }
 
@@ -144,15 +144,7 @@ func (s *Server) LocalAddr() Addr {
 }
 
 func (s *Server) TransportAddrs() (ret []string) {
-	sw := multiswarm.NewSecure(s.params.Swarms)
-	for _, addr := range sw.LocalAddrs() {
-		data, err := addr.MarshalText()
-		if err != nil {
-			logrus.Error(err)
-		}
-		ret = append(ret, string(data))
-	}
-	return ret
+	return s.mainNode.(*node).TransportAddrs()
 }
 
 func (s *Server) PeerStatus() []PeerStatus {

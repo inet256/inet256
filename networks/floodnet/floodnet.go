@@ -11,7 +11,6 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -49,7 +48,7 @@ func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, 
 	}
 	go func() {
 		if err := n.recvLoop(context.Background()); err != nil {
-			logrus.Error(err)
+			n.log.Error("exiting recvLoop with", err)
 		}
 	}()
 	return n
@@ -149,9 +148,12 @@ func (nwk *Network) recvLoop(ctx context.Context) error {
 		}
 		msg := Message{}
 		if err := json.Unmarshal(buf[:n], &msg); err != nil {
-			return err
+			nwk.log.Warn("error parsing message from: ", src)
+			continue
 		}
 		go func() {
+			ctx, cf := context.WithTimeout(ctx, 10*time.Second)
+			defer cf()
 			if err := nwk.fromBelow(ctx, src.(inet256.Addr), msg); err != nil {
 				nwk.log.Error("error handling message ", err)
 			}

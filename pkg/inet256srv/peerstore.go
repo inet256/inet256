@@ -30,9 +30,7 @@ func (s *peerStore) Add(id p2p.PeerID) {
 func (s *peerStore) Remove(id p2p.PeerID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.m[id]; !exists {
-		s.m[id] = []string{}
-	}
+	delete(s.m, id)
 }
 
 func (s *peerStore) AddAddr(id p2p.PeerID, addr string) {

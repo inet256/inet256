@@ -66,21 +66,24 @@ func (s *peerSwarm) TellPeer(ctx context.Context, dst p2p.PeerID, v p2p.IOVec) e
 }
 
 func (s *peerSwarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
-	n, err := s.dataSwarm.Recv(ctx, src, dst, buf)
-	if err != nil {
-		return 0, err
-	}
-	srcKey, err := s.dataSwarm.LookupPublicKey(ctx, *src)
-	if err != nil {
-		return 0, err
-	}
-	srcID := p2p.NewPeerID(srcKey)
-	s.tm.Mark(srcID, *src, time.Now())
-	s.meter.Rx(srcID, n)
+	for {
+		n, err := s.dataSwarm.Recv(ctx, src, dst, buf)
+		if err != nil {
+			return 0, err
+		}
+		srcKey, err := s.dataSwarm.LookupPublicKey(ctx, *src)
+		if err != nil {
+			logrus.Error("could not lookup public key, dropping message: ", err)
+			continue
+		}
+		srcID := p2p.NewPeerID(srcKey)
+		s.tm.Mark(srcID, *src, time.Now())
+		s.meter.Rx(srcID, n)
 
-	*src = srcID
-	*dst = s.localID
-	return n, nil
+		*src = srcID
+		*dst = s.localID
+		return n, nil
+	}
 }
 
 func (s *peerSwarm) PublicKey() p2p.PublicKey {
@@ -101,7 +104,6 @@ func (s *peerSwarm) ParseAddr(data []byte) (p2p.Addr, error) {
 
 func (s *peerSwarm) Close() error {
 	if err := s.tm.Close(); err != nil {
-		panic(err)
 		logrus.Error(err)
 	}
 	if err := s.dataSwarm.Close(); err != nil {

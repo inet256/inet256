@@ -2,7 +2,6 @@ package inet256srv
 
 import (
 	"context"
-	"log"
 	mrand "math/rand"
 	"sync"
 	"time"
@@ -27,7 +26,7 @@ type transportMonitor struct {
 }
 
 func newTransportMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *transportMonitor {
-	const expireAfter = 10 * time.Minute
+	const expireAfter = 30 * time.Second
 	ctx, cf := context.WithCancel(context.Background())
 	tm := &transportMonitor{
 		x:           x,
@@ -51,6 +50,9 @@ func (tm *transportMonitor) recvLoop(ctx context.Context) error {
 		var src, dst p2p.Addr
 		_, err := tm.x.Recv(ctx, &src, &dst, buf)
 		if err != nil {
+			if err != context.Canceled {
+				tm.log.Error("exiting transportMonitor.recvLoop with ", err)
+			}
 			return err
 		}
 		srcKey := p2p.LookupPublicKeyInHandler(tm.x, src)
@@ -115,7 +117,7 @@ func (tm *transportMonitor) Mark(id p2p.PeerID, a p2p.Addr, t time.Time) {
 
 func (tm *transportMonitor) PickAddr(id p2p.PeerID) (p2p.Addr, error) {
 	if !tm.peerStore.Contains(id) {
-		log.Println(tm.peerStore.ListPeers())
+		tm.log.Error("peers in store:", tm.peerStore.ListPeers())
 		return nil, errors.Errorf("cannot pick address for peer not in store %v", id)
 	}
 	tm.mu.RLock()

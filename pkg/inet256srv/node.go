@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/sirupsen/logrus"
 )
 
 type PeerStore = inet256.PeerStore
@@ -49,6 +50,7 @@ func NewNode(params Params) Node {
 			PrivateKey: params.PrivateKey,
 			Swarm:      ps,
 			Peers:      params.Peers,
+			Logger:     logrus.StandardLogger(),
 		})
 	}
 	network := newChainNetwork(
@@ -113,6 +115,15 @@ func (n *node) Bootstrap(ctx context.Context) error {
 	return n.network.Bootstrap(ctx)
 }
 
-func (n *node) Close() error {
-	return n.network.Close()
+func (n *node) Close() (retErr error) {
+	if err := n.network.Close(); retErr == nil {
+		retErr = err
+	}
+	if err := n.basePeerSwarm.Close(); err != nil {
+		retErr = err
+	}
+	if err := n.transportSwarm.Close(); err != nil {
+		retErr = err
+	}
+	return retErr
 }

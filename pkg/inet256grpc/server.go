@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"io"
-	mrand "math/rand"
 	sync "sync"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -13,6 +13,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -21,9 +22,9 @@ var _ INET256Server = &Server{}
 type Server struct {
 	s inet256.Service
 
-	mu     sync.RWMutex
+	mu     sync.Mutex
 	nodes  map[p2p.PeerID]inet256.Node
-	active map[p2p.PeerID][]INET256_ConnectServer
+	counts map[p2p.PeerID]int
 
 	UnimplementedINET256Server
 	UnimplementedManagementServer
@@ -33,7 +34,7 @@ func NewServer(s inet256.Service) *Server {
 	return &Server{
 		s:      s,
 		nodes:  make(map[p2p.PeerID]inet256.Node),
-		active: make(map[p2p.PeerID][]INET256_ConnectServer),
+		counts: make(map[p2p.PeerID]int),
 	}
 }
 
@@ -99,125 +100,97 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	id := p2p.NewPeerID(privKey.Public())
-	if err := s.addServer(ctx, privKey, id, srv); err != nil {
+	node, err := s.getOrCreateNode(ctx, privKey)
+	if err != nil {
 		return err
 	}
-	defer s.removeServer(id, privKey, srv)
+	defer s.decrNode(privKey)
 
-	for {
-		msg, err := srv.Recv()
-		if err == io.EOF {
-			break
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		for {
+			msg, err := srv.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if msg.ConnectInit != nil {
+				return errors.Errorf("cannot send ConnectInit after first message")
+			}
+			if msg.Datagram == nil {
+				continue
+			}
+			dst := inet256.Addr{}
+			copy(dst[:], msg.Datagram.Dst)
+			if err := func() error {
+				ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cf()
+				return node.Tell(ctx, dst, msg.Datagram.Payload)
+			}(); err != nil {
+				return err
+			}
 		}
-		if err != nil {
-			return err
-		}
-		if msg.Datagram == nil {
-			continue
-		}
-		dst := inet256.Addr{}
-		copy(dst[:], msg.Datagram.Dst)
-		if err := s.fromClient(ctx, id, dst, msg.Datagram.Payload); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Server) toClientLoop(ctx context.Context, node inet256.Node) error {
-	buf := make([]byte, inet256.TransportMTU)
-	for {
-		var src, dst inet256.Addr
-		n, err := node.Recv(ctx, &src, &dst, buf)
-		if err != nil {
-			return err
-		}
-		if err := s.toClient(src, dst, buf[:n]); err != nil {
-			logrus.Errorf("error sending to client: %v", err)
-		}
-	}
-}
-
-func (s *Server) toClient(src, dst inet256.Addr, payload []byte) error {
-	s.mu.RLock()
-	var srv INET256_ConnectServer
-	srvs := s.active[dst]
-	if len(srvs) > 0 {
-		srv = srvs[mrand.Intn(len(srvs))]
-	}
-	s.mu.RUnlock()
-	if srv == nil {
-		return errors.Errorf("no active clients")
-	}
-	return srv.Send(&ConnectMsg{
-		Datagram: &Datagram{
-			Src:     src[:],
-			Dst:     dst[:],
-			Payload: payload,
-		},
 	})
+	eg.Go(func() error {
+		buf := make([]byte, inet256.MaxMTU)
+		for {
+			var src, dst inet256.Addr
+			n, err := node.Recv(ctx, &src, &dst, buf)
+			if err != nil {
+				return err
+			}
+			if err := srv.Send(&ConnectMsg{
+				Datagram: &Datagram{
+					Src:     src[:],
+					Dst:     dst[:],
+					Payload: buf[:n],
+				},
+			}); err != nil {
+				return err
+			}
+		}
+	})
+	return eg.Wait()
 }
 
-func (s *Server) fromClient(ctx context.Context, src, dst inet256.Addr, payload []byte) error {
-	s.mu.RLock()
-	n := s.nodes[src]
-	s.mu.RUnlock()
-	return n.Tell(ctx, dst, payload)
-}
-
-func (s *Server) addServer(ctx context.Context, privKey p2p.PrivateKey, id p2p.PeerID, srv INET256_ConnectServer) error {
+func (s *Server) getOrCreateNode(ctx context.Context, privKey p2p.PrivateKey) (inet256.Node, error) {
+	id := p2p.NewPeerID(privKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, exists := s.nodes[id]
+	node, exists := s.nodes[id]
 	if !exists {
-		node, err := s.s.CreateNode(ctx, privKey)
+		ctx, cf := context.WithTimeout(ctx, 30*time.Second)
+		defer cf()
+		var err error
+		node, err = s.s.CreateNode(ctx, privKey)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		s.nodes[id] = node
-		go func() {
-			if err := s.toClientLoop(ctx, node); err != nil {
-				logrus.Error(err)
-			}
-		}()
 	}
-	s.active[id] = append(s.active[id], &serverWrapper{INET256_ConnectServer: srv})
-	return nil
+	s.counts[id]++
+	count := s.counts[id]
+	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("starting gRPC stream")
+	return node, nil
 }
 
-func (s *Server) removeServer(id p2p.PeerID, privKey p2p.PrivateKey, srv INET256_ConnectServer) {
+func (s *Server) decrNode(privKey p2p.PrivateKey) {
+	id := p2p.NewPeerID(privKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	srvs := s.active[id]
-	for i := range srvs {
-		if srv == srvs[i] {
-			if i < len(srvs)-1 {
-				srvs = append(srvs[:i], srvs[i+1:]...)
-			} else {
-				srvs = srvs[:i]
-			}
-			break
+	if _, exists := s.nodes[id]; !exists {
+		panic("decr non-existing node")
+	}
+	s.counts[id]--
+	count := s.counts[id]
+	if s.counts[id] == 0 {
+		if err := s.s.DeleteNode(privKey); err != nil {
+			logrus.Error("deleting node: ", err)
 		}
+		delete(s.counts, id)
+		delete(s.nodes, id)
 	}
-	s.active[id] = srvs
-
-	if len(s.active[id]) > 0 {
-		return
-	}
-	if err := s.s.DeleteNode(privKey); err != nil {
-		logrus.Error(err)
-	}
-	delete(s.nodes, id)
-}
-
-type serverWrapper struct {
-	INET256_ConnectServer
-	mu sync.Mutex
-}
-
-func (s *serverWrapper) Send(m *ConnectMsg) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.INET256_ConnectServer.Send(m)
+	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("closing gRPC stream")
 }
