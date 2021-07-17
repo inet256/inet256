@@ -1,10 +1,7 @@
 package celldisco
 
-import (
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/d/celltracker"
-)
+import "github.com/inet256/inet256/pkg/discovery"
 
-func New(token string) (p2p.DiscoveryService, error) {
-	return celltracker.NewClient(token)
+func New(token string) (discovery.Service, error) {
+	panic("not implemented")
 }

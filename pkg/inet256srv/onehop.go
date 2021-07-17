@@ -10,7 +10,7 @@ func OneHopFactory(params NetworkParams) Network {
 	findAddr := func(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 		for _, id := range params.Peers.ListPeers() {
 			if inet256.HasPrefix(id[:], prefix, nbits) {
-				return id, nil
+				return inet256.Addr(id), nil
 			}
 		}
 		return Addr{}, inet256.ErrNoAddrWithPrefix
@@ -18,5 +18,5 @@ func OneHopFactory(params NetworkParams) Network {
 	waitReady := func(ctx context.Context) error {
 		return nil
 	}
-	return networkFromSwarm(params.Swarm, findAddr, waitReady)
+	return networkFromSwarm(params.Swarm.(swarmWrapper).s, findAddr, waitReady)
 }

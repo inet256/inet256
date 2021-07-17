@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -23,8 +24,8 @@ type Server struct {
 	s inet256.Service
 
 	mu     sync.Mutex
-	nodes  map[p2p.PeerID]inet256.Node
-	counts map[p2p.PeerID]int
+	nodes  map[inet256.Addr]inet256.Node
+	counts map[inet256.Addr]int
 
 	UnimplementedINET256Server
 	UnimplementedManagementServer
@@ -33,8 +34,8 @@ type Server struct {
 func NewServer(s inet256.Service) *Server {
 	return &Server{
 		s:      s,
-		nodes:  make(map[p2p.PeerID]inet256.Node),
-		counts: make(map[p2p.PeerID]int),
+		nodes:  make(map[inet256.Addr]inet256.Node),
+		counts: make(map[inet256.Addr]int),
 	}
 }
 
@@ -43,7 +44,7 @@ func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyR
 	if err != nil {
 		return nil, err
 	}
-	keyData, err := inet256.MarshalPrivateKey(priv)
+	keyData, err := serde.MarshalPrivateKey(priv)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, erro
 	return &Status{
 		LocalAddr:      mainAddr[:],
 		PeerStatus:     PeerStatusToProto(srv.PeerStatus()),
-		TransportAddrs: srv.TransportAddrs(),
+		TransportAddrs: serde.MarshalAddrs(srv.TransportAddrs()),
 	}, nil
 }
 
@@ -96,7 +97,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		return errors.Errorf("first message must contain ConnectInit")
 	}
 	cinit := msg.ConnectInit
-	privKey, err := inet256.ParsePrivateKey(cinit.PrivateKey)
+	privKey, err := serde.ParsePrivateKey(cinit.PrivateKey)
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 }
 
 func (s *Server) getOrCreateNode(ctx context.Context, privKey p2p.PrivateKey) (inet256.Node, error) {
-	id := p2p.NewPeerID(privKey.Public())
+	id := inet256.NewAddr(privKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	node, exists := s.nodes[id]
@@ -177,7 +178,7 @@ func (s *Server) getOrCreateNode(ctx context.Context, privKey p2p.PrivateKey) (i
 }
 
 func (s *Server) decrNode(privKey p2p.PrivateKey) {
-	id := p2p.NewPeerID(privKey.Public())
+	id := inet256.NewAddr(privKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, exists := s.nodes[id]; !exists {

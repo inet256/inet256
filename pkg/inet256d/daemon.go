@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -42,7 +41,7 @@ func New(p Params) *Daemon {
 
 func (d *Daemon) Run(ctx context.Context) error {
 	nodeParams := d.params.MainNodeParams
-	localID := p2p.NewPeerID(nodeParams.PrivateKey.Public())
+	localID := inet256.NewAddr(nodeParams.PrivateKey.Public())
 
 	// discovery
 	dscSrvs := d.params.DiscoveryServices

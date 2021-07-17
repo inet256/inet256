@@ -31,13 +31,13 @@ type node struct {
 	params Params
 
 	transportSwarm p2p.SecureSwarm
-	basePeerSwarm  *peerSwarm
+	basePeerSwarm  *swarm
 	network        Network
 }
 
 func NewNode(params Params) Node {
 	transportSwarm := multiswarm.NewSecure(params.Swarms)
-	basePeerSwarm := newPeerSwarm(transportSwarm, params.Peers)
+	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
 	mux := p2pmux.NewVarintSecureMux(basePeerSwarm)
 
 	// create multi network
@@ -45,10 +45,9 @@ func NewNode(params Params) Node {
 	for i, nspec := range params.Networks {
 		s := mux.Open(nspec.Index)
 		s = fragswarm.NewSecure(s, TransportMTU)
-		ps := castPeerSwarm(s)
 		networks[i] = nspec.Factory(NetworkParams{
 			PrivateKey: params.PrivateKey,
-			Swarm:      ps,
+			Swarm:      swarmWrapper{s},
 			Peers:      params.Peers,
 			Logger:     logrus.StandardLogger(),
 		})
@@ -95,15 +94,11 @@ func (n *node) MTU(ctx context.Context, target Addr) int {
 	return n.network.MTU(ctx, target)
 }
 
-func (n *node) TransportAddrs() (ret []string) {
-	for _, addr := range n.transportSwarm.LocalAddrs() {
-		data, _ := addr.MarshalText()
-		ret = append(ret, string(data))
-	}
-	return ret
+func (n *node) TransportAddrs() []p2p.Addr {
+	return n.transportSwarm.LocalAddrs()
 }
 
-func (n *node) LastSeen(id p2p.PeerID) map[string]time.Time {
+func (n *node) LastSeen(id inet256.Addr) map[string]time.Time {
 	return n.basePeerSwarm.LastSeen(id)
 }
 

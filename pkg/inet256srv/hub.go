@@ -13,7 +13,7 @@ type Message = inet256.Message
 
 type TellHub struct {
 	recvs chan *recvReq
-	ready chan struct{}
+	ready readySwitch
 
 	closeOnce sync.Once
 	closed    chan struct{}
@@ -21,10 +21,11 @@ type TellHub struct {
 }
 
 func NewTellHub() *TellHub {
+	closed := make(chan struct{})
 	return &TellHub{
-		ready:  make(chan struct{}),
+		ready:  newReadySwitch(closed),
 		recvs:  make(chan *recvReq),
-		closed: make(chan struct{}),
+		closed: closed,
 	}
 }
 
@@ -71,13 +72,13 @@ func (q *TellHub) Wait(ctx context.Context) error {
 		return ctx.Err()
 	case <-q.closed:
 		return q.err
-	case <-q.ready:
+	case <-q.ready.Out():
 		return nil
 	}
 }
 
 // Deliver delivers a message to a caller of Recv
-// If Deliver returns an error it will be from the context expiring.
+// If Deliver returns an error it will be from the context expiring, or because the hub closed.
 func (q *TellHub) Deliver(ctx context.Context, m Message) error {
 	return q.claim(ctx, func(src, dst *Addr, buf []byte) (int, error) {
 		if len(buf) < len(m.Payload) {
@@ -93,17 +94,8 @@ func (q *TellHub) Deliver(ctx context.Context, m Message) error {
 // fn should never block
 func (q *TellHub) claim(ctx context.Context, fn func(src, dst *Addr, buf []byte) (int, error)) error {
 	// mark ready, until claim returns
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		for {
-			select {
-			case q.ready <- struct{}{}:
-			case <-done:
-				return
-			}
-		}
-	}()
+	q.ready.MoreReady()
+	defer q.ready.LessReady()
 	// wait for a request
 	select {
 	case <-q.closed:
@@ -133,6 +125,70 @@ func (q *TellHub) CloseWithError(err error) {
 		q.err = err
 		close(q.closed)
 	})
+}
+
+type readySwitch struct {
+	out        chan struct{}
+	readyEdges chan bool
+	closed     chan struct{}
+}
+
+func newReadySwitch(closed chan struct{}) readySwitch {
+	rs := readySwitch{
+		out:        make(chan struct{}),
+		readyEdges: make(chan bool, 8),
+		closed:     closed,
+	}
+	go rs.loop()
+	return rs
+}
+
+func (rs readySwitch) loop() {
+	var count int
+	for {
+		if count > 0 {
+			select {
+			case <-rs.closed:
+				return
+			case delta := <-rs.readyEdges:
+				if delta {
+					count++
+				} else {
+					count--
+				}
+			case rs.out <- struct{}{}:
+			}
+		} else {
+			select {
+			case <-rs.closed:
+				return
+			case delta := <-rs.readyEdges:
+				if delta {
+					count++
+				} else {
+					count--
+				}
+			}
+		}
+	}
+}
+
+func (rs readySwitch) Out() <-chan struct{} {
+	return rs.out
+}
+
+func (rs readySwitch) MoreReady() {
+	select {
+	case rs.readyEdges <- true:
+	case <-rs.closed:
+	}
+}
+
+func (rs readySwitch) LessReady() {
+	select {
+	case rs.readyEdges <- false:
+	case <-rs.closed:
+	}
 }
 
 type recvReq struct {

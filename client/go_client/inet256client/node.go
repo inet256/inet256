@@ -11,6 +11,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -44,7 +45,7 @@ func newNode(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (*nod
 		cf:         cf,
 		inetClient: inetClient,
 		privKey:    privKey,
-		localAddr:  p2p.NewPeerID(privKey.Public()),
+		localAddr:  inet256.NewAddr(privKey.Public()),
 		recvHub:    inet256srv.NewTellHub(),
 		workers:    make([]*worker, runtime.GOMAXPROCS(0)),
 	}
@@ -126,7 +127,7 @@ func (n *node) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient, 
 	if err != nil {
 		return nil, err
 	}
-	privKeyBytes, err := inet256.MarshalPrivateKey(n.privKey)
+	privKeyBytes, err := serde.MarshalPrivateKey(n.privKey)
 	if err != nil {
 		panic(err)
 	}

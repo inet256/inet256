@@ -8,20 +8,24 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/discovery"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/sirupsen/logrus"
 )
 
 const multicastAddr = "[ff02::1]:25600"
 
 type service struct {
-	conn *net.UDPConn
-	cf   context.CancelFunc
+	conn   *net.UDPConn
+	parser serde.AddrParserFunc
+	cf     context.CancelFunc
 
 	mu         sync.RWMutex
-	lookingFor map[p2p.PeerID][]string
+	lookingFor map[inet256.Addr][]p2p.Addr
 }
 
-func New() (p2p.DiscoveryService, error) {
+func New(parser serde.AddrParserFunc) (discovery.Service, error) {
 	gaddr, err := net.ResolveUDPAddr("udp6", multicastAddr)
 	if err != nil {
 		return nil, err
@@ -32,7 +36,7 @@ func New() (p2p.DiscoveryService, error) {
 	}
 	ctx, cf := context.WithCancel(context.Background())
 	s := &service{
-		lookingFor: make(map[p2p.PeerID][]string),
+		lookingFor: make(map[inet256.Addr][]p2p.Addr),
 		cf:         cf,
 		conn:       conn,
 	}
@@ -64,7 +68,7 @@ func (s *service) handleMessage(buf []byte) error {
 		return err
 	}
 	s.mu.RLock()
-	var peers []p2p.PeerID
+	var peers []inet256.Addr
 	for id := range s.lookingFor {
 		peers = append(peers, id)
 	}
@@ -80,26 +84,30 @@ func (s *service) handleMessage(buf []byte) error {
 	}
 	s.mu.Lock()
 	if _, exists := s.lookingFor[peer]; exists {
-		s.lookingFor[peer] = adv.Transports
+		addrs, err := serde.ParseAddrs(s.parser, adv.Transports)
+		if err != nil {
+			return err
+		}
+		s.lookingFor[peer] = addrs
 	}
 	s.mu.Unlock()
 	return nil
 }
 
-func (s *service) Find(ctx context.Context, id p2p.PeerID) ([]string, error) {
+func (s *service) Find(ctx context.Context, id inet256.Addr) ([]p2p.Addr, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	addrs, exists := s.lookingFor[id]
 	if exists {
 		return addrs, nil
 	}
-	s.lookingFor[id] = []string{}
+	s.lookingFor[id] = []p2p.Addr{}
 	return nil, nil
 }
 
-func (s *service) Announce(ctx context.Context, id p2p.PeerID, xs []string, ttl time.Duration) error {
+func (s *service) Announce(ctx context.Context, id inet256.Addr, xs []p2p.Addr, ttl time.Duration) error {
 	adv := Advertisement{
-		Transports: xs,
+		Transports: serde.MarshalAddrs(xs),
 	}
 	data, err := json.Marshal(adv)
 	if err != nil {

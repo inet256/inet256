@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"golang.org/x/sync/errgroup"
@@ -26,16 +25,16 @@ type Network struct {
 	localAddr  inet256.Addr
 	privateKey p2p.PrivateKey
 	onehop     inet256.PeerSet
-	swarm      peerswarm.Swarm
+	swarm      inet256.Swarm
 	log        *inet256.Logger
 
 	mu    sync.RWMutex
-	peers map[p2p.PeerID]p2p.PublicKey
+	peers map[Addr]p2p.PublicKey
 
 	recvHub *inet256srv.TellHub
 }
 
-func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
+func New(privateKey p2p.PrivateKey, ps inet256.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
 	n := &Network{
 		localAddr:  inet256.NewAddr(privateKey.Public()),
 		privateKey: privateKey,
@@ -43,7 +42,7 @@ func New(privateKey p2p.PrivateKey, ps peerswarm.Swarm, onehop inet256.PeerSet, 
 		swarm:      ps,
 		log:        log,
 
-		peers:   make(map[p2p.PeerID]p2p.PublicKey),
+		peers:   make(map[Addr]p2p.PublicKey),
 		recvHub: inet256srv.NewTellHub(),
 	}
 	go func() {
@@ -117,7 +116,7 @@ func (n *Network) Bootstrap(ctx context.Context) error {
 }
 
 func (n *Network) MTU(ctx context.Context, target Addr) int {
-	return n.swarm.MTU(ctx, target)
+	return inet256.MinMTU
 }
 
 func (n *Network) Close() error {
@@ -139,9 +138,9 @@ func (n *Network) poll(ctx context.Context, fn func() error) error {
 }
 
 func (nwk *Network) recvLoop(ctx context.Context) error {
-	buf := make([]byte, nwk.swarm.MaxIncomingSize())
+	buf := make([]byte, inet256.TransportMTU)
 	for {
-		var src, dst p2p.Addr
+		var src, dst inet256.Addr
 		n, err := nwk.swarm.Recv(ctx, &src, &dst, buf)
 		if err != nil {
 			return err
@@ -154,7 +153,7 @@ func (nwk *Network) recvLoop(ctx context.Context) error {
 		go func() {
 			ctx, cf := context.WithTimeout(ctx, 10*time.Second)
 			defer cf()
-			if err := nwk.fromBelow(ctx, src.(inet256.Addr), msg); err != nil {
+			if err := nwk.fromBelow(ctx, src, msg); err != nil {
 				nwk.log.Error("error handling message ", err)
 			}
 		}()
@@ -179,7 +178,7 @@ func (n *Network) fromBelow(ctx context.Context, from inet256.Addr, msg Message)
 		if err != nil {
 			panic(err)
 		}
-		if err := n.swarm.TellPeer(ctx, from, p2p.IOVec{data}); err != nil {
+		if err := n.swarm.Tell(ctx, from, p2p.IOVec{data}); err != nil {
 			return err
 		}
 
@@ -219,7 +218,7 @@ func (n *Network) forward(ctx context.Context, from inet256.Addr, msg Message) e
 		panic(err)
 	}
 	if n.onehop.Contains(dst) {
-		return n.swarm.TellPeer(ctx, dst, p2p.IOVec{data})
+		return n.swarm.Tell(ctx, dst, p2p.IOVec{data})
 	}
 	return n.broadcast(ctx, data, from)
 }
@@ -232,7 +231,7 @@ func (n *Network) broadcast(ctx context.Context, data []byte, exclude inet256.Ad
 		}
 		id := id
 		eg.Go(func() error {
-			return n.swarm.TellPeer(ctx, id, p2p.IOVec{data})
+			return n.swarm.Tell(ctx, id, p2p.IOVec{data})
 		})
 	}
 	return eg.Wait()

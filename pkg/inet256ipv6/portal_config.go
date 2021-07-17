@@ -7,6 +7,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/serde"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,7 +21,7 @@ func (c *PortalConfig) GetPrivateKey() (p2p.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return inet256.ParsePrivateKey(data)
+	return serde.ParsePrivateKey(data)
 }
 
 func (c *PortalConfig) GetAllowFunc() AllowFunc {
@@ -39,7 +40,7 @@ func DefaultPortalConfig() PortalConfig {
 	if err != nil {
 		panic(err)
 	}
-	pkBytes, err := inet256.MarshalPrivateKey(privKey)
+	pkBytes, err := serde.MarshalPrivateKey(privKey)
 	if err != nil {
 		panic(err)
 	}

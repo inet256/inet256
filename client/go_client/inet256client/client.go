@@ -93,14 +93,18 @@ func (c *client) MainAddr() inet256.Addr {
 	return inet256.AddrFromBytes(res.LocalAddr)
 }
 
-func (c *client) TransportAddrs() []string {
+func (c *client) TransportAddrs() []p2p.Addr {
 	ctx := context.Background()
 	res, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.log.Error(err)
 		return nil
 	}
-	return res.GetTransportAddrs()
+	var ret []p2p.Addr
+	for _, addr := range res.TransportAddrs {
+		ret = append(ret, TransportAddr(addr))
+	}
+	return ret
 }
 
 func (c *client) PeerStatus() []inet256srv.PeerStatus {
@@ -111,4 +115,18 @@ func (c *client) PeerStatus() []inet256srv.PeerStatus {
 		return nil
 	}
 	return inet256grpc.PeerStatusFromProto(req.PeerStatus)
+}
+
+type TransportAddr string
+
+func (a TransportAddr) MarshalText() ([]byte, error) {
+	return []byte(a), nil
+}
+
+func (a TransportAddr) Key() string {
+	return string(a)
+}
+
+func (a TransportAddr) String() string {
+	return string(a)
 }

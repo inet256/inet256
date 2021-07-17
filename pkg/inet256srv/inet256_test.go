@@ -50,3 +50,21 @@ func TestServerOneHop(t *testing.T) {
 		inet256test.TestSendRecvOne(t, nodes[i], main)
 	}
 }
+
+func TestServerCreateDelete(t *testing.T) {
+	ctx := context.Background()
+	s := inet256test.NewTestServer(t, inet256srv.OneHopFactory)
+
+	const N = 100
+	for i := 0; i < N; i++ {
+		pk := p2ptest.NewTestKey(t, i)
+		_, err := s.CreateNode(ctx, pk)
+		require.NoError(t, err)
+	}
+
+	for i := 0; i < N; i++ {
+		pk := p2ptest.NewTestKey(t, i)
+		err := s.DeleteNode(pk)
+		require.NoError(t, err)
+	}
+}

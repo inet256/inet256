@@ -252,7 +252,7 @@ type loopbackNetwork struct {
 
 func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 	ln := &loopbackNetwork{
-		localAddr: p2p.NewPeerID(localKey),
+		localAddr: inet256.NewAddr(localKey),
 		localKey:  localKey,
 		hub:       NewTellHub(),
 	}
