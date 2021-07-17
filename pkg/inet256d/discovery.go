@@ -2,7 +2,6 @@ package inet256d
 
 import (
 	"context"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/discovery"
@@ -15,53 +14,16 @@ func (d *Daemon) runDiscoveryServices(ctx context.Context, localID inet256.Addr,
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]
-		p := ps[i]
+		params := discovery.Params{
+			LocalID:       localID,
+			GetLocalAddrs: localAddrs,
+			AddressBook:   ps[i],
+			Logger:        logrus.StandardLogger(),
+		}
 		eg.Go(func() error {
-			return d.runDiscoveryService(ctx, localID, disc, localAddrs, p)
+			discovery.RunForever(ctx, disc, params)
+			return nil
 		})
 	}
 	eg.Wait()
-}
-
-func (d *Daemon) runDiscoveryService(ctx context.Context, localID inet256.Addr, ds discovery.Service, localAddrs func() []p2p.Addr, ps inet256.PeerStore) error {
-	eg := errgroup.Group{}
-	// announce loop
-	eg.Go(func() error {
-		ttl := 60 * time.Second
-		ticker := time.NewTicker(60 * time.Second / 2)
-		defer ticker.Stop()
-		for {
-			addrs := localAddrs()
-			if err := ds.Announce(ctx, localID, addrs, ttl); err != nil {
-				return err
-			}
-			// TODO: announce, and find, add each to the store
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
-			}
-		}
-	})
-	// Find loop
-	eg.Go(func() error {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		for {
-			for _, id := range ps.ListPeers() {
-				addrs, err := ds.Find(ctx, localID)
-				if err != nil {
-					logrus.Error("find errored: ", err)
-					continue
-				}
-				ps.SetAddrs(id, addrs)
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-ticker.C:
-			}
-		}
-	})
-	return eg.Wait()
 }
