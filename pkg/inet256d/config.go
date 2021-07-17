@@ -94,6 +94,9 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			sw = upnpswarm.WrapSwarm(sw)
 		}
 		secSw, err := quicswarm.New(sw, privateKey)
+		if err != nil {
+			return nil, err
+		}
 		swname = "quic+" + swname
 		swarms[swname] = secSw
 	}
@@ -101,7 +104,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	// peers
 	peers := inet256srv.NewPeerStore()
 	for _, pspec := range c.Peers {
-		addrs, err := parseAddrs(addrSchema, pspec.Addrs)
+		addrs, err := serde.ParseAddrs(addrSchema.ParseAddr, pspec.Addrs)
 		if err != nil {
 			return nil, err
 		}
@@ -215,16 +218,4 @@ func LoadConfig(p string) (*Config, error) {
 
 func strPtr(x string) *string {
 	return &x
-}
-
-func parseAddrs(schema multiswarm.AddrSchema, xs []string) ([]p2p.Addr, error) {
-	ys := make([]p2p.Addr, len(xs))
-	for i := range xs {
-		addr, err := schema.ParseAddr([]byte(xs[i]))
-		if err != nil {
-			return nil, err
-		}
-		ys[i] = addr
-	}
-	return ys, nil
 }

@@ -12,7 +12,7 @@ type (
 
 // Addr is an address in an INET256 Network.
 // It uniquely identifies a Node.
-type Addr p2p.PeerID
+type Addr [32]byte
 
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {

@@ -16,7 +16,7 @@ type Message struct {
 	Payload []byte
 }
 
-// Swarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
+// Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
 type Swarm interface {
 	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
 	Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
@@ -27,7 +27,7 @@ type Swarm interface {
 }
 
 const (
-	// TransportMTU is the gaurenteed MTU presented to networks.
+	// TransportMTU is the guaranteed MTU presented to networks.
 	TransportMTU = (1 << 16) - 1
 
 	// MinMTU is the minimum MTU a network can provide to any address

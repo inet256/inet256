@@ -23,18 +23,18 @@ type Addr = inet256.Addr
 
 type Network struct {
 	localAddr  inet256.Addr
-	privateKey p2p.PrivateKey
+	privateKey inet256.PrivateKey
 	onehop     inet256.PeerSet
 	swarm      inet256.Swarm
 	log        *inet256.Logger
 
 	mu    sync.RWMutex
-	peers map[Addr]p2p.PublicKey
+	peers map[Addr]inet256.PublicKey
 
 	recvHub *inet256srv.TellHub
 }
 
-func New(privateKey p2p.PrivateKey, ps inet256.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
+func New(privateKey inet256.PrivateKey, ps inet256.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
 	n := &Network{
 		localAddr:  inet256.NewAddr(privateKey.Public()),
 		privateKey: privateKey,
@@ -42,7 +42,7 @@ func New(privateKey p2p.PrivateKey, ps inet256.Swarm, onehop inet256.PeerSet, lo
 		swarm:      ps,
 		log:        log,
 
-		peers:   make(map[Addr]p2p.PublicKey),
+		peers:   make(map[Addr]inet256.PublicKey),
 		recvHub: inet256srv.NewTellHub(),
 	}
 	go func() {
@@ -195,7 +195,7 @@ func (n *Network) fromBelow(ctx context.Context, from inet256.Addr, msg Message)
 	return n.forward(ctx, from, msg)
 }
 
-func (n *Network) addPeer(pubKey p2p.PublicKey) {
+func (n *Network) addPeer(pubKey inet256.PublicKey) {
 	src := inet256.NewAddr(pubKey)
 	n.mu.Lock()
 	n.peers[src] = pubKey
