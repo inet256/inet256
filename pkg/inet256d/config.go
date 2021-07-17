@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
@@ -14,6 +15,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -21,8 +23,8 @@ import (
 const DefaultAPIAddr = "127.0.0.1:25600"
 
 type PeerSpec struct {
-	ID    p2p.PeerID `yaml:"id"`
-	Addrs []string   `yaml:"addrs"`
+	ID    inet256.Addr `yaml:"id"`
+	Addrs []string     `yaml:"addrs"`
 }
 
 type TransportSpec struct {
@@ -77,7 +79,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := inet256.ParsePrivateKeyPEM(keyPEMData)
+	privateKey, err := serde.ParsePrivateKeyPEM(keyPEMData)
 	if err != nil {
 		return nil, err
 	}
@@ -92,14 +94,22 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			sw = upnpswarm.WrapSwarm(sw)
 		}
 		secSw, err := quicswarm.New(sw, privateKey)
+		if err != nil {
+			return nil, err
+		}
 		swname = "quic+" + swname
 		swarms[swname] = secSw
 	}
+	addrSchema := multiswarm.NewSchemaFromSecureSwarms(swarms)
 	// peers
 	peers := inet256srv.NewPeerStore()
 	for _, pspec := range c.Peers {
+		addrs, err := serde.ParseAddrs(addrSchema.ParseAddr, pspec.Addrs)
+		if err != nil {
+			return nil, err
+		}
 		peers.Add(pspec.ID)
-		peers.SetAddrs(pspec.ID, pspec.Addrs)
+		peers.SetAddrs(pspec.ID, addrs)
 	}
 	// networks
 	nspecs := []inet256.NetworkSpec{}
@@ -113,7 +123,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	// discovery
 	dscSrvs := []discovery.Service{}
 	for _, spec := range c.Discovery {
-		dscSrv, err := makeDiscoveryService(spec)
+		dscSrv, err := makeDiscoveryService(spec, addrSchema)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +132,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	// autopeering
 	apSrvs := []autopeering.Service{}
 	for _, spec := range c.AutoPeering {
-		apSrv, err := makeAutoPeeringService(spec)
+		apSrv, err := makeAutoPeeringService(spec, addrSchema)
 		if err != nil {
 			return nil, err
 		}
@@ -158,7 +168,7 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, strin
 	}
 }
 
-func makeDiscoveryService(spec DiscoverySpec) (discovery.Service, error) {
+func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Cell != nil:
 		return celldisco.New(*spec.Cell)
@@ -167,7 +177,7 @@ func makeDiscoveryService(spec DiscoverySpec) (discovery.Service, error) {
 	}
 }
 
-func makeAutoPeeringService(spec AutoPeeringSpec) (autopeering.Service, error) {
+func makeAutoPeeringService(spec AutoPeeringSpec, addrSchema multiswarm.AddrSchema) (autopeering.Service, error) {
 	switch {
 	default:
 		return nil, errors.Errorf("empty autopeering spec")

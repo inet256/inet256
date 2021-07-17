@@ -81,11 +81,11 @@ func (a *asker) Ask(ctx context.Context, resp []byte, dst p2p.Addr, data p2p.IOV
 	vec := append(p2p.IOVec{m}, data...)
 
 	a.mu.Lock()
-	n := a.counts[dst.Key()]
-	a.counts[dst.Key()]++
+	n := a.counts[dst.String()]
+	a.counts[dst.String()]++
 	m.setIndex(n)
 	rkey := responseKey{
-		Addr: dst.Key(),
+		Addr: dst.String(),
 		N:    n,
 	}
 	ch := make(chan []byte, 1)
@@ -141,7 +141,7 @@ func (a *asker) handleMessage(ctx context.Context, msg p2p.Message) error {
 	case m.isAsk():
 		m = append([]byte{}, m...) // copy m
 		key := responseKey{
-			Addr: src.Key(),
+			Addr: src.String(),
 			N:    m.index(),
 		}
 		a.mu.Lock()

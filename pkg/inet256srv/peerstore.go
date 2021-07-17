@@ -9,31 +9,30 @@ import (
 
 type peerStore struct {
 	mu sync.RWMutex
-	m  map[p2p.PeerID][]string
+	m  map[inet256.Addr][]p2p.Addr
 }
 
 func NewPeerStore() inet256.PeerStore {
 	return &peerStore{
-		m: map[p2p.PeerID][]string{},
+		m: map[inet256.Addr][]p2p.Addr{},
 	}
 }
 
-func (s *peerStore) Add(id p2p.PeerID) {
+func (s *peerStore) Add(id inet256.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	if _, exists := s.m[id]; !exists {
-		s.m[id] = []string{}
+		s.m[id] = []p2p.Addr{}
 	}
 }
 
-func (s *peerStore) Remove(id p2p.PeerID) {
+func (s *peerStore) Remove(id inet256.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.m, id)
 }
 
-func (s *peerStore) AddAddr(id p2p.PeerID, addr string) {
+func (s *peerStore) AddAddr(id inet256.Addr, addr p2p.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	addrs := s.m[id]
@@ -45,30 +44,30 @@ func (s *peerStore) AddAddr(id p2p.PeerID, addr string) {
 	s.m[id] = append(s.m[id], addr)
 }
 
-func (s *peerStore) SetAddrs(id p2p.PeerID, addrs []string) {
+func (s *peerStore) SetAddrs(id inet256.Addr, addrs []p2p.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.m[id] = addrs
 }
 
-func (s *peerStore) ListPeers() []p2p.PeerID {
+func (s *peerStore) ListPeers() []inet256.Addr {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	ids := []p2p.PeerID{}
+	ids := []inet256.Addr{}
 	for id := range s.m {
 		ids = append(ids, id)
 	}
 	return ids
 }
 
-func (s *peerStore) Contains(id p2p.PeerID) bool {
+func (s *peerStore) Contains(id inet256.Addr) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	_, exists := s.m[id]
 	return exists
 }
 
-func (s *peerStore) ListAddrs(id p2p.PeerID) []string {
+func (s *peerStore) ListAddrs(id inet256.Addr) []p2p.Addr {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.m[id]
@@ -78,47 +77,49 @@ var _ PeerStore = ChainPeerStore{}
 
 type ChainPeerStore []PeerStore
 
-func (ps ChainPeerStore) Add(p2p.PeerID) {
+func (ps ChainPeerStore) Add(inet256.Addr) {
 	panic("cannot Add to ChainPeerStore")
 }
 
-func (ps ChainPeerStore) Remove(p2p.PeerID) {
+func (ps ChainPeerStore) Remove(inet256.Addr) {
 	panic("cannot Remove from ChainPeerStore")
 }
 
-func (ps ChainPeerStore) SetAddrs(id p2p.PeerID, addrs []string) {
+func (ps ChainPeerStore) SetAddrs(x inet256.Addr, addrs []p2p.Addr) {
 	panic("cannot SetAddrs on ChainPeerStore")
 }
 
-func (ps ChainPeerStore) ListPeers() []p2p.PeerID {
-	m := map[p2p.PeerID]struct{}{}
+func (ps ChainPeerStore) ListPeers() []inet256.Addr {
+	m := map[inet256.Addr]struct{}{}
 	for _, ps2 := range ps {
 		for _, id := range ps2.ListPeers() {
 			m[id] = struct{}{}
 		}
 	}
-	ret := make([]p2p.PeerID, 0, len(m))
+	ret := make([]inet256.Addr, 0, len(m))
 	for id := range m {
 		ret = append(ret, id)
 	}
 	return ret
 }
 
-func (ps ChainPeerStore) ListAddrs(id p2p.PeerID) []string {
+func (ps ChainPeerStore) ListAddrs(id inet256.Addr) []p2p.Addr {
 	m := map[string]struct{}{}
+	ret := make([]p2p.Addr, 0, len(m))
 	for _, ps2 := range ps {
 		for _, addr := range ps2.ListAddrs(id) {
-			m[addr] = struct{}{}
+			key := addr.String()
+			if _, exists := m[key]; exists {
+				continue
+			}
+			m[key] = struct{}{}
+			ret = append(ret, addr)
 		}
-	}
-	ret := make([]string, 0, len(m))
-	for addr := range m {
-		ret = append(ret, addr)
 	}
 	return ret
 }
 
-func (ps ChainPeerStore) Contains(id p2p.PeerID) bool {
+func (ps ChainPeerStore) Contains(id inet256.Addr) bool {
 	for _, ps2 := range ps {
 		if ps2.Contains(id) {
 			return true

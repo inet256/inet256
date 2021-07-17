@@ -10,7 +10,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
@@ -99,24 +98,23 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	N := len(adjList)
 	swarms := make([]p2p.SecureSwarm, N)
-	peerSwarms := make([]peerswarm.Swarm, N)
 	peerStores := make([]PeerStore, N)
 	keys := make([]p2p.PrivateKey, N)
-
+	netSwarms := make([]inet256.Swarm, N)
 	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(keys[i])
 		peerStores[i] = inet256srv.NewPeerStore()
-		peerSwarms[i] = inet256srv.NewPeerSwarm(swarms[i], peerStores[i])
+		netSwarms[i] = inet256srv.NewSwarm(swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {
 		for _, j := range adjList[i] {
-			peerID := p2p.NewPeerID(swarms[j].PublicKey())
+			peerID := inet256.NewAddr(swarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
 			peerStores[i].Add(peerID)
-			peerStores[i].SetAddrs(peerID, []string{addr.Key()})
+			peerStores[i].SetAddrs(peerID, []p2p.Addr{addr})
 		}
 	}
 	nets := make([]Network, N)
@@ -125,7 +123,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 		nets[i] = nf(inet256.NetworkParams{
 			Peers:      peerStores[i],
 			PrivateKey: keys[i],
-			Swarm:      peerSwarms[i],
+			Swarm:      netSwarms[i],
 			Logger:     logger,
 		})
 	}

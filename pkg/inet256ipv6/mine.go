@@ -46,7 +46,7 @@ func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, p2p.Pri
 					if err != nil {
 						panic(err)
 					}
-					addr := p2p.NewPeerID(pubKey)
+					addr := inet256.NewAddr(pubKey)
 					if leading0s(addr[:]) > leading0s(addrs[i][:]) {
 						addrs[i] = addr
 						privKeys[i] = privKey

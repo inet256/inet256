@@ -14,7 +14,7 @@ func TestPeerSwarm(t *testing.T) {
 		r := memswarm.NewRealm()
 		for i := range swarms {
 			pk := p2ptest.NewTestKey(t, i)
-			swarms[i] = newPeerSwarm(r.NewSwarmWithKey(pk), NewPeerStore())
+			swarms[i] = newSwarm(r.NewSwarmWithKey(pk), NewPeerStore())
 		}
 	})
 }

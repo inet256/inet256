@@ -22,7 +22,8 @@ A 256 bit address space for peer-to-peer hosts/applications.
 - Messages are never corrupted. If it gets there, it's correct.
 - Easy to add/remove/change routing algorithms.
 - Addresses are plentiful. Spawn a new node for each process. Every process gets its own address, no need for ports.
-- IPv6 Portal for IPv6 over INET256. Exposed as a TUN device.
+- Daemon can run without root or `NET_ADMIN` capability.
+- IPv6 Portal for IPv6 over INET256. Exposed as a TUN device. (requires `NET_ADMIN`).
 - Autopeering and transport address discovery help make peering easy.
 
 ## Network Routing Protocols

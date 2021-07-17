@@ -9,7 +9,7 @@ import (
 type Node interface {
 	Network
 
-	ListOneHop() []p2p.PeerID
+	ListOneHop() []Addr
 }
 
 type Service interface {

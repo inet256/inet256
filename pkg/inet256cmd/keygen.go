@@ -7,6 +7,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +21,7 @@ var keygenCmd = &cobra.Command{
 	Short: "generates a private key and writes it to stdout",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		privKey := generateKey()
-		data, err := inet256.MarshalPrivateKeyPEM(privKey)
+		data, err := serde.MarshalPrivateKeyPEM(privKey)
 		if err != nil {
 			return err
 		}
@@ -38,7 +39,7 @@ var deriveAddrCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		privateKey, err := inet256.ParsePrivateKeyPEM(data)
+		privateKey, err := serde.ParsePrivateKeyPEM(data)
 		if err != nil {
 			return err
 		}

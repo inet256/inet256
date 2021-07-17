@@ -4,7 +4,7 @@ import (
 	"crypto/hmac"
 	"math/rand"
 
-	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/sha3"
@@ -18,7 +18,7 @@ const MinMessageSize = 32 + 32
 
 type Message []byte
 
-func NewMessage(id p2p.PeerID, payload []byte) Message {
+func NewMessage(id inet256.Addr, payload []byte) Message {
 	ciph, err := chacha20poly1305.NewX(id[:])
 	if err != nil {
 		panic(err)
@@ -80,7 +80,7 @@ func copy32(x []byte) [32]byte {
 	return y
 }
 
-func UnpackMessage(m Message, ids []p2p.PeerID) (int, []byte, error) {
+func UnpackMessage(m Message, ids []inet256.Addr) (int, []byte, error) {
 	mac := m.GetMAC()
 	nonce := m.GetNonce()
 	preimage := [64]byte{}

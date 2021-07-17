@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -21,7 +22,7 @@ type transportMonitor struct {
 	cf          context.CancelFunc
 
 	mu        sync.RWMutex
-	sightings map[p2p.PeerID]map[string]time.Time
+	sightings map[inet256.Addr]map[string]time.Time
 	addrs     map[string]p2p.Addr
 }
 
@@ -34,7 +35,7 @@ func newTransportMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *t
 		log:         log,
 		cf:          cf,
 		expireAfter: expireAfter,
-		sightings:   make(map[p2p.PeerID]map[string]time.Time),
+		sightings:   make(map[inet256.Addr]map[string]time.Time),
 		addrs:       make(map[string]p2p.Addr),
 	}
 	go tm.recvLoop(ctx)
@@ -55,8 +56,12 @@ func (tm *transportMonitor) recvLoop(ctx context.Context) error {
 			}
 			return err
 		}
-		srcKey := p2p.LookupPublicKeyInHandler(tm.x, src)
-		tm.Mark(p2p.NewPeerID(srcKey), src, time.Now())
+		pubKey, err := tm.x.LookupPublicKey(ctx, src)
+		if err != nil {
+			tm.log.Error("in transportMonitor.recvLoop: ", err)
+			continue
+		}
+		tm.Mark(inet256.NewAddr(pubKey), src, time.Now())
 	}
 }
 
@@ -85,13 +90,9 @@ func (tm *transportMonitor) heartbeat(ctx context.Context) error {
 	eg := errgroup.Group{}
 	for _, id := range tm.peerStore.ListPeers() {
 		id := id
-		for _, addrStr := range tm.peerStore.ListAddrs(id) {
-			addrStr := addrStr
+		for _, addr := range tm.peerStore.ListAddrs(id) {
+			addr := addr
 			eg.Go(func() error {
-				addr, err := tm.x.ParseAddr([]byte(addrStr))
-				if err != nil {
-					return err
-				}
 				return tm.x.Tell(ctx, addr, p2p.IOVec{data})
 			})
 		}
@@ -99,7 +100,7 @@ func (tm *transportMonitor) heartbeat(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (tm *transportMonitor) Mark(id p2p.PeerID, a p2p.Addr, t time.Time) {
+func (tm *transportMonitor) Mark(id inet256.Addr, a p2p.Addr, t time.Time) {
 	data, _ := a.MarshalText()
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
@@ -115,7 +116,7 @@ func (tm *transportMonitor) Mark(id p2p.PeerID, a p2p.Addr, t time.Time) {
 	}
 }
 
-func (tm *transportMonitor) PickAddr(id p2p.PeerID) (p2p.Addr, error) {
+func (tm *transportMonitor) PickAddr(id inet256.Addr) (p2p.Addr, error) {
 	if !tm.peerStore.Contains(id) {
 		tm.log.Error("peers in store:", tm.peerStore.ListPeers())
 		return nil, errors.Errorf("cannot pick address for peer not in store %v", id)
@@ -147,7 +148,7 @@ func (tm *transportMonitor) PickAddr(id p2p.PeerID) (p2p.Addr, error) {
 		return nil, errors.Errorf("no transport addresses for peer %v", id)
 	}
 	addr := addrs[mrand.Intn(len(addrs))]
-	return tm.x.ParseAddr([]byte(addr))
+	return addr, nil
 }
 
 func (tm *transportMonitor) Close() error {
@@ -155,7 +156,7 @@ func (tm *transportMonitor) Close() error {
 	return tm.x.Close()
 }
 
-func (tm *transportMonitor) LastSeen(id p2p.PeerID) map[string]time.Time {
+func (tm *transportMonitor) LastSeen(id inet256.Addr) map[string]time.Time {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 	return copyLastSeen(tm.sightings[id])

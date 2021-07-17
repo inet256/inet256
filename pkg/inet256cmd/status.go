@@ -3,6 +3,7 @@ package inet256cmd
 import (
 	"fmt"
 
+	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 		var localAddr inet256.Addr
-		var transportAddrs []string
+		var transportAddrs []p2p.Addr
 		var peerStatuses []inet256srv.PeerStatus
 		eg := errgroup.Group{}
 		eg.Go(func() error {

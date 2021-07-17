@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,13 +16,23 @@ type Message struct {
 	Payload []byte
 }
 
-// PeerSwarm is the type of a p2p.Swarm which uses p2p.PeerIDs as addresses
-type PeerSwarm = peerswarm.Swarm
+// Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
+type Swarm interface {
+	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
+	Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
+
+	Close() error
+	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
+	LocalAddr() Addr
+}
 
 const (
+	// TransportMTU is the guaranteed MTU presented to networks.
 	TransportMTU = (1 << 16) - 1
 
+	// MinMTU is the minimum MTU a network can provide to any address
 	MinMTU = 1 << 15
+	// MaxMTU is the largest message that a network will ever receive from any address.
 	MaxMTU = 1 << 16
 )
 
@@ -35,7 +44,7 @@ type Network interface {
 	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 
-	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
+	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
 
 	Bootstrap(ctx context.Context) error
@@ -46,8 +55,8 @@ type Network interface {
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
 type NetworkParams struct {
-	PrivateKey p2p.PrivateKey
-	Swarm      PeerSwarm
+	PrivateKey PrivateKey
+	Swarm      Swarm
 	Peers      PeerSet
 
 	Logger *Logger
