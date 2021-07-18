@@ -2,6 +2,7 @@
 
 ![Matrix](https://img.shields.io/matrix/inet256:matrix.org?label=%23inet256%3Amatrix.org&logo=matrix)
 [![GoDoc](https://godoc.org/github.com/inet256/inet256?status.svg)](http://godoc.org/github.com/inet256/inet256)
+[<img src="https://discord.com/assets/cb48d2a8d4991281d7a6a95d2f58195e.svg" width="80">](https://discord.gg/TWy6aVWJ7f)
 
 A 256 bit address space for peer-to-peer hosts/applications.
 
