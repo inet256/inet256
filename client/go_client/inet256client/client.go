@@ -2,6 +2,7 @@ package inet256client
 
 import (
 	"context"
+	"os"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -26,8 +27,20 @@ func NewExtendedClient(endpoint string) (inet256srv.Service, error) {
 	return &client{inetClient: inetClient}, nil
 }
 
+// NewClient creates an INET256 service using the specified endpoint for the API.
 func NewClient(endpoint string) (inet256.Service, error) {
 	return NewExtendedClient(endpoint)
+}
+
+// NewEnvClient creates an INET256 service using the environment variables to find the API.
+// If you are looking for a inet256.Service constructor, this is probably the one you want.
+// It checks the environment variable `INET256_API`
+func NewEnvClient() (inet256.Service, error) {
+	endpoint, yes := os.LookupEnv("INET256_API")
+	if !yes {
+		endpoint = "127.0.0.1:25600"
+	}
+	return NewClient(endpoint)
 }
 
 func dial(endpoint string) (inet256grpc.INET256Client, error) {
