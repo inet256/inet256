@@ -40,7 +40,7 @@ func (a *asker) recvLoop(ctx context.Context) error {
 	buf := make([]byte, a.Swarm.MaxIncomingSize())
 	for {
 		var src, dst p2p.Addr
-		n, err := a.Swarm.Recv(ctx, &src, &dst, buf)
+		n, err := a.Swarm.Receive(ctx, &src, &dst, buf)
 		if err != nil {
 			return err
 		}
@@ -55,8 +55,8 @@ func (a *asker) recvLoop(ctx context.Context) error {
 	}
 }
 
-func (a *asker) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
-	return a.tellHub.Recv(ctx, src, dst, buf)
+func (a *asker) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+	return a.tellHub.Receive(ctx, src, dst, buf)
 }
 
 func (a *asker) ServeAsk(ctx context.Context, fn p2p.AskHandler) error {

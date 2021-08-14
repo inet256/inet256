@@ -58,9 +58,9 @@ func (s *swarm) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
 	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
-func (s *swarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+func (s *swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
 	for {
-		n, err := s.dataSwarm.Recv(ctx, src, dst, buf)
+		n, err := s.dataSwarm.Receive(ctx, src, dst, buf)
 		if err != nil {
 			return 0, err
 		}
@@ -154,9 +154,9 @@ func (s swarmWrapper) Tell(ctx context.Context, dst Addr, m p2p.IOVec) error {
 	return s.s.Tell(ctx, dst, m)
 }
 
-func (s swarmWrapper) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+func (s swarmWrapper) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
 	var src2, dst2 p2p.Addr
-	n, err := s.s.Recv(ctx, &src2, &dst2, buf)
+	n, err := s.s.Receive(ctx, &src2, &dst2, buf)
 	if err != nil {
 		return n, err
 	}
@@ -192,9 +192,9 @@ type quic2Swarm struct {
 	*quicswarm.Swarm
 }
 
-func (s quic2Swarm) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+func (s quic2Swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
 	for {
-		n, err := s.Swarm.Recv(ctx, src, dst, buf)
+		n, err := s.Swarm.Receive(ctx, src, dst, buf)
 		if err != nil {
 			return 0, err
 		}

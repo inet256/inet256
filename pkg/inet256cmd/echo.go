@@ -27,7 +27,7 @@ var echoCmd = &cobra.Command{
 		buf := make([]byte, inet256.TransportMTU)
 		for {
 			var src, dst inet256.Addr
-			n, err := node.Recv(ctx, &src, &dst, buf)
+			n, err := node.Receive(ctx, &src, &dst, buf)
 			if err != nil {
 				return err
 			}

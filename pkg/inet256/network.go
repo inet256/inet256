@@ -19,7 +19,7 @@ type Message struct {
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
 type Swarm interface {
 	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
-	Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
+	Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
 
 	Close() error
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
@@ -39,8 +39,8 @@ const (
 // Network is a network for sending messages between peers
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
-	Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
-	WaitRecv(ctx context.Context) error
+	Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
+	WaitReceive(ctx context.Context) error
 	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 
@@ -76,8 +76,8 @@ type Logger = logrus.Logger
 
 // RecvNonBlocking calls receive on the network, but immediately errors
 // if no data can be returned
-func RecvNonBlocking(n Network, src, dst *Addr, buf []byte) (int, error) {
-	return n.Recv(NonBlockingContext(), src, dst, buf)
+func ReceiveNonBlocking(n Network, src, dst *Addr, buf []byte) (int, error) {
+	return n.Receive(NonBlockingContext(), src, dst, buf)
 }
 
 func NonBlockingContext() context.Context {

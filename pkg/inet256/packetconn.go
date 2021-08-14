@@ -37,7 +37,7 @@ func (pc *packetConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 	var src, dst Addr
 	ctx, cf := pc.getReadContext()
 	defer cf()
-	n, err = pc.n.Recv(ctx, &src, &dst, p)
+	n, err = pc.n.Receive(ctx, &src, &dst, p)
 	if err != nil {
 		return n, nil, err
 	}

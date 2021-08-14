@@ -19,6 +19,6 @@ func TestHub(t *testing.T) {
 	require.NoError(t, hub.Wait(ctx))
 	var src, dst Addr
 	buf := make([]byte, 100)
-	_, err := hub.Recv(ctx, &src, &dst, buf)
+	_, err := hub.Receive(ctx, &src, &dst, buf)
 	require.NoError(t, err)
 }

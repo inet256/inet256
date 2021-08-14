@@ -51,11 +51,11 @@ func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return network.Tell(ctx, dst, data)
 }
 
-func (mn *multiNetwork) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return mn.selector.Recv(ctx, src, dst, buf)
+func (mn *multiNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return mn.selector.Receive(ctx, src, dst, buf)
 }
 
-func (mn *multiNetwork) WaitRecv(ctx context.Context) error {
+func (mn *multiNetwork) WaitReceive(ctx context.Context) error {
 	return mn.selector.Wait(ctx)
 }
 
@@ -178,8 +178,8 @@ func (n chainNetwork) Tell(ctx context.Context, dst Addr, data []byte) (retErr e
 	return retErr
 }
 
-func (n chainNetwork) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.selector.Recv(ctx, src, dst, buf)
+func (n chainNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return n.selector.Receive(ctx, src, dst, buf)
 }
 
 func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -240,7 +240,7 @@ func (n chainNetwork) Bootstrap(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (n chainNetwork) WaitRecv(ctx context.Context) error {
+func (n chainNetwork) WaitReceive(ctx context.Context) error {
 	return n.selector.Wait(ctx)
 }
 
@@ -266,8 +266,8 @@ func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error
 	return n.hub.Deliver(ctx, Message{Src: dst, Dst: dst, Payload: data})
 }
 
-func (n *loopbackNetwork) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.hub.Recv(ctx, src, dst, buf)
+func (n *loopbackNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return n.hub.Receive(ctx, src, dst, buf)
 }
 
 func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -285,7 +285,7 @@ func (n *loopbackNetwork) Close() error {
 	return nil
 }
 
-func (n *loopbackNetwork) WaitRecv(ctx context.Context) error {
+func (n *loopbackNetwork) WaitReceive(ctx context.Context) error {
 	return n.hub.Wait(ctx)
 }
 

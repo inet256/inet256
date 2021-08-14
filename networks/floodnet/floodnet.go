@@ -62,11 +62,11 @@ func (n *Network) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.broadcast(ctx, msgData, n.localAddr)
 }
 
-func (n *Network) Recv(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
-	return n.recvHub.Recv(ctx, src, dst, buf)
+func (n *Network) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
+	return n.recvHub.Receive(ctx, src, dst, buf)
 }
 
-func (n *Network) WaitRecv(ctx context.Context) error {
+func (n *Network) WaitReceive(ctx context.Context) error {
 	return n.recvHub.Wait(ctx)
 }
 
@@ -141,7 +141,7 @@ func (nwk *Network) recvLoop(ctx context.Context) error {
 	buf := make([]byte, inet256.TransportMTU)
 	for {
 		var src, dst inet256.Addr
-		n, err := nwk.swarm.Recv(ctx, &src, &dst, buf)
+		n, err := nwk.swarm.Receive(ctx, &src, &dst, buf)
 		if err != nil {
 			return err
 		}

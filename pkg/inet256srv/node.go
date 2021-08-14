@@ -70,12 +70,12 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, data)
 }
 
-func (n *node) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.network.Recv(ctx, src, dst, buf)
+func (n *node) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return n.network.Receive(ctx, src, dst, buf)
 }
 
-func (n *node) WaitRecv(ctx context.Context) error {
-	return n.network.WaitRecv(ctx)
+func (n *node) WaitReceive(ctx context.Context) error {
+	return n.network.WaitReceive(ctx)
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {

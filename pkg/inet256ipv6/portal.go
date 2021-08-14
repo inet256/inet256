@@ -173,7 +173,7 @@ func (p *portal) inboundLoop(ctx context.Context) error {
 	buf := make([]byte, inet256.MaxMTU)
 	for {
 		var src, dst inet256.Addr
-		n, err := p.network.Recv(ctx, &src, &dst, buf)
+		n, err := p.network.Receive(ctx, &src, &dst, buf)
 		if err != nil {
 			return err
 		}

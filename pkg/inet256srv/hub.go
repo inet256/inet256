@@ -29,7 +29,7 @@ func NewTellHub() *TellHub {
 	}
 }
 
-func (q *TellHub) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+func (q *TellHub) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
 	if err := q.checkClosed(); err != nil {
 		return 0, err
 	}
@@ -230,7 +230,7 @@ func NewSelector(ns []Network) *Selector {
 		n := n
 		eg.Go(func() error {
 			for {
-				err := n.WaitRecv(ctx)
+				err := n.WaitReceive(ctx)
 				if err != nil {
 					return err
 				}
@@ -245,7 +245,7 @@ func NewSelector(ns []Network) *Selector {
 	return s
 }
 
-func (s *Selector) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+func (s *Selector) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
 	var n int
 	var err error
 	for {
@@ -253,7 +253,7 @@ func (s *Selector) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, e
 		if x < 0 {
 			return 0, ctx.Err()
 		}
-		n, err = inet256.RecvNonBlocking(s.networks[x], src, dst, buf)
+		n, err = inet256.ReceiveNonBlocking(s.networks[x], src, dst, buf)
 		if !inet256.IsErrWouldBlock(err) {
 			return n, err
 		}

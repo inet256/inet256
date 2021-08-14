@@ -31,15 +31,15 @@ func TestNetwork(t *testing.T, nf NetworkFactory) {
 	}{
 		{
 			Name:     "Chain-2",
-			Topology: p2ptest.Chain(2),
+			Topology: p2ptest.MakeChain(2),
 		},
 		{
 			Name:     "Chain-5",
-			Topology: p2ptest.Chain(5),
+			Topology: p2ptest.MakeChain(5),
 		},
 		{
 			Name:     "Ring-10",
-			Topology: p2ptest.Ring(10),
+			Topology: p2ptest.MakeRing(10),
 		},
 	}
 	for _, tc := range tcs {
@@ -80,7 +80,7 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 	eg.Go(func() error {
 		var srcAddr, dstAddr inet256.Addr
 		buf := make([]byte, inet256.TransportMTU)
-		n, err := dst.Recv(ctx, &srcAddr, &dstAddr, buf)
+		n, err := dst.Receive(ctx, &srcAddr, &dstAddr, buf)
 		if err != nil {
 			return err
 		}

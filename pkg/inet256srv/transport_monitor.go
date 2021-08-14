@@ -49,7 +49,7 @@ func (tm *transportMonitor) recvLoop(ctx context.Context) error {
 	buf := make([]byte, tm.x.MaxIncomingSize())
 	for {
 		var src, dst p2p.Addr
-		_, err := tm.x.Recv(ctx, &src, &dst, buf)
+		_, err := tm.x.Receive(ctx, &src, &dst, buf)
 		if err != nil {
 			if err != context.Canceled {
 				tm.log.Error("exiting transportMonitor.recvLoop with ", err)

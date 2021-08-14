@@ -138,7 +138,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		buf := make([]byte, inet256.MaxMTU)
 		for {
 			var src, dst inet256.Addr
-			n, err := node.Recv(ctx, &src, &dst, buf)
+			n, err := node.Receive(ctx, &src, &dst, buf)
 			if err != nil {
 				return err
 			}

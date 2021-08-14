@@ -37,7 +37,7 @@ Delivery is best effort, but must be at most once per message.
 
 The implementation must provide a way to cancel or abort this operation if it takes longer than a certain amount of time.
 
-## `Node.recv() -> (address, message)`
+## `Node.receive() -> (address, message)`
 The implementation must provide a way to recieve messages up to the MTU, and for the caller to know which address they came from.
 Delivery is best effort, but must be at most once per message.
 

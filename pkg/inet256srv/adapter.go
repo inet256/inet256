@@ -24,9 +24,9 @@ func (s *netAdapter) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error 
 	return s.network.Tell(ctx, dst.(inet256.Addr), p2p.VecBytes(nil, v))
 }
 
-func (s *netAdapter) Recv(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
+func (s *netAdapter) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
 	var src2, dst2 Addr
-	n, err := s.network.Recv(ctx, &src2, &dst2, buf)
+	n, err := s.network.Receive(ctx, &src2, &dst2, buf)
 	if err != nil {
 		return 0, err
 	}
@@ -92,7 +92,7 @@ func networkFromSwarm(x p2p.SecureSwarm, findAddr FindAddrFunc, bootstrapFunc Bo
 		buf := make([]byte, TransportMTU)
 		for {
 			var src, dst p2p.Addr
-			n, err := sa.swarm.Recv(ctx, &src, &dst, buf)
+			n, err := sa.swarm.Receive(ctx, &src, &dst, buf)
 			if err != nil {
 				return err
 			}
@@ -112,11 +112,11 @@ func (n *swarmAdapter) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.swarm.Tell(ctx, dst, p2p.IOVec{data})
 }
 
-func (net *swarmAdapter) Recv(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return net.tells.Recv(ctx, src, dst, buf)
+func (net *swarmAdapter) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+	return net.tells.Receive(ctx, src, dst, buf)
 }
 
-func (net *swarmAdapter) WaitRecv(ctx context.Context) error {
+func (net *swarmAdapter) WaitReceive(ctx context.Context) error {
 	return net.tells.Wait(ctx)
 }
 

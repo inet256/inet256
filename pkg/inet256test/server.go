@@ -60,7 +60,7 @@ func testMultipleServers(t *testing.T, srvs ...*inet256srv.Server) {
 	})
 }
 
-func NewTestServer(t *testing.T, nf inet256.NetworkFactory) *inet256srv.Server {
+func NewTestServer(t testing.TB, nf inet256.NetworkFactory) *inet256srv.Server {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)

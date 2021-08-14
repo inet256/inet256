@@ -63,11 +63,11 @@ func (n *node) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
 	return n.pickWorker().tell(ctx, dst, data)
 }
 
-func (n *node) Recv(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
-	return n.recvHub.Recv(ctx, src, dst, buf)
+func (n *node) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
+	return n.recvHub.Receive(ctx, src, dst, buf)
 }
 
-func (n *node) WaitRecv(ctx context.Context) error {
+func (n *node) WaitReceive(ctx context.Context) error {
 	return n.recvHub.Wait(ctx)
 }
 
