@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultAPIAddr = "127.0.0.1:25600"
+const defaultAPIAddr = inet256d.DefaultAPIAddr
 
 func init() {
 	rootCmd.AddCommand(daemonCmd)

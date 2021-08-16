@@ -20,7 +20,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultAPIAddr = "127.0.0.1:25600"
+const DefaultAPIAddr = "127.0.0.1:2560"
 
 type PeerSpec struct {
 	ID    inet256.Addr `yaml:"id"`

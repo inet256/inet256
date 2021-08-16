@@ -6,12 +6,15 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const defaultAPIAddr = inet256d.DefaultAPIAddr
 
 type client struct {
 	inetClient   inet256grpc.INET256Client
@@ -38,7 +41,7 @@ func NewClient(endpoint string) (inet256.Service, error) {
 func NewEnvClient() (inet256.Service, error) {
 	endpoint, yes := os.LookupEnv("INET256_API")
 	if !yes {
-		endpoint = "127.0.0.1:25600"
+		endpoint = defaultAPIAddr
 	}
 	return NewClient(endpoint)
 }

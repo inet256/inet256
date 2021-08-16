@@ -34,10 +34,10 @@ func TestDial(t *testing.T) {
 	s := inet256grpc.NewServer(serv)
 	gs := grpc.NewServer()
 	inet256grpc.RegisterINET256Server(gs, s)
-	l, err := net.Listen("tcp", "127.0.0.1:25600")
+	l, err := net.Listen("tcp", defaultAPIAddr)
 	require.NoError(t, err)
 	go gs.Serve(l)
-	c, err := NewNode("127.0.0.1:25600", privateKey)
+	c, err := NewNode(defaultAPIAddr, privateKey)
 	require.NoError(t, err)
 	inet256test.TestSendRecvOne(t, c, c)
 }
