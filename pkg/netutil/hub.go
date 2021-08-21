@@ -1,4 +1,4 @@
-package inet256srv
+package netutil
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func NewTellHub() *TellHub {
 	}
 }
 
-func (q *TellHub) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+func (q *TellHub) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
 	if err := q.checkClosed(); err != nil {
 		return 0, err
 	}
@@ -80,7 +80,7 @@ func (q *TellHub) Wait(ctx context.Context) error {
 // Deliver delivers a message to a caller of Recv
 // If Deliver returns an error it will be from the context expiring, or because the hub closed.
 func (q *TellHub) Deliver(ctx context.Context, m Message) error {
-	return q.claim(ctx, func(src, dst *Addr, buf []byte) (int, error) {
+	return q.claim(ctx, func(src, dst *inet256.Addr, buf []byte) (int, error) {
 		if len(buf) < len(m.Payload) {
 			return 0, io.ErrShortBuffer
 		}
@@ -92,7 +92,7 @@ func (q *TellHub) Deliver(ctx context.Context, m Message) error {
 
 // Claim calls fn, as if from a caller of Recv
 // fn should never block
-func (q *TellHub) claim(ctx context.Context, fn func(src, dst *Addr, buf []byte) (int, error)) error {
+func (q *TellHub) claim(ctx context.Context, fn func(src, dst *inet256.Addr, buf []byte) (int, error)) error {
 	// mark ready, until claim returns
 	q.ready.MoreReady()
 	defer q.ready.LessReady()
@@ -192,7 +192,7 @@ func (rs readySwitch) LessReady() {
 }
 
 type recvReq struct {
-	src, dst *Addr
+	src, dst *inet256.Addr
 	buf      []byte
 
 	done chan struct{}
@@ -202,7 +202,7 @@ type recvReq struct {
 
 // Select waits on each network in xs and returns either:
 // the index of a ready network, or -1 if the context expires.
-func Select(ctx context.Context, xs []Network) int {
+func Select(ctx context.Context, xs []inet256.Network) int {
 	s := NewSelector(xs)
 	defer s.Close()
 	return s.Which(ctx)
@@ -211,12 +211,12 @@ func Select(ctx context.Context, xs []Network) int {
 // Selector lets callers wait for 1 of N Networks to be ready to receive data
 type Selector struct {
 	ready    chan int
-	networks []Network
+	networks []inet256.Network
 	eg       *errgroup.Group
 	cf       context.CancelFunc
 }
 
-func NewSelector(ns []Network) *Selector {
+func NewSelector(ns []inet256.Network) *Selector {
 	ctx, cf := context.WithCancel(context.Background())
 	eg, ctx := errgroup.WithContext(ctx)
 	s := &Selector{
@@ -245,7 +245,7 @@ func NewSelector(ns []Network) *Selector {
 	return s
 }
 
-func (s *Selector) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
+func (s *Selector) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
 	var n int
 	var err error
 	for {

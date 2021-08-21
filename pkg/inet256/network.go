@@ -30,9 +30,11 @@ const (
 	// TransportMTU is the guaranteed MTU presented to networks.
 	TransportMTU = (1 << 16) - 1
 
-	// MinMTU is the minimum MTU a network can provide to any address
+	// MinMTU is the minimum MTU a network can provide to any address.
+	// Applications should be designed to operate correctly if they have to send messages up to this size.
 	MinMTU = 1 << 15
 	// MaxMTU is the largest message that a network will ever receive from any address.
+	// Applications should be prepared to receieve this much data at a time or they may encounter io.ErrShortBuffer
 	MaxMTU = 1 << 16
 )
 

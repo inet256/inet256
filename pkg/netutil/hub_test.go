@@ -1,9 +1,10 @@
-package inet256srv
+package netutil
 
 import (
 	"context"
 	"testing"
 
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +18,7 @@ func TestHub(t *testing.T) {
 	}()
 
 	require.NoError(t, hub.Wait(ctx))
-	var src, dst Addr
+	var src, dst inet256.Addr
 	buf := make([]byte, 100)
 	_, err := hub.Receive(ctx, &src, &dst, buf)
 	require.NoError(t, err)
