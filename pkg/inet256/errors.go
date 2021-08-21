@@ -3,6 +3,7 @@ package inet256
 import (
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/brendoncarroll/go-p2p"
 )
@@ -11,6 +12,7 @@ var (
 	ErrPublicKeyNotFound = p2p.ErrPublicKeyNotFound
 	ErrNoAddrWithPrefix  = errors.New("no address with prefix")
 	ErrWouldBlock        = errors.New("call to Recv would block")
+	ErrClosed            = net.ErrClosed
 )
 
 func IsPublicKeyNotFound(err error) bool {
@@ -20,6 +22,10 @@ func IsPublicKeyNotFound(err error) bool {
 func IsUnreachable(err error) bool {
 	target := &ErrAddrUnreachable{}
 	return errors.Is(err, target)
+}
+
+func IsErrClosed(err error) bool {
+	return errors.Is(err, ErrClosed)
 }
 
 type ErrAddrUnreachable struct {

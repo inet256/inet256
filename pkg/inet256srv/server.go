@@ -71,7 +71,7 @@ func NewServer(params Params) *Server {
 			Peers:      ChainPeerStore{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]Node),
-		log:   logrus.New(),
+		log:   logrus.StandardLogger(),
 	}
 	return s
 }

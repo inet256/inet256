@@ -29,8 +29,8 @@ type Network struct {
 	peerSet                    inet256.PeerSet
 	beaconPeriod, peerStateTTL time.Duration
 
+	sg         netutil.ServiceGroup
 	tellHub    *netutil.TellHub
-	cf         context.CancelFunc
 	mu         sync.Mutex
 	peerStates map[inet256.Addr]peerState
 }
@@ -40,7 +40,6 @@ func Factory(params inet256.NetworkParams) inet256.Network {
 }
 
 func New(params inet256.NetworkParams) inet256.Network {
-	ctx, cf := context.WithCancel(context.Background())
 	n := &Network{
 		privateKey:   params.PrivateKey,
 		log:          params.Logger,
@@ -50,13 +49,12 @@ func New(params inet256.NetworkParams) inet256.Network {
 		peerStateTTL: defaultPeerStateTTL,
 
 		tellHub: netutil.NewTellHub(),
-		cf:      cf,
 
 		peerStates: make(map[inet256.Addr]peerState),
 	}
-	go n.broadcastBeaconLoop(ctx)
-	go n.cleanupLoop(ctx)
-	go n.recvLoops(ctx)
+	n.sg.Go(n.broadcastBeaconLoop)
+	n.sg.Go(n.cleanupLoop)
+	n.sg.Go(n.recvLoops)
 	return n
 }
 
@@ -132,7 +130,7 @@ func (n *Network) Bootstrap(ctx context.Context) error {
 }
 
 func (n *Network) Close() error {
-	n.cf()
+	n.sg.Stop()
 	n.tellHub.CloseWithError(nil)
 	err := n.swarm.Close()
 	return err

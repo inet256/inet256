@@ -14,7 +14,7 @@ import (
 
 const (
 	channelHeartbeat = 0
-	channelData      = 127
+	channelData      = 1
 )
 
 // swarm manages the mapping from transport addresses p2p.Addr to inet256.Addrs.
@@ -25,8 +25,8 @@ type swarm struct {
 	inner     p2p.SecureSwarm
 
 	localID   inet256.Addr
-	mux       p2pmux.IntSecureMux
-	tm        *transportMonitor
+	mux       p2pmux.Uint16SecureMux
+	lm        *linkMonitor
 	dataSwarm p2p.SecureSwarm
 	meter     meter
 }
@@ -36,14 +36,14 @@ func NewSwarm(x p2p.SecureSwarm, peerStore PeerStore) inet256.Swarm {
 }
 
 func newSwarm(x p2p.SecureSwarm, peerStore PeerStore) *swarm {
-	mux := p2pmux.NewVarintSecureMux(x)
+	mux := p2pmux.NewUint16SecureMux(x)
 	return &swarm{
 		peerStore: peerStore,
 		inner:     x,
 		localID:   inet256.NewAddr(x.PublicKey()),
 
 		mux:       mux,
-		tm:        newTransportMonitor(mux.Open(channelHeartbeat), peerStore, logrus.StandardLogger()),
+		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, logrus.StandardLogger()),
 		dataSwarm: mux.Open(channelData),
 	}
 }
@@ -70,7 +70,7 @@ func (s *swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (in
 			continue
 		}
 		srcID := inet256.NewAddr(srcKey)
-		s.tm.Mark(srcID, *src, time.Now())
+		s.lm.Mark(srcID, *src, time.Now())
 		s.meter.Rx(inet256.Addr(srcID), n)
 
 		*src = srcID
@@ -96,7 +96,7 @@ func (s *swarm) ParseAddr(data []byte) (p2p.Addr, error) {
 }
 
 func (s *swarm) Close() error {
-	if err := s.tm.Close(); err != nil {
+	if err := s.lm.Close(); err != nil {
 		logrus.Error(err)
 	}
 	if err := s.dataSwarm.Close(); err != nil {
@@ -130,11 +130,11 @@ func (s *swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.Publi
 }
 
 func (s *swarm) selectAddr(x inet256.Addr) (p2p.Addr, error) {
-	return s.tm.PickAddr(x)
+	return s.lm.PickAddr(x)
 }
 
 func (s *swarm) LastSeen(id inet256.Addr) map[string]time.Time {
-	return s.tm.LastSeen(id)
+	return s.lm.LastSeen(id)
 }
 
 func (s *swarm) GetTx(id inet256.Addr) uint64 {
