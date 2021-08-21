@@ -8,9 +8,9 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
+	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/inet256srv"
-	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -20,8 +20,8 @@ func TestService(t *testing.T) {
 	ids := generatePeerIDs(2)
 	id1, id2 := ids[0], ids[1]
 
-	ps1 := inet256srv.NewPeerStore()
-	ps2 := inet256srv.NewPeerStore()
+	ps1 := mesh256.NewPeerStore()
+	ps2 := mesh256.NewPeerStore()
 	ps1.Add(id2)
 	ps2.Add(id1)
 
