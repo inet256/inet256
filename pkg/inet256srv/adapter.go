@@ -5,6 +5,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
 )
 
 // netAdapter converts an inet256.Network into a p2p.Swarm
@@ -77,7 +78,7 @@ type swarmAdapter struct {
 	swarm         p2p.SecureSwarm
 	findAddr      FindAddrFunc
 	bootstrapFunc BootstrapFunc
-	tells         *TellHub
+	tells         *netutil.TellHub
 }
 
 func networkFromSwarm(x p2p.SecureSwarm, findAddr FindAddrFunc, bootstrapFunc BootstrapFunc) Network {
@@ -85,7 +86,7 @@ func networkFromSwarm(x p2p.SecureSwarm, findAddr FindAddrFunc, bootstrapFunc Bo
 		swarm:         x,
 		findAddr:      findAddr,
 		bootstrapFunc: bootstrapFunc,
-		tells:         NewTellHub(),
+		tells:         netutil.NewTellHub(),
 	}
 	ctx := context.Background()
 	go func() error {
@@ -96,7 +97,7 @@ func networkFromSwarm(x p2p.SecureSwarm, findAddr FindAddrFunc, bootstrapFunc Bo
 			if err != nil {
 				return err
 			}
-			if err := sa.tells.Deliver(ctx, Message{
+			if err := sa.tells.Deliver(ctx, netutil.Message{
 				Src:     src.(inet256.Addr),
 				Dst:     dst.(inet256.Addr),
 				Payload: buf[:n],

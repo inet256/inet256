@@ -77,8 +77,8 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 
 	eg := errgroup.Group{}
 	var recieved string
+	var srcAddr, dstAddr inet256.Addr
 	eg.Go(func() error {
-		var srcAddr, dstAddr inet256.Addr
 		buf := make([]byte, inet256.TransportMTU)
 		n, err := dst.Receive(ctx, &srcAddr, &dstAddr, buf)
 		if err != nil {
@@ -93,6 +93,8 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 	})
 	require.NoError(t, eg.Wait())
 	require.Equal(t, sent, recieved)
+	//require.Equal(t, src.LocalAddr(), srcAddr)
+	require.Equal(t, dst.LocalAddr(), dstAddr)
 }
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
@@ -138,7 +140,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 }
 
 func bootstrapNetworks(t testing.TB, nets []Network) {
-	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), time.Second*time.Duration(len(nets)))
 	defer cf()
 	for i := 0; i < len(nets); i++ {
 		err := nets[i].Bootstrap(ctx)

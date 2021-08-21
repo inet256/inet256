@@ -51,6 +51,10 @@ func (a Addr) GetPeerID() p2p.PeerID {
 	return p2p.PeerID(a)
 }
 
+func (a Addr) IsZero() bool {
+	return a == (Addr{})
+}
+
 func ParsePublicKey(data []byte) (PublicKey, error) {
 	return p2p.ParsePublicKey(data)
 }

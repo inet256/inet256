@@ -9,6 +9,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -27,7 +28,7 @@ const (
 type multiNetwork struct {
 	networks []Network
 	addrMap  sync.Map
-	selector *Selector
+	selector *netutil.Selector
 }
 
 func newMultiNetwork(networks ...Network) Network {
@@ -38,7 +39,7 @@ func newMultiNetwork(networks ...Network) Network {
 	}
 	mn := &multiNetwork{
 		networks: networks,
-		selector: NewSelector(networks),
+		selector: netutil.NewSelector(networks),
 	}
 	return mn
 }
@@ -157,13 +158,13 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) (Network, e
 
 type chainNetwork struct {
 	networks []Network
-	selector *Selector
+	selector *netutil.Selector
 }
 
 func newChainNetwork(ns ...Network) Network {
 	return chainNetwork{
 		networks: ns,
-		selector: NewSelector(ns),
+		selector: netutil.NewSelector(ns),
 	}
 }
 
@@ -247,14 +248,14 @@ func (n chainNetwork) WaitReceive(ctx context.Context) error {
 type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
-	hub       *TellHub
+	hub       *netutil.TellHub
 }
 
 func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 	ln := &loopbackNetwork{
 		localAddr: inet256.NewAddr(localKey),
 		localKey:  localKey,
-		hub:       NewTellHub(),
+		hub:       netutil.NewTellHub(),
 	}
 	return ln
 }
@@ -263,7 +264,7 @@ func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error
 	if dst != n.localAddr {
 		return inet256.ErrAddrUnreachable{Addr: dst}
 	}
-	return n.hub.Deliver(ctx, Message{Src: dst, Dst: dst, Payload: data})
+	return n.hub.Deliver(ctx, netutil.Message{Src: dst, Dst: dst, Payload: data})
 }
 
 func (n *loopbackNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {

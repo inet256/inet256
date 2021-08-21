@@ -1,28 +1,36 @@
 package beaconnet
 
 import (
+	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/peerswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
-type Network struct {
-	privateKey p2p.PrivateKey
-	log        *logrus.Logger
-	swarm      peerswarm.Swarm
-	peerSet    inet256.PeerSet
-	recvHub    *inet256.RecvHub
-	cf         context.CancelFunc
+const (
+	defaultBeaconPeriod = 1 * time.Second
+	defaultPeerStateTTL = 30 * time.Second
+	findAddrTimeout     = 10 * time.Second
+)
 
+type Network struct {
+	privateKey                 p2p.PrivateKey
+	log                        *logrus.Logger
+	swarm                      inet256.Swarm
+	peerSet                    inet256.PeerSet
+	beaconPeriod, peerStateTTL time.Duration
+
+	tellHub    *netutil.TellHub
+	cf         context.CancelFunc
 	mu         sync.Mutex
 	peerStates map[inet256.Addr]peerState
 }
@@ -34,46 +42,52 @@ func Factory(params inet256.NetworkParams) inet256.Network {
 func New(params inet256.NetworkParams) inet256.Network {
 	ctx, cf := context.WithCancel(context.Background())
 	n := &Network{
-		privateKey: params.PrivateKey,
-		log:        params.Logger,
-		swarm:      params.Swarm,
-		peerSet:    params.Peers,
-		recvHub:    inet256.NewRecvHub(),
-		cf:         cf,
+		privateKey:   params.PrivateKey,
+		log:          params.Logger,
+		swarm:        params.Swarm,
+		peerSet:      params.Peers,
+		beaconPeriod: defaultBeaconPeriod,
+		peerStateTTL: defaultPeerStateTTL,
 
-		peerStates: make(map[p2p.PeerID]peerState),
+		tellHub: netutil.NewTellHub(),
+		cf:      cf,
+
+		peerStates: make(map[inet256.Addr]peerState),
 	}
-	go n.broadcastLoop(ctx)
-	go n.swarm.ServeTells(n.fromBelow)
+	go n.broadcastBeaconLoop(ctx)
+	go n.cleanupLoop(ctx)
+	go n.recvLoops(ctx)
 	return n
 }
 
-func (n *Network) WaitReady(ctx context.Context) error {
-	return n.broadcastOnce(ctx)
+func (n *Network) WaitReceive(ctx context.Context) error {
+	return n.tellHub.Wait(ctx)
 }
 
-func (n *Network) Recv(fn inet256.RecvFunc) error {
-	return n.recvHub.Recv(fn)
+func (n *Network) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
+	return n.tellHub.Receive(ctx, src, dst, buf)
 }
 
 func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
+	if n.peerSet.Contains(dst) {
+		return n.send(ctx, dst, dst, TypeData, data)
+	}
+	if _, err := n.FindAddr(ctx, dst[:], len(dst)*8); err != nil {
+		return err
+	}
 	peerState := n.lookupPeerState(dst)
 	if peerState == nil {
 		return errors.Errorf("no state for peer %v", dst)
 	}
-	msg := Message{
-		Data: &DataMessage{
-			Src:     p2p.NewPeerID(n.privateKey.Public()),
-			Dst:     dst,
-			Payload: data,
-		},
-	}
-	return n.swarm.TellPeer(ctx, peerState.next, p2p.IOVec{jsonMarshal(msg)})
+	return n.send(ctx, peerState.next, dst, TypeData, data)
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
 	if n.peerSet.Contains(target) {
 		return n.swarm.LookupPublicKey(ctx, target)
+	}
+	if _, err := n.FindAddr(ctx, target[:], len(target)*8); err != nil {
+		return nil, err
 	}
 	ps := n.lookupPeerState(target)
 	if ps == nil {
@@ -88,108 +102,183 @@ func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet2
 			return id, nil
 		}
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	for id := range n.peerStates {
-		if inet256.HasPrefix(id[:], prefix, nbits) {
-			return id, nil
+	ctx, cf := context.WithTimeout(ctx, 10*time.Second)
+	defer cf()
+	var result inet256.Addr
+	err := netutil.Retry(ctx, func() error {
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		for id := range n.peerStates {
+			if inet256.HasPrefix(id[:], prefix, nbits) {
+				result = id
+				return nil
+			}
 		}
-	}
-	return inet256.Addr{}, nil
+		return errors.Errorf("no state for peer matching prefix %x", prefix)
+	}, netutil.WithPulseTrain(netutil.NewLinear(100*time.Millisecond)))
+	return result, err
 }
 
 func (n *Network) LocalAddr() inet256.Addr {
-	return p2p.NewPeerID(n.privateKey.Public())
+	return inet256.NewAddr(n.privateKey.Public())
 }
 
 func (n *Network) MTU(ctx context.Context, addr inet256.Addr) int {
-	return inet256.TransportMTU - 128
+	return inet256.TransportMTU - HeaderSize
+}
+
+func (n *Network) Bootstrap(ctx context.Context) error {
+	return n.broadcastBeacon(ctx)
 }
 
 func (n *Network) Close() error {
+	n.cf()
+	n.tellHub.CloseWithError(nil)
 	err := n.swarm.Close()
-	n.recvHub.CloseWithError(err)
 	return err
 }
 
-func (n *Network) fromBelow(msg *p2p.Message) {
-	src := msg.Src.(p2p.PeerID)
-	if err := func() error {
-		var m Message
-		if err := json.Unmarshal(msg.Payload, &m); err != nil {
+func (n *Network) DumpState() string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	buf := bytes.NewBuffer(nil)
+	fmt.Fprintln(buf, n.LocalAddr())
+	fmt.Fprintf(buf, "PEER STATES len=%d\n", len(n.peerStates))
+	fmt.Fprint(buf, n.peerStates)
+	fmt.Fprintln(buf)
+	return buf.String()
+}
+
+func (nwk *Network) recvLoop(ctx context.Context) error {
+	buf := make([]byte, inet256.TransportMTU)
+	for {
+		var src, dst inet256.Addr
+		n, err := nwk.swarm.Receive(ctx, &src, &dst, buf)
+		if err != nil {
 			return err
 		}
-		switch {
-		case m.Beacon != nil:
-			return n.handleBeacon(src, m.Beacon)
-		case m.Data != nil:
-			return n.handleData(src, m.Data)
+		err = nwk.handleMessage(ctx, inet256.Message{
+			Src:     src,
+			Dst:     dst,
+			Payload: buf[:n],
+		})
+		if err != nil {
+			nwk.log.Warnf("while handling message from %v: %v", src, err)
 		}
-		return nil
-	}(); err != nil {
-		n.log.Errorf("invalid message from %v", msg.Src)
 	}
 }
 
-func (n *Network) handleBeacon(prev inet256.Addr, b *Beacon) error {
-	pubKey, err := p2p.ParsePublicKey(b.PublicKey)
+func (nwk *Network) recvLoops(ctx context.Context) error {
+	wp := netutil.WorkerPool{
+		Fn: func(ctx context.Context) {
+			err := nwk.recvLoop(ctx)
+			if err != nil && !errors.Is(err, ctx.Err()) && !p2p.IsErrSwarmClosed(err) {
+				nwk.log.Errorf("exiting recvLoop %v", err)
+			}
+		},
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		l := len(nwk.peerSet.ListPeers())
+		wp.SetCount(l + 1)
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (n *Network) handleMessage(ctx context.Context, msg inet256.Message) error {
+	hdr, body, err := ParseMessage(msg.Payload)
 	if err != nil {
 		return err
 	}
-	peer := p2p.NewPeerID(pubKey)
-	n.mu.Lock()
-	var updated bool
-	ps, exists := n.peerStates[peer]
-	if !exists || b.Counter > ps.counter {
-		updated = true
-		ps = peerState{
-			counter:   b.Counter,
-			next:      prev,
-			publicKey: pubKey,
-		}
-	}
-	n.peerStates[peer] = ps
-	n.mu.Unlock()
-	if updated {
-		ctx := context.Background()
-		eg := errgroup.Group{}
-		for _, id := range n.peerSet.ListPeers() {
-			if id == prev {
-				continue
-			}
-			id := id
-			data := jsonMarshal(Message{
-				Beacon: b,
-			})
-			eg.Go(func() error {
-				return n.swarm.TellPeer(ctx, id, p2p.IOVec{data})
-			})
-		}
-		if err := eg.Wait(); err != nil {
+	switch hdr.GetType() {
+	case TypeBeacon:
+		var beacon Beacon
+		if err := json.Unmarshal(body, &beacon); err != nil {
 			return err
 		}
-		return n.broadcastOnce(ctx)
+		return n.handleBeacon(ctx, msg.Src, hdr, beacon)
+	case TypeData:
+		return n.handleData(ctx, msg.Src, hdr, body)
+	default:
+		return errors.Errorf("invalid message type %v", hdr.GetType())
 	}
-	if !exists {
-		return n.broadcastOnce(context.Background())
+}
+
+// handleBeacon handles updating the network state when a Beacon is received
+func (n *Network) handleBeacon(ctx context.Context, prev inet256.Addr, hdr Header, b Beacon) error {
+	pubKey, err := verifyBeacon(b)
+	if err != nil {
+		return err
+	}
+	updated := n.updatePeerState(prev, pubKey, b.Counter)
+	data := jsonMarshal(b)
+	// a broadcast beacon that we haven't seen.
+	if updated && hdr.GetDst() == broadcastAddr {
+		if err := n.broadcast(ctx, prev, TypeBeacon, data); err != nil {
+			return err
+		}
+	}
+	// a targetted beacon
+	if hdr.GetDst() != broadcastAddr {
+		ps := n.lookupPeerState(hdr.GetDst())
+		if ps != nil {
+			if err := n.send(ctx, ps.next, hdr.GetDst(), TypeBeacon, data); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-func (n *Network) handleData(prev inet256.Addr, dm *DataMessage) error {
-	if dm.Dst == n.LocalAddr() {
-		n.recvHub.Deliver(dm.Src, dm.Dst, dm.Payload)
-		return nil
+func (n *Network) handleData(ctx context.Context, prev inet256.Addr, hdr Header, body []byte) error {
+	dst := hdr.GetDst()
+	src := hdr.GetSrc()
+	switch {
+	// local
+	case dst == n.LocalAddr():
+		return n.tellHub.Deliver(ctx, inet256.Message{
+			Src:     src,
+			Dst:     dst,
+			Payload: body,
+		})
+
+	// neighbor
+	case n.peerSet.Contains(dst):
+		return n.swarm.Tell(ctx, dst, p2p.IOVec{hdr[:], body})
+
+	// forward
+	default:
+		ps := n.lookupPeerState(dst)
+		if ps == nil {
+			return errors.Errorf("cannot forward. don't know next hop to %v", dst)
+		}
+		const timeout = 3 * time.Second
+		ctx, cf := context.WithTimeout(context.Background(), timeout)
+		defer cf()
+		return n.swarm.Tell(ctx, ps.next, p2p.IOVec{hdr[:], body})
 	}
-	ps := n.lookupPeerState(dm.Dst)
-	if ps == nil {
-		return errors.Errorf("cannot forward to %v", dm.Dst)
+}
+
+func (n *Network) updatePeerState(next inet256.Addr, pubKey p2p.PublicKey, counter uint64) (updated bool) {
+	peer := inet256.NewAddr(pubKey)
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	ps, exists := n.peerStates[peer]
+	if !exists || counter > ps.counter {
+		updated = true
+		ps = peerState{
+			counter:   counter,
+			next:      next,
+			publicKey: pubKey,
+		}
 	}
-	const timeout = 3 * time.Second
-	ctx, cf := context.WithTimeout(context.Background(), timeout)
-	defer cf()
-	data := jsonMarshal(Message{Data: dm})
-	return n.swarm.TellPeer(ctx, ps.next, p2p.IOVec{data})
+	n.peerStates[peer] = ps
+	return updated
 }
 
 func (n *Network) lookupPeerState(dst inet256.Addr) *peerState {
@@ -199,17 +288,11 @@ func (n *Network) lookupPeerState(dst inet256.Addr) *peerState {
 	if !exists {
 		return nil
 	}
-	const stateStaleTimeout = time.Minute
-	now := time.Now().UTC()
-	if uint64(now.UnixNano()-stateStaleTimeout.Nanoseconds()) < peerState.counter {
-		delete(n.peerStates, dst)
-		return nil
-	}
 	return &peerState
 }
 
-func (n *Network) broadcastLoop(ctx context.Context) error {
-	const period = 3 * time.Second
+func (n *Network) broadcastBeaconLoop(ctx context.Context) error {
+	period := n.beaconPeriod
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 	for {
@@ -217,7 +300,7 @@ func (n *Network) broadcastLoop(ctx context.Context) error {
 		case <-ticker.C:
 			ctx, cf := context.WithTimeout(ctx, period/3)
 			defer cf()
-			if err := n.broadcastOnce(ctx); err != nil {
+			if err := n.broadcastBeacon(ctx); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -226,46 +309,79 @@ func (n *Network) broadcastLoop(ctx context.Context) error {
 	}
 }
 
-const sigPurpose = "inet256/beaconnet/beacon"
-
-func (n *Network) broadcastOnce(ctx context.Context) error {
+// broadcastBeacon sends a beacon out to all peers.
+func (n *Network) broadcastBeacon(ctx context.Context) error {
 	now := time.Now()
-	msg := Message{
-		Beacon: newBeacon(n.privateKey, now),
-	}
-	data := jsonMarshal(msg)
+	b := newBeacon(n.privateKey, now)
+	body := jsonMarshal(b)
+	return n.broadcast(ctx, n.LocalAddr(), TypeBeacon, body)
+}
+
+// sendBeacon sends a beacon to next.
+func (n *Network) sendBeacon(ctx context.Context, next, dst inet256.Addr) error {
+	now := time.Now()
+	b := newBeacon(n.privateKey, now)
+	body := jsonMarshal(b)
+	return n.send(ctx, next, dst, TypeBeacon, body)
+}
+
+// broadcast sends a message with mtype and body to all peers
+func (n *Network) broadcast(ctx context.Context, exclude inet256.Addr, mtype uint8, body []byte) error {
+	hdr := Header{}
+	hdr.SetSrc(n.LocalAddr())
+	hdr.SetDst(broadcastAddr)
+	hdr.SetType(mtype)
 	eg := errgroup.Group{}
 	for _, peerID := range n.peerSet.ListPeers() {
+		if peerID == exclude {
+			continue
+		}
 		peerID := peerID
 		eg.Go(func() error {
-			return n.swarm.TellPeer(ctx, peerID, p2p.IOVec{data})
+			return n.swarm.Tell(ctx, peerID, p2p.IOVec{hdr[:], body})
 		})
 	}
 	return eg.Wait()
 }
 
-func newBeacon(privateKey p2p.PrivateKey, now time.Time) *Beacon {
-	now = now.UTC()
-	counter := now.UnixNano()
-	counterBytes := [8]byte{}
-	binary.BigEndian.PutUint64(counterBytes[:], uint64(counter))
-	sig, err := p2p.Sign(nil, privateKey, sigPurpose, counterBytes[:])
-	if err != nil {
-		panic(err)
-	}
-	return &Beacon{
-		PublicKey: p2p.MarshalPublicKey(privateKey.Public()),
-		Counter:   uint64(now.Unix()),
-		Sig:       sig,
+// send sends a message with dst, mtype and body to peer next.
+func (n *Network) send(ctx context.Context, next, dst inet256.Addr, mtype uint8, body []byte) error {
+	hdr := Header{}
+	hdr.SetSrc(n.LocalAddr())
+	hdr.SetDst(dst)
+	hdr.SetType(mtype)
+	return n.swarm.Tell(ctx, next, p2p.IOVec{hdr[:], body})
+}
+
+func (n *Network) cleanupLoop(ctx context.Context) error {
+	period := n.peerStateTTL
+	ticker := time.NewTicker(period)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			ctx, cf := context.WithTimeout(ctx, period/3)
+			defer cf()
+			if err := n.cleanupOnce(ctx); err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
-func jsonMarshal(x interface{}) []byte {
-	data, err := json.Marshal(x)
-	if err != nil {
-		panic(err)
+func (n *Network) cleanupOnce(ctx context.Context) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	now := time.Now().UTC()
+	nowCounter := uint64(now.UnixNano())
+	for addr, ps := range n.peerStates {
+		if time.Duration(nowCounter-ps.counter) > n.peerStateTTL {
+			delete(n.peerStates, addr)
+		}
 	}
-	return data
+	return nil
 }
 
 type peerState struct {
@@ -274,19 +390,6 @@ type peerState struct {
 	publicKey p2p.PublicKey
 }
 
-type Beacon struct {
-	PublicKey []byte `json:"public_key"`
-	Counter   uint64 `json:"counter"`
-	Sig       []byte `json:"sig"`
-}
-
-type DataMessage struct {
-	Src     inet256.Addr `json:"src"`
-	Dst     inet256.Addr `json:"dst"`
-	Payload []byte       `json:"payload"`
-}
-
-type Message struct {
-	Beacon *Beacon      `json:"beacon,omitempty"`
-	Data   *DataMessage `json:"data,omitempty"`
+func (ps peerState) String() string {
+	return fmt.Sprintf("{next: %v, counter: %d}", ps.next, ps.counter)
 }
