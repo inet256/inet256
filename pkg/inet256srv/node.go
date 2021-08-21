@@ -14,11 +14,17 @@ import (
 
 type PeerStore = inet256.PeerStore
 type PeerSet = inet256.PeerSet
-type NetworkSpec = inet256.NetworkSpec
 type Node = inet256.Node
 type Network = inet256.Network
 type Addr = inet256.Addr
 type NetworkParams = inet256.NetworkParams
+
+// NetworkSpec is a name associated with a network factory
+type NetworkSpec struct {
+	Index   uint64
+	Name    string
+	Factory inet256.NetworkFactory
+}
 
 type Params struct {
 	p2p.PrivateKey
@@ -38,7 +44,7 @@ type node struct {
 func NewNode(params Params) Node {
 	transportSwarm := multiswarm.NewSecure(params.Swarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
-	mux := p2pmux.NewVarintSecureMux(basePeerSwarm)
+	mux := p2pmux.NewUint64SecureMux(basePeerSwarm)
 
 	// create multi network
 	networks := make([]Network, len(params.Networks))

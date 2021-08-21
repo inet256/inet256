@@ -65,13 +65,6 @@ type NetworkParams struct {
 // NetworkFactory is a constructor for a network
 type NetworkFactory func(NetworkParams) Network
 
-// NetworkSpec is a name associated with a network factory
-type NetworkSpec struct {
-	Index   uint64
-	Name    string
-	Factory NetworkFactory
-}
-
 type Logger = logrus.Logger
 
 // RecvNonBlocking calls receive on the network, but immediately errors

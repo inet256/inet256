@@ -112,9 +112,9 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		peers.SetAddrs(pspec.ID, addrs)
 	}
 	// networks
-	nspecs := []inet256.NetworkSpec{}
+	nspecs := []inet256srv.NetworkSpec{}
 	for _, netName := range c.Networks {
-		nspec, exists := networkNames[netName]
+		nspec, exists := name2Network[netName]
 		if !exists {
 			return nil, errors.Errorf("no network: %s", netName)
 		}
@@ -198,7 +198,7 @@ func DefaultConfig() Config {
 
 func DefaultNetworks() []string {
 	var names []string
-	for name := range networkNames {
+	for name := range name2Network {
 		names = append(names, name)
 	}
 	return names

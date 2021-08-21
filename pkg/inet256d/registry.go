@@ -4,12 +4,28 @@ import (
 	"encoding/binary"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 )
 
-var (
-	networkIndexes = map[uint64]inet256.NetworkSpec{}
-	networkNames   = map[string]inet256.NetworkSpec{}
-)
+var name2Network = map[string]inet256srv.NetworkSpec{}
+var index2Network = map[uint64]string{}
+
+func Register(name string, index uint64, nf inet256.NetworkFactory) {
+	_, exists := name2Network[name]
+	if exists {
+		panic("duplicate network " + name)
+	}
+	_, exists = index2Network[index]
+	if exists {
+		panic("duplicate index for network" + name)
+	}
+	name2Network[name] = inet256srv.NetworkSpec{
+		Factory: nf,
+		Index:   index,
+		Name:    name,
+	}
+	index2Network[index] = name
+}
 
 func IndexFromString(x string) uint64 {
 	if len(x) > 8 {
@@ -20,20 +36,4 @@ func IndexFromString(x string) uint64 {
 		b = append(b, 0x00)
 	}
 	return binary.LittleEndian.Uint64(b)
-}
-
-func Register(index uint64, name string, factory inet256.NetworkFactory) {
-	netSpec := inet256.NetworkSpec{
-		Name:    name,
-		Index:   index,
-		Factory: factory,
-	}
-	if _, exists := networkIndexes[netSpec.Index]; exists {
-		panic("network by that name already exists")
-	}
-	if _, exists := networkNames[netSpec.Name]; exists {
-		panic("network already exists at that index")
-	}
-	networkIndexes[netSpec.Index] = netSpec
-	networkNames[netSpec.Name] = netSpec
 }

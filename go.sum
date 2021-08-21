@@ -47,6 +47,8 @@ github.com/bkaradzic/go-lz4 v0.0.0-20160924222819-7224d8d8f27e/go.mod h1:0Ydlkow
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
 github.com/brendoncarroll/go-p2p v0.0.0-20210814171431-566793c5a6a6 h1:Ez/GQdfXa1j/VFNyBLn3QvxEWtwZZ4VFum1Z0E4ARVE=
 github.com/brendoncarroll/go-p2p v0.0.0-20210814171431-566793c5a6a6/go.mod h1:tXEfapNF/whaBeE9HD6wY/QofRZ0Sr01aAtQNB1Le9s=
+github.com/brendoncarroll/go-p2p v0.0.0-20210819000259-cc04d176d6c1 h1:p4ft2Ml7/p9WzUVvE/Ep6Z+dEpoghGyip/P4eAMF+RA=
+github.com/brendoncarroll/go-p2p v0.0.0-20210819000259-cc04d176d6c1/go.mod h1:tXEfapNF/whaBeE9HD6wY/QofRZ0Sr01aAtQNB1Le9s=
 github.com/brendoncarroll/go-state v0.0.0-20210627233638-99c825eb7040 h1:I46IjykpWXCBYWVWGX8wqX7YCGWoAEY48+aR3p9tpak=
 github.com/brendoncarroll/go-state v0.0.0-20210627233638-99c825eb7040/go.mod h1:EQKdXJyc93dh3yN1wRYdKjAZk+MutF5DFwoW+Vqe5U0=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23/go.mod h1:bbYlZJ7hK1yFx9hf58LP0zeX7UjIGs20ufpu3evjr+s=

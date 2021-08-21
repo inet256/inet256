@@ -10,9 +10,8 @@ import (
 )
 
 func main() {
-	// inet256d.Register(inet256d.IndexFromString("kad+sr"), "kad+sr", kadsrnet.Factory)
-	inet256d.Register(inet256d.IndexFromString("onehop"), "onehop", inet256srv.OneHopFactory)
-	inet256d.Register(inet256d.IndexFromString("flood"), "flood", floodnet.Factory)
+	inet256d.Register("onehop", inet256d.IndexFromString("onehop"), inet256srv.OneHopFactory)
+	inet256d.Register("floodnet", inet256d.IndexFromString("floodnet"), floodnet.Factory)
 	if err := inet256cmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
