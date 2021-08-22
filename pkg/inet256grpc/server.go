@@ -190,10 +190,9 @@ func (s *Server) decrNode(privKey p2p.PrivateKey) {
 	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("closing gRPC stream")
 	if s.counts[id] == 0 {
 		if err := s.s.DeleteNode(privKey); err != nil {
-			logrus.Error("closing node: ", err)
+			logrus.Error("while closing node: ", err)
 		}
 		delete(s.counts, id)
 		delete(s.nodes, id)
-		logrus.WithFields(logrus.Fields{"addr": id}).Info("closing node")
 	}
 }
