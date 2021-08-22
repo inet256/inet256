@@ -181,17 +181,18 @@ func (s *Server) decrNode(privKey p2p.PrivateKey) {
 	id := inet256.NewAddr(privKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.nodes[id]; !exists {
+	_, exists := s.nodes[id]
+	if !exists {
 		panic("decr non-existing node")
 	}
 	s.counts[id]--
 	count := s.counts[id]
+	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("closing gRPC stream")
 	if s.counts[id] == 0 {
 		if err := s.s.DeleteNode(privKey); err != nil {
-			logrus.Error("deleting node: ", err)
+			logrus.Error("while closing node: ", err)
 		}
 		delete(s.counts, id)
 		delete(s.nodes, id)
 	}
-	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("closing gRPC stream")
 }

@@ -121,6 +121,9 @@ func (q *TellHub) checkClosed() error {
 }
 
 func (q *TellHub) CloseWithError(err error) {
+	if err == nil {
+		err = inet256.ErrClosed
+	}
 	q.closeOnce.Do(func() {
 		q.err = err
 		close(q.closed)

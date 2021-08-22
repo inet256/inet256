@@ -11,7 +11,6 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -97,16 +96,12 @@ func (mn *multiNetwork) Bootstrap(ctx context.Context) error {
 }
 
 func (mn *multiNetwork) Close() (retErr error) {
-	mn.selector.Close()
+	var el netutil.ErrList
+	el.Do(mn.selector.Close)
 	for _, n := range mn.networks {
-		if err := n.Close(); err != nil {
-			logrus.Error(err)
-			if retErr == nil {
-				retErr = err
-			}
-		}
+		el.Do(n.Close)
 	}
-	return retErr
+	return el.Err()
 }
 
 func (mn *multiNetwork) addrWithPrefix(ctx context.Context, prefix []byte, nbits int) (addr Addr, network Network, err error) {
@@ -208,15 +203,12 @@ func (n chainNetwork) LocalAddr() Addr {
 }
 
 func (n chainNetwork) Close() (retErr error) {
-	if err := n.selector.Close(); retErr == nil {
-		retErr = err
-	}
+	var el netutil.ErrList
+	el.Do(n.selector.Close)
 	for _, n2 := range n.networks {
-		if err := n2.Close(); retErr == nil {
-			retErr = err
-		}
+		el.Do(n2.Close)
 	}
-	return retErr
+	return el.Err()
 }
 
 func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
@@ -283,6 +275,7 @@ func (n *loopbackNetwork) LocalAddr() Addr {
 }
 
 func (n *loopbackNetwork) Close() error {
+	n.hub.CloseWithError(nil)
 	return nil
 }
 

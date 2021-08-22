@@ -121,10 +121,14 @@ func (s *Server) DeleteNode(privateKey p2p.PrivateKey) error {
 	if !exists {
 		return nil
 	}
+	log := s.log.WithFields(logrus.Fields{"addr": id})
 	err := n.Close()
+	if err != nil {
+		log.Errorf("error closing node %v", err)
+	}
 	s.mainMemPeers.Remove(id)
 	delete(s.nodes, id)
-	s.log.WithFields(logrus.Fields{"addr": id}).Info("deleted node")
+	log.Infof("deleted node")
 	return err
 }
 

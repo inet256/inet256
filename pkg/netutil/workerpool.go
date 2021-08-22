@@ -24,6 +24,10 @@ func (wp *WorkerPool) SetCount(count int) {
 	}
 }
 
+func (wp *WorkerPool) Stop() {
+	wp.SetCount(0)
+}
+
 func (wp *WorkerPool) spawn() {
 	ctx, cf := context.WithCancel(context.Background())
 	w := worker{

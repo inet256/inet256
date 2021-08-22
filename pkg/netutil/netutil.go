@@ -27,3 +27,5 @@ type PulseTrain = swarmutil.PulseTrain
 func NewLinear(period time.Duration) PulseTrain {
 	return swarmutil.NewLinear(period)
 }
+
+type ErrList = swarmutil.ErrList
