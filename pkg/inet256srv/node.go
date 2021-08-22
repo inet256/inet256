@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/sirupsen/logrus"
 )
 
@@ -117,14 +118,9 @@ func (n *node) Bootstrap(ctx context.Context) error {
 }
 
 func (n *node) Close() (retErr error) {
-	if err := n.network.Close(); retErr == nil {
-		retErr = err
-	}
-	if err := n.basePeerSwarm.Close(); err != nil {
-		retErr = err
-	}
-	if err := n.transportSwarm.Close(); err != nil {
-		retErr = err
-	}
-	return retErr
+	var el netutil.ErrList
+	el.Do(n.network.Close)
+	el.Do(n.basePeerSwarm.Close)
+	el.Do(n.transportSwarm.Close)
+	return el.Err()	
 }

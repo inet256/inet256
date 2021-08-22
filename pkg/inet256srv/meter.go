@@ -5,16 +5,28 @@ import (
 	"sync/atomic"
 )
 
+type meterSet struct {
+	m sync.Map
+}
+
+func (m meterSet) Tx(k Addr, x int) uint64 {
+	actual, _ := m.m.LoadOrStore(k, new(meter))
+	return actual.(*meter).Tx(x)
+}
+
+func (m meterSet) Rx(k Addr, x int) uint64 {
+	actual, _ := m.m.LoadOrStore(k, new(meter))
+	return actual.(*meter).Rx(x)
+}
+
 type meter struct {
-	tx, rx sync.Map
+	rx, tx uint64
 }
 
-func (m *meter) Tx(k Addr, x int) uint64 {
-	actual, _ := m.tx.LoadOrStore(k, new(uint64))
-	return atomic.AddUint64(actual.(*uint64), uint64(x))
+func (m *meter) Tx(x int) uint64 {
+	return atomic.AddUint64(&m.tx, uint64(x))
 }
 
-func (m *meter) Rx(k Addr, x int) uint64 {
-	actual, _ := m.rx.LoadOrStore(k, new(uint64))
-	return atomic.AddUint64(actual.(*uint64), uint64(x))
+func (m *meter) Rx(x int) uint64 {
+	return atomic.AddUint64(&m.rx, uint64(x))
 }

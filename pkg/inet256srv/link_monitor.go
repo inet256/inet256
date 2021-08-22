@@ -13,6 +13,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const expireAfter = 30 * time.Second
+
 // linkMonitor sends out heartbeats to all addresses in the peer store
 // and keeps track of where heartbeats are coming from.
 type linkMonitor struct {
@@ -28,7 +30,6 @@ type linkMonitor struct {
 }
 
 func newLinkMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *linkMonitor {
-	const expireAfter = 30 * time.Second
 	lm := &linkMonitor{
 		x:           x,
 		peerStore:   peerStore,
@@ -147,8 +148,10 @@ func (lm *linkMonitor) PickAddr(id inet256.Addr) (p2p.Addr, error) {
 }
 
 func (lm *linkMonitor) Close() error {
-	lm.sg.Stop()
-	return lm.x.Close()
+	var el netutil.ErrList
+	el.Do(lm.sg.Stop)
+	el.Do(lm.x.Close)
+	return el.Err()
 }
 
 func (lm *linkMonitor) LastSeen(id inet256.Addr) map[string]time.Time {
@@ -158,7 +161,7 @@ func (lm *linkMonitor) LastSeen(id inet256.Addr) map[string]time.Time {
 }
 
 func (lm *linkMonitor) cleanupLoop(ctx context.Context) error {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(lm.expireAfter / 2)
 	defer ticker.Stop()
 	for {
 		now := time.Now()

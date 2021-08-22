@@ -130,10 +130,11 @@ func (n *Network) Bootstrap(ctx context.Context) error {
 }
 
 func (n *Network) Close() error {
-	n.sg.Stop()
-	n.tellHub.CloseWithError(nil)
-	err := n.swarm.Close()
-	return err
+	var el netutil.ErrList
+	n.tellHub.CloseWithError(inet256.ErrClosed)
+	el.Do(n.sg.Stop)
+	el.Do(n.swarm.Close)
+	return el.Err()
 }
 
 func (n *Network) DumpState() string {
@@ -170,7 +171,7 @@ func (nwk *Network) recvLoops(ctx context.Context) error {
 	wp := netutil.WorkerPool{
 		Fn: func(ctx context.Context) {
 			err := nwk.recvLoop(ctx)
-			if err != nil && !errors.Is(err, ctx.Err()) && !p2p.IsErrSwarmClosed(err) {
+			if err != nil && !errors.Is(err, ctx.Err()) && !inet256.IsErrClosed(err) {
 				nwk.log.Errorf("exiting recvLoop %v", err)
 			}
 		},
@@ -183,6 +184,7 @@ func (nwk *Network) recvLoops(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():
+			wp.Stop()
 			return ctx.Err()
 		}
 	}
@@ -296,9 +298,11 @@ func (n *Network) broadcastBeaconLoop(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			ctx, cf := context.WithTimeout(ctx, period/3)
-			defer cf()
-			if err := n.broadcastBeacon(ctx); err != nil {
+			if err := func() error {
+				ctx, cf := context.WithTimeout(ctx, period/3)
+				defer cf()
+				return n.broadcastBeacon(ctx)
+			}(); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -336,10 +340,12 @@ func (n *Network) broadcast(ctx context.Context, exclude inet256.Addr, mtype uin
 		}
 		peerID := peerID
 		eg.Go(func() error {
-			return n.swarm.Tell(ctx, peerID, p2p.IOVec{hdr[:], body})
+			err := n.swarm.Tell(ctx, peerID, p2p.IOVec{hdr[:], body})
+			err = errors.Wrapf(err, "tell %v: ", peerID)
+			return err
 		})
 	}
-	return eg.Wait()
+	return errors.Wrapf(eg.Wait(), "during broadcast")
 }
 
 // send sends a message with dst, mtype and body to peer next.

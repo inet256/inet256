@@ -9,6 +9,8 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -28,7 +30,7 @@ type swarm struct {
 	mux       p2pmux.Uint16SecureMux
 	lm        *linkMonitor
 	dataSwarm p2p.SecureSwarm
-	meter     meter
+	meters    meterSet
 }
 
 func NewSwarm(x p2p.SecureSwarm, peerStore PeerStore) inet256.Swarm {
@@ -50,11 +52,14 @@ func newSwarm(x p2p.SecureSwarm, peerStore PeerStore) *swarm {
 
 func (s *swarm) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
 	dst2 := dst.(inet256.Addr)
+	if !s.peerStore.Contains(dst2) {
+		return errors.Errorf("tell to unrecognized peer %v", dst2)
+	}
 	addr, err := s.selectAddr(dst2)
 	if err != nil {
 		return err
 	}
-	s.meter.Tx(dst2, p2p.VecSize(v))
+	s.meters.Tx(dst2, p2p.VecSize(v))
 	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
@@ -70,8 +75,12 @@ func (s *swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (in
 			continue
 		}
 		srcID := inet256.NewAddr(srcKey)
+		if !s.peerStore.Contains(srcID) {
+			logrus.Warnf("dropping message from unknown peer %v", srcID)
+			continue
+		}
 		s.lm.Mark(srcID, *src, time.Now())
-		s.meter.Rx(inet256.Addr(srcID), n)
+		s.meters.Rx(inet256.Addr(srcID), n)
 
 		*src = srcID
 		*dst = s.localID
@@ -96,13 +105,11 @@ func (s *swarm) ParseAddr(data []byte) (p2p.Addr, error) {
 }
 
 func (s *swarm) Close() error {
-	if err := s.lm.Close(); err != nil {
-		logrus.Error(err)
-	}
-	if err := s.dataSwarm.Close(); err != nil {
-		logrus.Error(err)
-	}
-	return s.inner.Close()
+	var el netutil.ErrList
+	el.Do(s.lm.Close)
+	el.Do(s.dataSwarm.Close)
+	el.Do(s.inner.Close)
+	return el.Err()
 }
 
 func (s *swarm) MTU(ctx context.Context, target p2p.Addr) int {
@@ -138,11 +145,11 @@ func (s *swarm) LastSeen(id inet256.Addr) map[string]time.Time {
 }
 
 func (s *swarm) GetTx(id inet256.Addr) uint64 {
-	return s.meter.Tx(id, 0)
+	return s.meters.Tx(id, 0)
 }
 
 func (s *swarm) GetRx(id inet256.Addr) uint64 {
-	return s.meter.Rx(id, 0)
+	return s.meters.Rx(id, 0)
 }
 
 // swarmWrapper converts a p2p.SecureSwarm to an inet256.Swarm
