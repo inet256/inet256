@@ -9,7 +9,6 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
-	"github.com/brendoncarroll/go-p2p/s/upnpswarm"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
@@ -90,9 +89,10 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		if err != nil {
 			return nil, err
 		}
-		if tspec.NATUPnP {
-			sw = upnpswarm.WrapSwarm(sw)
-		}
+		// TODO: add this back once upnp swarm is tested more.
+		// if tspec.NATUPnP {
+		// 	sw = upnpswarm.WrapSwarm(sw)
+		// }
 		secSw, err := quicswarm.New(sw, privateKey)
 		if err != nil {
 			return nil, err

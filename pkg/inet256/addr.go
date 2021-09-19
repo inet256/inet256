@@ -3,6 +3,7 @@ package inet256
 import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -16,11 +17,14 @@ type Addr [32]byte
 
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {
-	return Addr(p2p.NewPeerID(pubKey))
+	addr := Addr{}
+	sha3.ShakeSum256(addr[:], MarshalPublicKey(pubKey))
+	return addr
 }
 
 // AddrFromBytes creates a new address by reading up to 32 bytes from x
 // Note that these bytes are not interpretted as a public key, they are interpretted as the raw address.
+// To derive an address from a PublicKey use NewAddr
 func AddrFromBytes(x []byte) Addr {
 	y := Addr{}
 	copy(y[:], x)
