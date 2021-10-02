@@ -27,7 +27,8 @@ const (
 type multiNetwork struct {
 	networks []Network
 	addrMap  sync.Map
-	selector *netutil.Selector
+	sg       *netutil.ServiceGroup
+	hub      *netutil.TellHub
 }
 
 func newMultiNetwork(networks ...Network) Network {
@@ -36,11 +37,24 @@ func newMultiNetwork(networks ...Network) Network {
 			panic("network addresses do not match")
 		}
 	}
-	mn := &multiNetwork{
-		networks: networks,
-		selector: netutil.NewSelector(networks),
+	hub := netutil.NewTellHub()
+	sg := &netutil.ServiceGroup{}
+	for i := range networks {
+		sg.Go(func(ctx context.Context) error {
+			for {
+				if err := networks[i].Receive(ctx, func(m inet256.Message) {
+					hub.Deliver(ctx, m)
+				}); err != nil {
+					return err
+				}
+			}
+		})
 	}
-	return mn
+	return &multiNetwork{
+		networks: networks,
+		sg:       sg,
+		hub:      hub,
+	}
 }
 
 func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
@@ -51,12 +65,8 @@ func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return network.Tell(ctx, dst, data)
 }
 
-func (mn *multiNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return mn.selector.Receive(ctx, src, dst, buf)
-}
-
-func (mn *multiNetwork) WaitReceive(ctx context.Context) error {
-	return mn.selector.Wait(ctx)
+func (mn *multiNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return mn.hub.Receive(ctx, fn)
 }
 
 func (mn *multiNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -101,7 +111,8 @@ func (mn *multiNetwork) Bootstrap(ctx context.Context) error {
 
 func (mn *multiNetwork) Close() (retErr error) {
 	var el netutil.ErrList
-	el.Do(mn.selector.Close)
+	el.Do(mn.sg.Stop)
+	mn.hub.CloseWithError(inet256.ErrClosed)
 	for _, n := range mn.networks {
 		el.Do(n.Close)
 	}
@@ -157,13 +168,29 @@ func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) (Network, e
 
 type chainNetwork struct {
 	networks []Network
-	selector *netutil.Selector
+	hub      *netutil.TellHub
+	sg       *netutil.ServiceGroup
 }
 
 func newChainNetwork(ns ...Network) Network {
+	hub := netutil.NewTellHub()
+	sg := &netutil.ServiceGroup{}
+	for i := range ns {
+		i := i
+		sg.Go(func(ctx context.Context) error {
+			for {
+				if err := ns[i].Receive(ctx, func(m inet256.Message) {
+					hub.Deliver(ctx, m)
+				}); err != nil {
+					return err
+				}
+			}
+		})
+	}
 	return chainNetwork{
 		networks: ns,
-		selector: netutil.NewSelector(ns),
+		hub:      hub,
+		sg:       sg,
 	}
 }
 
@@ -178,8 +205,8 @@ func (n chainNetwork) Tell(ctx context.Context, dst Addr, data []byte) (retErr e
 	return retErr
 }
 
-func (n chainNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.selector.Receive(ctx, src, dst, buf)
+func (n chainNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return n.hub.Receive(ctx, fn)
 }
 
 func (n chainNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -212,7 +239,8 @@ func (n chainNetwork) PublicKey() inet256.PublicKey {
 
 func (n chainNetwork) Close() (retErr error) {
 	var el netutil.ErrList
-	el.Do(n.selector.Close)
+	el.Do(n.sg.Stop)
+	n.hub.CloseWithError(inet256.ErrClosed)
 	for _, n2 := range n.networks {
 		el.Do(n2.Close)
 	}
@@ -241,10 +269,6 @@ func (n chainNetwork) Bootstrap(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (n chainNetwork) WaitReceive(ctx context.Context) error {
-	return n.selector.Wait(ctx)
-}
-
 type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
@@ -267,8 +291,8 @@ func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error
 	return n.hub.Deliver(ctx, netutil.Message{Src: dst, Dst: dst, Payload: data})
 }
 
-func (n *loopbackNetwork) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.hub.Receive(ctx, src, dst, buf)
+func (n *loopbackNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return n.hub.Receive(ctx, fn)
 }
 
 func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
@@ -289,10 +313,6 @@ func (n *loopbackNetwork) PublicKey() inet256.PublicKey {
 func (n *loopbackNetwork) Close() error {
 	n.hub.CloseWithError(nil)
 	return nil
-}
-
-func (n *loopbackNetwork) WaitReceive(ctx context.Context) error {
-	return n.hub.Wait(ctx)
 }
 
 func (n *loopbackNetwork) MTU(context.Context, Addr) int {

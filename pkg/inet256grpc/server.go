@@ -135,18 +135,16 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		}
 	})
 	eg.Go(func() error {
-		buf := make([]byte, inet256.MaxMTU)
+		var msg inet256.Message
 		for {
-			var src, dst inet256.Addr
-			n, err := node.Receive(ctx, &src, &dst, buf)
-			if err != nil {
+			if err := inet256.Receive(ctx, node, &msg); err != nil {
 				return err
 			}
 			if err := srv.Send(&ConnectMsg{
 				Datagram: &Datagram{
-					Src:     src[:],
-					Dst:     dst[:],
-					Payload: buf[:n],
+					Src:     msg.Src[:],
+					Dst:     msg.Dst[:],
+					Payload: msg.Payload,
 				},
 			}); err != nil {
 				return err

@@ -170,19 +170,16 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 }
 
 func (p *portal) inboundLoop(ctx context.Context) error {
-	buf := make([]byte, inet256.MaxMTU)
+	var msg inet256.Message
 	for {
-		var src, dst inet256.Addr
-		n, err := p.network.Receive(ctx, &src, &dst, buf)
-		if err != nil {
+		if err := inet256.Receive(ctx, p.network, &msg); err != nil {
 			return err
 		}
-		if !p.af(src) {
-			p.log.Warn("inbound: ignoring INET256 message: ", err)
+		if !p.af(msg.Src) {
+			p.log.Warn("inbound: ignoring INET256 message from: ", msg.Src)
 			continue
 		}
-		data := buf[:n]
-		if err := p.handleInbound(src, data); err != nil {
+		if err := p.handleInbound(msg.Src, msg.Payload); err != nil {
 			return err
 		}
 	}

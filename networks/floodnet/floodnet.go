@@ -62,12 +62,8 @@ func (n *Network) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.broadcast(ctx, msgData, n.localAddr)
 }
 
-func (n *Network) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
-	return n.recvHub.Receive(ctx, src, dst, buf)
-}
-
-func (n *Network) WaitReceive(ctx context.Context) error {
-	return n.recvHub.Wait(ctx)
+func (n *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return n.recvHub.Receive(ctx, fn)
 }
 
 func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {

@@ -39,19 +39,16 @@ var ncCmd = &cobra.Command{
 		logrus.Info(node.LocalAddr())
 		eg := errgroup.Group{}
 		eg.Go(func() error {
-			buf := make([]byte, inet256.TransportMTU)
-			var src, dst inet256.Addr
+			var msg inet256.Message
 			for {
-				n, err := node.Receive(ctx, &src, &dst, buf)
-				if err != nil {
+				if err := inet256.Receive(ctx, node, &msg); err != nil {
 					return err
 				}
-				if src != remote {
-					logrus.Warnf("discarding message from %v", src)
+				if msg.Src != remote {
+					logrus.Warnf("discarding message from %v", msg.Src)
 					continue
 				}
-				data := buf[:n]
-				out.Write(data)
+				out.Write(msg.Payload)
 				out.Write([]byte("\n"))
 			}
 		})
