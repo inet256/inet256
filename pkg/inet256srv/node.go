@@ -138,6 +138,9 @@ func (n *node) Close() (retErr error) {
 // makeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
 // then copies them to y.
 func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[string]p2p.SecureSwarm, error) {
+	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
+		return p2p.PeerID(inet256.NewAddr(pubKey))
+	}
 	y := make(map[string]p2p.SecureSwarm, len(x))
 	for k, s := range x {
 		if sec, ok := s.(p2p.SecureSwarm); ok {
@@ -145,7 +148,7 @@ func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[st
 		} else {
 			var err error
 			k = "quic+" + k
-			y[k], err = quicswarm.New(s, privateKey)
+			y[k], err = quicswarm.New(s, privateKey, quicswarm.WithFingerprinter(fingerprinter))
 			if err != nil {
 				return nil, errors.Wrapf(err, "while securing swarm %v", k)
 			}

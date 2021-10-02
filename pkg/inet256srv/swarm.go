@@ -193,7 +193,10 @@ func (s swarmWrapper) Close() error {
 
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
 	insecSwarm := SwarmFromNetwork(x)
-	quicSw, err := quicswarm.New(insecSwarm, privateKey)
+	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
+		return p2p.PeerID(inet256.NewAddr(pubKey))
+	}
+	quicSw, err := quicswarm.New(insecSwarm, privateKey, quicswarm.WithFingerprinter(fingerprinter))
 	if err != nil {
 		panic(err)
 	}
