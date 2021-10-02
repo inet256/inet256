@@ -44,8 +44,7 @@ const (
 // Network is a network of connected nodes which can send messages to each other
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
-	Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
-	WaitReceive(ctx context.Context) error
+	Receive(ctx context.Context, fn ReceiveFunc) error
 
 	MTU(ctx context.Context, addr Addr) int
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
@@ -74,10 +73,13 @@ type NetworkFactory func(NetworkParams) Network
 
 type Logger = logrus.Logger
 
-// RecvNonBlocking calls receive on the network, but immediately errors
-// if no data can be returned
-func ReceiveNonBlocking(n Network, src, dst *Addr, buf []byte) (int, error) {
-	return n.Receive(NonBlockingContext(), src, dst, buf)
+// Receive is a utility method for copying a message from the Network n into msg
+func Receive(ctx context.Context, n Network, msg *Message) error {
+	return n.Receive(ctx, func(m2 Message) {
+		msg.Src = m2.Src
+		msg.Dst = m2.Dst
+		msg.Payload = append(msg.Payload[:0], m2.Payload...)
+	})
 }
 
 func NonBlockingContext() context.Context {

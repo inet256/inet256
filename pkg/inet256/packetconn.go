@@ -34,14 +34,15 @@ func (pc *packetConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 }
 
 func (pc *packetConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	var src, dst Addr
 	ctx, cf := pc.getReadContext()
 	defer cf()
-	n, err = pc.n.Receive(ctx, &src, &dst, p)
-	if err != nil {
+	if err = pc.n.Receive(ctx, func(m Message) {
+		n = copy(p, m.Payload)
+		addr = m.Src
+	}); err != nil {
 		return n, nil, err
 	}
-	return n, src, nil
+	return n, addr, nil
 }
 
 func (pc *packetConn) LocalAddr() net.Addr {

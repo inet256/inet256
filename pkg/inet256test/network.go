@@ -76,15 +76,11 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 	defer cf()
 
 	eg := errgroup.Group{}
-	var recieved string
-	var srcAddr, dstAddr inet256.Addr
+	var recieved inet256.Message
 	eg.Go(func() error {
-		buf := make([]byte, inet256.TransportMTU)
-		n, err := dst.Receive(ctx, &srcAddr, &dstAddr, buf)
-		if err != nil {
+		if err := inet256.Receive(ctx, dst, &recieved); err != nil {
 			return err
 		}
-		recieved = string(buf[:n])
 		return nil
 	})
 	sent := "test data"
@@ -92,9 +88,9 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 		return src.Tell(ctx, dst.LocalAddr(), []byte(sent))
 	})
 	require.NoError(t, eg.Wait())
-	require.Equal(t, sent, recieved)
+	require.Equal(t, sent, string(recieved.Payload))
 	//require.Equal(t, src.LocalAddr(), srcAddr)
-	require.Equal(t, dst.LocalAddr(), dstAddr)
+	require.Equal(t, dst.LocalAddr(), recieved.Dst)
 }
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {

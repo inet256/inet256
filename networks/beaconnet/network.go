@@ -58,12 +58,8 @@ func New(params inet256.NetworkParams) inet256.Network {
 	return n
 }
 
-func (n *Network) WaitReceive(ctx context.Context) error {
-	return n.tellHub.Wait(ctx)
-}
-
-func (n *Network) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byte) (int, error) {
-	return n.tellHub.Receive(ctx, src, dst, buf)
+func (n *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return n.tellHub.Receive(ctx, fn)
 }
 
 func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {

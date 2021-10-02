@@ -24,19 +24,16 @@ var echoCmd = &cobra.Command{
 		}
 		defer node.Close()
 		logrus.Info(node.LocalAddr())
-		buf := make([]byte, inet256.TransportMTU)
+		var msg inet256.Message
 		for {
-			var src, dst inet256.Addr
-			n, err := node.Receive(ctx, &src, &dst, buf)
-			if err != nil {
+			if err := inet256.Receive(ctx, node, &msg); err != nil {
 				return err
 			}
-			data := buf[:n]
-			if err := node.Tell(ctx, src, data); err != nil {
+			if err := node.Tell(ctx, msg.Src, msg.Payload); err != nil {
 				logrus.Error(err)
 				continue
 			}
-			logrus.Infof("echoed %d bytes from %v", len(data), src)
+			logrus.Infof("echoed %d bytes from %v", len(msg.Payload), msg.Src)
 		}
 	},
 }

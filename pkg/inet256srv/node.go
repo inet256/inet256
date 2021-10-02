@@ -83,12 +83,8 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, data)
 }
 
-func (n *node) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	return n.network.Receive(ctx, src, dst, buf)
-}
-
-func (n *node) WaitReceive(ctx context.Context) error {
-	return n.network.WaitReceive(ctx)
+func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return n.network.Receive(ctx, fn)
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {
@@ -104,7 +100,7 @@ func (n *node) LookupPublicKey(ctx context.Context, target Addr) (inet256.Public
 }
 
 func (n *node) PublicKey() inet256.PublicKey {
-	return n.params.PrivateKey.Public()
+	return n.network.PublicKey()
 }
 
 func (n *node) MTU(ctx context.Context, target Addr) int {
