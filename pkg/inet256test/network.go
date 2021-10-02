@@ -89,7 +89,7 @@ func TestSendRecvOne(t testing.TB, src, dst Network) {
 	})
 	require.NoError(t, eg.Wait())
 	require.Equal(t, sent, string(recieved.Payload))
-	//require.Equal(t, src.LocalAddr(), srcAddr)
+	// require.Equal(t, src.LocalAddr(), recieved.Src)
 	require.Equal(t, dst.LocalAddr(), recieved.Dst)
 }
 
