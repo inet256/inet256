@@ -9,7 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/swarmtest"
 )
 
-func TestPeerSwarm(t *testing.T) {
+func TestSwarm(t *testing.T) {
 	swarmtest.TestSecureSwarm(t, func(t testing.TB, swarms []p2p.SecureSwarm) {
 		r := memswarm.NewRealm()
 		for i := range swarms {

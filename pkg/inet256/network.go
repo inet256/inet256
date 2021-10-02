@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Message is the essential information carried Tell and Recv
+// Message is the essential information carried by Tell and Receive
 // provided as a struct for use in queues or other APIs
 type Message struct {
 	Src     Addr
@@ -16,38 +16,43 @@ type Message struct {
 	Payload []byte
 }
 
+// ReceiveFunc is passed as a callback to Swarm.Receive
+type ReceiveFunc = func(Message)
+
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
 type Swarm interface {
 	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
-	Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
+	Receive(ctx context.Context, th ReceiveFunc) error
 
 	Close() error
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
+	PublicKey() PublicKey
 	LocalAddr() Addr
 }
 
 const (
 	// TransportMTU is the guaranteed MTU presented to networks.
 	TransportMTU = (1 << 16) - 1
-
 	// MinMTU is the minimum MTU a network can provide to any address.
-	// Applications should be designed to operate correctly if they have to send messages up to this size.
+	// Applications should be designed to operate correctly if they can only send messages up to this size.
 	MinMTU = 1 << 15
-	// MaxMTU is the largest message that a network will ever receive from any address.
+	// MaxMTU is the size of largest message that a network will ever receive from any address.
 	// Applications should be prepared to receieve this much data at a time or they may encounter io.ErrShortBuffer
 	MaxMTU = 1 << 16
 )
 
-// Network is a network for sending messages between peers
+// Network is a network of connected nodes which can send messages to each other
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
 	Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error)
 	WaitReceive(ctx context.Context) error
-	LocalAddr() Addr
-	MTU(ctx context.Context, addr Addr) int
 
+	MTU(ctx context.Context, addr Addr) int
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
+
+	LocalAddr() Addr
+	PublicKey() PublicKey
 
 	Bootstrap(ctx context.Context) error
 	Close() error

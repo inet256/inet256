@@ -80,6 +80,10 @@ func (n *node) LocalAddr() inet256.Addr {
 	return n.localAddr
 }
 
+func (n *node) PublicKey() inet256.PublicKey {
+	return n.privKey.Public()
+}
+
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
 	return n.getClient().FindAddr(ctx, prefix, nbits)
 }

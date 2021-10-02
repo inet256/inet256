@@ -15,6 +15,9 @@ type (
 // It uniquely identifies a Node.
 type Addr [32]byte
 
+// ID is an alias for Addr
+type ID = Addr
+
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {
 	addr := Addr{}

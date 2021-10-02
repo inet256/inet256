@@ -54,13 +54,9 @@ func (q *TellHub) Receive(ctx context.Context, src, dst *inet256.Addr, buf []byt
 		case q.recvs <- req:
 		}
 	}
-	// once we get to here we are committed, unless the whole thing is closed we have to wait
-	select {
-	case <-q.closed:
-		return 0, q.err
-	case <-req.done:
-		return req.n, req.err
-	}
+	// once we get to here we are committed
+	<-req.done
+	return req.n, req.err
 }
 
 func (q *TellHub) Wait(ctx context.Context) error {
@@ -103,10 +99,9 @@ func (q *TellHub) claim(ctx context.Context, fn func(src, dst *inet256.Addr, buf
 	case <-ctx.Done():
 		return ctx.Err()
 	case req := <-q.recvs:
-		// once we are here we are committed no using the context
-		// req.done is buffered and should never block anyway
+		// once we are here we are committed; no using the context
+		defer close(req.done)
 		req.n, req.err = fn(req.src, req.dst, req.buf)
-		close(req.done)
 		return nil
 	}
 }

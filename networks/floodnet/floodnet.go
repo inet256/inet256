@@ -111,6 +111,10 @@ func (n *Network) LocalAddr() Addr {
 	return n.localAddr
 }
 
+func (n *Network) PublicKey() inet256.PublicKey {
+	return n.privateKey.Public()
+}
+
 func (n *Network) Bootstrap(ctx context.Context) error {
 	return n.solicit(ctx)
 }
@@ -138,16 +142,21 @@ func (n *Network) poll(ctx context.Context, fn func() error) error {
 }
 
 func (nwk *Network) recvLoop(ctx context.Context) error {
-	buf := make([]byte, inet256.TransportMTU)
 	for {
-		var src, dst inet256.Addr
-		n, err := nwk.swarm.Receive(ctx, &src, &dst, buf)
-		if err != nil {
+		var src inet256.Addr
+		var msg Message
+		var validMsg bool
+		if err := nwk.swarm.Receive(ctx, func(m inet256.Message) {
+			if err := json.Unmarshal(m.Payload, &msg); err != nil {
+				nwk.log.Warn("error parsing message from: ", m.Src, err)
+				return
+			}
+			src = m.Src
+			validMsg = true
+		}); err != nil {
 			return err
 		}
-		msg := Message{}
-		if err := json.Unmarshal(buf[:n], &msg); err != nil {
-			nwk.log.Warn("error parsing message from: ", src)
+		if !validMsg {
 			continue
 		}
 		go func() {

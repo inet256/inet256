@@ -80,6 +80,10 @@ func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
 	return network.MTU(ctx, target)
 }
 
+func (mn *multiNetwork) PublicKey() inet256.PublicKey {
+	return mn.networks[0].PublicKey()
+}
+
 func (mn *multiNetwork) LocalAddr() Addr {
 	return mn.networks[0].LocalAddr()
 }
@@ -202,6 +206,10 @@ func (n chainNetwork) LocalAddr() Addr {
 	return n.networks[0].LocalAddr()
 }
 
+func (n chainNetwork) PublicKey() inet256.PublicKey {
+	return n.networks[0].PublicKey()
+}
+
 func (n chainNetwork) Close() (retErr error) {
 	var el netutil.ErrList
 	el.Do(n.selector.Close)
@@ -272,6 +280,10 @@ func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int
 
 func (n *loopbackNetwork) LocalAddr() Addr {
 	return n.localAddr
+}
+
+func (n *loopbackNetwork) PublicKey() inet256.PublicKey {
+	return n.localKey
 }
 
 func (n *loopbackNetwork) Close() error {
