@@ -8,8 +8,10 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,7 +31,7 @@ type NetworkSpec struct {
 
 type Params struct {
 	p2p.PrivateKey
-	Swarms   map[string]p2p.SecureSwarm
+	Swarms   map[string]p2p.Swarm
 	Peers    PeerStore
 	Networks []NetworkSpec
 }
@@ -43,7 +45,11 @@ type node struct {
 }
 
 func NewNode(params Params) Node {
-	transportSwarm := multiswarm.NewSecure(params.Swarms)
+	secureSwarms, err := makeSecureSwarms(params.Swarms, params.PrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
 	mux := p2pmux.NewUint64SecureMux(basePeerSwarm)
 
@@ -127,4 +133,24 @@ func (n *node) Close() (retErr error) {
 	el.Do(n.basePeerSwarm.Close)
 	el.Do(n.transportSwarm.Close)
 	return el.Err()
+}
+
+// makeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
+// then copies them to y.
+func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[string]p2p.SecureSwarm, error) {
+	y := make(map[string]p2p.SecureSwarm, len(x))
+	for k, s := range x {
+		if sec, ok := s.(p2p.SecureSwarm); ok {
+			y[k] = sec
+		} else {
+			var err error
+			k = "quic+" + k
+			y[k], err = quicswarm.New(s, privateKey)
+			if err != nil {
+				return nil, errors.Wrapf(err, "while securing swarm %v", k)
+			}
+		}
+
+	}
+	return y, nil
 }

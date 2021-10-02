@@ -26,7 +26,7 @@ func TestDial(t *testing.T) {
 			},
 		},
 		Peers: inet256srv.NewPeerStore(),
-		Swarms: map[string]p2p.SecureSwarm{
+		Swarms: map[string]p2p.Swarm{
 			"virtual": mr.NewSwarmWithKey(privateKey),
 		},
 	})

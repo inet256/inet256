@@ -7,7 +7,6 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
@@ -83,24 +82,15 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		return nil, err
 	}
 	// transports
-	swarms := map[string]p2p.SecureSwarm{}
+	swarms := map[string]p2p.Swarm{}
 	for _, tspec := range c.Transports {
 		sw, swname, err := makeTransport(tspec, privateKey)
 		if err != nil {
 			return nil, err
 		}
-		// TODO: add this back once upnp swarm is tested more.
-		// if tspec.NATUPnP {
-		// 	sw = upnpswarm.WrapSwarm(sw)
-		// }
-		secSw, err := quicswarm.New(sw, privateKey)
-		if err != nil {
-			return nil, err
-		}
-		swname = "quic+" + swname
-		swarms[swname] = secSw
+		swarms[swname] = sw
 	}
-	addrSchema := multiswarm.NewSchemaFromSecureSwarms(swarms)
+	addrSchema := multiswarm.NewSchemaFromSwarms(swarms)
 	// peers
 	peers := inet256srv.NewPeerStore()
 	for _, pspec := range c.Peers {

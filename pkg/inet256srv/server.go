@@ -46,14 +46,12 @@ type Server struct {
 }
 
 func NewServer(params Params) *Server {
-	swarms := make(map[string]p2p.SecureSwarm)
-	for k, v := range params.Swarms {
-		swarms[k] = v
-	}
-
 	r := memswarm.NewRealm()
 	msw := r.NewSwarmWithKey(params.PrivateKey)
-	swarms[nameMemSwarm] = msw
+	if params.Swarms == nil {
+		params.Swarms = make(map[string]p2p.Swarm, 1)
+	}
+	params.Swarms[nameMemSwarm] = msw
 
 	memPeers := NewPeerStore()
 
@@ -66,7 +64,7 @@ func NewServer(params Params) *Server {
 		mainMemSwarm: msw,
 		mainNode: NewNode(Params{
 			PrivateKey: params.PrivateKey,
-			Swarms:     swarms,
+			Swarms:     params.Swarms,
 			Networks:   params.Networks,
 			Peers:      ChainPeerStore{memPeers, params.Peers},
 		}),
@@ -96,7 +94,7 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 			Networks:   s.params.Networks,
 			Peers:      ps,
 			PrivateKey: privateKey,
-			Swarms: map[string]p2p.SecureSwarm{
+			Swarms: map[string]p2p.Swarm{
 				nameMemSwarm: swarm,
 			},
 		})

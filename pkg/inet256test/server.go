@@ -94,7 +94,7 @@ func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256sr
 		pk := p2ptest.NewTestKey(t, math.MaxInt32+i)
 		stores[i] = inet256srv.NewPeerStore()
 		srvs[i] = inet256srv.NewServer(inet256srv.Params{
-			Swarms: map[string]p2p.SecureSwarm{
+			Swarms: map[string]p2p.Swarm{
 				"external": r.NewSwarmWithKey(pk),
 			},
 			Networks: []inet256srv.NetworkSpec{
