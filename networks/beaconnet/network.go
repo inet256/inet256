@@ -121,6 +121,10 @@ func (n *Network) LocalAddr() inet256.Addr {
 	return inet256.NewAddr(n.privateKey.Public())
 }
 
+func (n *Network) PublicKey() inet256.PublicKey {
+	return n.privateKey.Public()
+}
+
 func (n *Network) MTU(ctx context.Context, addr inet256.Addr) int {
 	return inet256.TransportMTU - HeaderSize
 }
@@ -149,20 +153,19 @@ func (n *Network) DumpState() string {
 }
 
 func (nwk *Network) recvLoop(ctx context.Context) error {
-	buf := make([]byte, inet256.TransportMTU)
+	var msg2 inet256.Message
 	for {
-		var src, dst inet256.Addr
-		n, err := nwk.swarm.Receive(ctx, &src, &dst, buf)
-		if err != nil {
+		if err := nwk.swarm.Receive(ctx, func(msg inet256.Message) {
+			msg2 = inet256.Message{
+				Src:     msg.Src,
+				Dst:     msg.Dst,
+				Payload: append(msg2.Payload[:0], msg.Payload...),
+			}
+		}); err != nil {
 			return err
 		}
-		err = nwk.handleMessage(ctx, inet256.Message{
-			Src:     src,
-			Dst:     dst,
-			Payload: buf[:n],
-		})
-		if err != nil {
-			nwk.log.Warnf("while handling message from %v: %v", src, err)
+		if err := nwk.handleMessage(ctx, msg2); err != nil {
+			nwk.log.Warnf("while handling message from %v: %v", msg2.Src, err)
 		}
 	}
 }

@@ -45,19 +45,17 @@ func newLinkMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *linkMo
 }
 
 func (lm *linkMonitor) recvLoop(ctx context.Context) error {
-	buf := make([]byte, lm.x.MaxIncomingSize())
+	var msg p2p.Message
 	for {
-		var src, dst p2p.Addr
-		_, err := lm.x.Receive(ctx, &src, &dst, buf)
-		if err != nil {
+		if err := p2p.Receive(ctx, lm.x, &msg); err != nil {
 			return err
 		}
-		pubKey, err := lm.x.LookupPublicKey(ctx, src)
+		pubKey, err := lm.x.LookupPublicKey(ctx, msg.Src)
 		if err != nil {
 			lm.log.Error("in linkMonitor.recvLoop: ", err)
 			continue
 		}
-		lm.Mark(inet256.NewAddr(pubKey), src, time.Now())
+		lm.Mark(inet256.NewAddr(pubKey), msg.Src, time.Now())
 	}
 }
 

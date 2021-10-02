@@ -63,29 +63,33 @@ func (s *swarm) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
 	return s.dataSwarm.Tell(ctx, addr, v)
 }
 
-func (s *swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
-	for {
-		n, err := s.dataSwarm.Receive(ctx, src, dst, buf)
-		if err != nil {
-			return 0, err
-		}
-		srcKey, err := s.dataSwarm.LookupPublicKey(ctx, *src)
-		if err != nil {
-			logrus.Error("could not lookup public key, dropping message: ", err)
-			continue
-		}
-		srcID := inet256.NewAddr(srcKey)
-		if !s.peerStore.Contains(srcID) {
-			logrus.Warnf("dropping message from unknown peer %v", srcID)
-			continue
-		}
-		s.lm.Mark(srcID, *src, time.Now())
-		s.meters.Rx(inet256.Addr(srcID), n)
+func (s *swarm) Receive(ctx context.Context, th p2p.TellHandler) error {
+	for done := false; !done; {
+		if err := s.dataSwarm.Receive(ctx, func(msg p2p.Message) {
+			srcKey, err := s.dataSwarm.LookupPublicKey(ctx, msg.Src)
+			if err != nil {
+				logrus.Error("could not lookup public key, dropping message: ", err)
+				return
+			}
+			srcID := inet256.NewAddr(srcKey)
+			if !s.peerStore.Contains(srcID) {
+				logrus.Warnf("dropping message from unknown peer %v", srcID)
+				return
+			}
+			s.lm.Mark(srcID, msg.Src, time.Now())
+			s.meters.Rx(inet256.Addr(srcID), len(msg.Payload))
 
-		*src = srcID
-		*dst = s.localID
-		return n, nil
+			th(p2p.Message{
+				Src:     srcID,
+				Dst:     s.localID,
+				Payload: msg.Payload,
+			})
+			done = true
+		}); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (s *swarm) PublicKey() p2p.PublicKey {
@@ -161,19 +165,22 @@ func (s swarmWrapper) Tell(ctx context.Context, dst Addr, m p2p.IOVec) error {
 	return s.s.Tell(ctx, dst, m)
 }
 
-func (s swarmWrapper) Receive(ctx context.Context, src, dst *Addr, buf []byte) (int, error) {
-	var src2, dst2 p2p.Addr
-	n, err := s.s.Receive(ctx, &src2, &dst2, buf)
-	if err != nil {
-		return n, err
-	}
-	*src = src2.(Addr)
-	*dst = dst2.(Addr)
-	return n, err
+func (s swarmWrapper) Receive(ctx context.Context, th inet256.ReceiveFunc) error {
+	return s.s.Receive(ctx, func(m p2p.Message) {
+		th(inet256.Message{
+			Src:     m.Src.(inet256.Addr),
+			Dst:     m.Dst.(inet256.Addr),
+			Payload: m.Payload,
+		})
+	})
 }
 
 func (s swarmWrapper) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
 	return s.s.LookupPublicKey(ctx, target)
+}
+
+func (s swarmWrapper) PublicKey() inet256.PublicKey {
+	return s.s.PublicKey()
 }
 
 func (s swarmWrapper) LocalAddr() Addr {
@@ -185,7 +192,7 @@ func (s swarmWrapper) Close() error {
 }
 
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
-	insecSwarm := SwarmFromNetwork(x, privateKey.Public())
+	insecSwarm := SwarmFromNetwork(x)
 	quicSw, err := quicswarm.New(insecSwarm, privateKey)
 	if err != nil {
 		panic(err)
@@ -199,23 +206,27 @@ type quic2Swarm struct {
 	*quicswarm.Swarm
 }
 
-func (s quic2Swarm) Receive(ctx context.Context, src, dst *p2p.Addr, buf []byte) (int, error) {
-	for {
-		n, err := s.Swarm.Receive(ctx, src, dst, buf)
-		if err != nil {
-			return 0, err
+func (s quic2Swarm) Receive(ctx context.Context, th p2p.TellHandler) error {
+	for done := false; !done; {
+		if err := s.Swarm.Receive(ctx, func(msg p2p.Message) {
+			srcID := p2p.ExtractPeerID(msg.Src)
+			srcAddr := (msg.Src).(quicswarm.Addr).Addr.(inet256.Addr)
+			// This is where the actual check for who can send as what address happens
+			if !bytes.Equal(srcID[:], srcAddr[:]) {
+				logrus.Warnf("incorrect id=%v for address=%v", srcID, srcAddr)
+				return
+			}
+			th(p2p.Message{
+				Src:     srcAddr,
+				Dst:     msg.Dst.(quicswarm.Addr).Addr.(inet256.Addr),
+				Payload: msg.Payload,
+			})
+			done = true
+		}); err != nil {
+			return err
 		}
-		// This is where the actual check for who can send as what address happens
-		srcID := p2p.ExtractPeerID(*src)
-		srcAddr := (*src).(quicswarm.Addr).Addr.(inet256.Addr)
-		if !bytes.Equal(srcID[:], srcAddr[:]) {
-			logrus.Warnf("incorrect id=%v for address=%v", srcID, srcAddr)
-			continue
-		}
-		*src = srcAddr
-		*dst = (*dst).(quicswarm.Addr).Addr
-		return n, nil
 	}
+	return nil
 }
 
 func (s quic2Swarm) Tell(ctx context.Context, x p2p.Addr, data p2p.IOVec) error {

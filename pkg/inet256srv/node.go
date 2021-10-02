@@ -93,8 +93,12 @@ func (n *node) LocalAddr() Addr {
 	return inet256.NewAddr(n.params.PrivateKey.Public())
 }
 
-func (n *node) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
+func (n *node) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
 	return n.network.LookupPublicKey(ctx, target)
+}
+
+func (n *node) PublicKey() inet256.PublicKey {
+	return n.params.PrivateKey.Public()
 }
 
 func (n *node) MTU(ctx context.Context, target Addr) int {
@@ -122,5 +126,5 @@ func (n *node) Close() (retErr error) {
 	el.Do(n.network.Close)
 	el.Do(n.basePeerSwarm.Close)
 	el.Do(n.transportSwarm.Close)
-	return el.Err()	
+	return el.Err()
 }
