@@ -4,7 +4,6 @@ networks:
   - flood
 transports:
   - udp: 0.0.0.0:0
-    nat_upnp: false
 peers: []
 discovery: []
 autopeering: []
