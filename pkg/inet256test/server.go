@@ -66,13 +66,7 @@ func NewTestServer(t testing.TB, nf inet256.NetworkFactory) *inet256srv.Server {
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
 	ps := inet256srv.NewPeerStore()
 	s := inet256srv.NewServer(inet256srv.Params{
-		Networks: []inet256srv.NetworkSpec{
-			{
-				Factory: nf,
-				Index:   0,
-				Name:    "network-name",
-			},
-		},
+		Networks:   map[inet256srv.NetworkCode]inet256.NetworkFactory{{}: nf},
 		Peers:      ps,
 		PrivateKey: pk,
 	})
@@ -97,13 +91,7 @@ func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256sr
 			Swarms: map[string]p2p.Swarm{
 				"external": r.NewSwarmWithKey(pk),
 			},
-			Networks: []inet256srv.NetworkSpec{
-				{
-					Factory: nf,
-					Index:   0,
-					Name:    "network-name",
-				},
-			},
+			Networks:   map[inet256srv.NetworkCode]inet256.NetworkFactory{{}: nf},
 			Peers:      stores[i],
 			PrivateKey: pk,
 		})
@@ -113,8 +101,8 @@ func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256sr
 			if i == j {
 				continue
 			}
-			stores[i].Add(srvs[j].MainAddr())
-			stores[i].SetAddrs(srvs[j].MainAddr(), srvs[j].TransportAddrs())
+			stores[i].Add(getMainAddr(srvs[j]))
+			stores[i].SetAddrs(getMainAddr(srvs[j]), getTransportAddrs(srvs[j]))
 		}
 	}
 	t.Cleanup(func() {
@@ -131,4 +119,20 @@ func NewTestServers(t *testing.T, nf inet256.NetworkFactory, n int) []*inet256sr
 	}
 	require.NoError(t, eg.Wait())
 	return srvs
+}
+
+func getMainAddr(x *inet256srv.Server) inet256.Addr {
+	addr, err := x.MainAddr()
+	if err != nil {
+		panic(err)
+	}
+	return addr
+}
+
+func getTransportAddrs(x *inet256srv.Server) []p2p.Addr {
+	addrs, err := x.TransportAddrs()
+	if err != nil {
+		panic(err)
+	}
+	return addrs
 }

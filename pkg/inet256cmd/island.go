@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/inet256/inet256/networks/beaconnet"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
@@ -21,9 +22,7 @@ var islandCmd = &cobra.Command{
 		d := inet256d.New(inet256d.Params{
 			APIAddr: defaultAPIAddr,
 			MainNodeParams: inet256srv.Params{
-				Networks: []inet256srv.NetworkSpec{
-					{Index: 0, Name: "beaconnet", Factory: beaconnet.Factory},
-				},
+				Networks:   map[inet256srv.NetworkCode]inet256.NetworkFactory{{}: beaconnet.Factory},
 				PrivateKey: privateKey,
 				Peers:      inet256srv.NewPeerStore(),
 			},

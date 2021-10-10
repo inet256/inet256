@@ -2,6 +2,7 @@ package inet256srv
 
 import (
 	"context"
+	"encoding/binary"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -21,19 +22,13 @@ type Node = inet256.Node
 type Network = inet256.Network
 type Addr = inet256.Addr
 type NetworkParams = inet256.NetworkParams
-
-// NetworkSpec is a name associated with a network factory
-type NetworkSpec struct {
-	Index   uint64
-	Name    string
-	Factory inet256.NetworkFactory
-}
+type NetworkCode = [8]byte
 
 type Params struct {
 	p2p.PrivateKey
 	Swarms   map[string]p2p.Swarm
 	Peers    PeerStore
-	Networks []NetworkSpec
+	Networks map[NetworkCode]inet256.NetworkFactory
 }
 
 type node struct {
@@ -54,16 +49,17 @@ func NewNode(params Params) Node {
 	mux := p2pmux.NewUint64SecureMux(basePeerSwarm)
 
 	// create multi network
-	networks := make([]Network, len(params.Networks))
-	for i, nspec := range params.Networks {
-		s := mux.Open(nspec.Index)
+	networks := make([]Network, 0, len(params.Networks))
+	for code, factory := range params.Networks {
+		s := mux.Open(binary.BigEndian.Uint64(code[:]))
 		s = fragswarm.NewSecure(s, TransportMTU)
-		networks[i] = nspec.Factory(NetworkParams{
+		nw := factory(NetworkParams{
 			PrivateKey: params.PrivateKey,
 			Swarm:      swarmWrapper{s},
 			Peers:      params.Peers,
 			Logger:     logrus.StandardLogger(),
 		})
+		networks = append(networks, nw)
 	}
 	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),

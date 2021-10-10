@@ -27,3 +27,13 @@ func (d *Daemon) runDiscoveryServices(ctx context.Context, localID inet256.Addr,
 	}
 	eg.Wait()
 }
+
+func adaptTransportAddrs(f func() ([]p2p.Addr, error)) func() []p2p.Addr {
+	return func() []p2p.Addr {
+		addrs, err := f()
+		if err != nil {
+			panic(err)
+		}
+		return addrs
+	}
+}

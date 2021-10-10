@@ -237,76 +237,76 @@ var _INET256_serviceDesc = grpc.ServiceDesc{
 	Metadata: "inet256.proto",
 }
 
-// ManagementClient is the client API for Management service.
+// AdminClient is the client API for Admin service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ManagementClient interface {
+type AdminClient interface {
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error)
 }
 
-type managementClient struct {
+type adminClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewManagementClient(cc grpc.ClientConnInterface) ManagementClient {
-	return &managementClient{cc}
+func NewAdminClient(cc grpc.ClientConnInterface) AdminClient {
+	return &adminClient{cc}
 }
 
-func (c *managementClient) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error) {
+func (c *adminClient) GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Status, error) {
 	out := new(Status)
-	err := c.cc.Invoke(ctx, "/inet256.Management/GetStatus", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/inet256.Admin/GetStatus", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ManagementServer is the server API for Management service.
-// All implementations must embed UnimplementedManagementServer
+// AdminServer is the server API for Admin service.
+// All implementations must embed UnimplementedAdminServer
 // for forward compatibility
-type ManagementServer interface {
+type AdminServer interface {
 	GetStatus(context.Context, *emptypb.Empty) (*Status, error)
-	mustEmbedUnimplementedManagementServer()
+	mustEmbedUnimplementedAdminServer()
 }
 
-// UnimplementedManagementServer must be embedded to have forward compatible implementations.
-type UnimplementedManagementServer struct {
+// UnimplementedAdminServer must be embedded to have forward compatible implementations.
+type UnimplementedAdminServer struct {
 }
 
-func (*UnimplementedManagementServer) GetStatus(context.Context, *emptypb.Empty) (*Status, error) {
+func (*UnimplementedAdminServer) GetStatus(context.Context, *emptypb.Empty) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
 }
-func (*UnimplementedManagementServer) mustEmbedUnimplementedManagementServer() {}
+func (*UnimplementedAdminServer) mustEmbedUnimplementedAdminServer() {}
 
-func RegisterManagementServer(s *grpc.Server, srv ManagementServer) {
-	s.RegisterService(&_Management_serviceDesc, srv)
+func RegisterAdminServer(s *grpc.Server, srv AdminServer) {
+	s.RegisterService(&_Admin_serviceDesc, srv)
 }
 
-func _Management_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Admin_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ManagementServer).GetStatus(ctx, in)
+		return srv.(AdminServer).GetStatus(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/inet256.Management/GetStatus",
+		FullMethod: "/inet256.Admin/GetStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ManagementServer).GetStatus(ctx, req.(*emptypb.Empty))
+		return srv.(AdminServer).GetStatus(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Management_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "inet256.Management",
-	HandlerType: (*ManagementServer)(nil),
+var _Admin_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inet256.Admin",
+	HandlerType: (*AdminServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetStatus",
-			Handler:    _Management_GetStatus_Handler,
+			Handler:    _Admin_GetStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -65,6 +65,6 @@ service INET256 {
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
 }
 
-service Management {
+service Admin {
     rpc GetStatus(google.protobuf.Empty) returns (Status) {}
 }

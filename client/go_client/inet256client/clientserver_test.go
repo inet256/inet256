@@ -7,6 +7,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/inet256/inet256/pkg/inet256test"
@@ -19,11 +20,8 @@ func TestDial(t *testing.T) {
 	privateKey := p2ptest.NewTestKey(t, 0)
 	serv := inet256srv.NewServer(inet256srv.Params{
 		PrivateKey: privateKey,
-		Networks: []inet256srv.NetworkSpec{
-			{
-				Name:    "",
-				Factory: inet256srv.OneHopFactory,
-			},
+		Networks: map[inet256srv.NetworkCode]inet256.NetworkFactory{
+			{}: inet256srv.OneHopFactory,
 		},
 		Peers: inet256srv.NewPeerStore(),
 		Swarms: map[string]p2p.Swarm{

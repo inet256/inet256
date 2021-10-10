@@ -6,10 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
 )
 
@@ -41,16 +38,4 @@ var pingCmd = &cobra.Command{
 		fmt.Println("pinging", dst)
 		return node.Tell(ctx, dst, []byte("ping"))
 	},
-}
-
-func newClient() (inet256srv.Service, error) {
-	return inet256client.NewExtendedClient(defaultAPIAddr)
-}
-
-func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Network, error) {
-	c, err := newClient()
-	if err != nil {
-		return nil, err
-	}
-	return c.CreateNode(ctx, privateKey)
 }

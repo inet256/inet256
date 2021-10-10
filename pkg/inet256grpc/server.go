@@ -28,7 +28,7 @@ type Server struct {
 	counts map[inet256.Addr]int
 
 	UnimplementedINET256Server
-	UnimplementedManagementServer
+	UnimplementedAdminServer
 }
 
 func NewServer(s inet256.Service) *Server {
@@ -79,11 +79,22 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, erro
 	if !ok {
 		return nil, errors.Errorf("server does not support GetStatus")
 	}
-	mainAddr := srv.MainAddr()
+	mainAddr, err := srv.MainAddr()
+	if err != nil {
+		return nil, err
+	}
+	stati, err := srv.PeerStatus()
+	if err != nil {
+		return nil, err
+	}
+	taddrs, err := srv.TransportAddrs()
+	if err != nil {
+		return nil, err
+	}
 	return &Status{
 		LocalAddr:      mainAddr[:],
-		PeerStatus:     PeerStatusToProto(srv.PeerStatus()),
-		TransportAddrs: serde.MarshalAddrs(srv.TransportAddrs()),
+		PeerStatus:     PeerStatusToProto(stati),
+		TransportAddrs: serde.MarshalAddrs(taddrs),
 	}, nil
 }
 

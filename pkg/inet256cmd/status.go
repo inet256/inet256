@@ -27,16 +27,19 @@ var statusCmd = &cobra.Command{
 		var peerStatuses []inet256srv.PeerStatus
 		eg := errgroup.Group{}
 		eg.Go(func() error {
-			localAddr = c.MainAddr()
-			return nil
+			var err error
+			localAddr, err = c.MainAddr()
+			return err
 		})
 		eg.Go(func() error {
-			transportAddrs = c.TransportAddrs()
-			return nil
+			var err error
+			transportAddrs, err = c.TransportAddrs()
+			return err
 		})
 		eg.Go(func() error {
-			peerStatuses = c.PeerStatus()
-			return nil
+			var err error
+			peerStatuses, err = c.PeerStatus()
+			return err
 		})
 		if err := eg.Wait(); err != nil {
 			return err

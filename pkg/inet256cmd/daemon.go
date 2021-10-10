@@ -9,9 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultAPIAddr = inet256d.DefaultAPIAddr
+const defaultAPIAddr = inet256d.DefaultAPIEndpoint
 
 func init() {
+	daemonCmd.Flags().StringVar(&configPath, "config", "", "--config=./path/to/config/yaml")
 	rootCmd.AddCommand(daemonCmd)
 }
 

@@ -14,20 +14,24 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const defaultAPIAddr = inet256d.DefaultAPIAddr
+const defaultAPIAddr = inet256d.DefaultAPIEndpoint
 
 type client struct {
-	inetClient   inet256grpc.INET256Client
-	manageClient inet256grpc.ManagementClient
-	log          *logrus.Logger
+	inetClient  inet256grpc.INET256Client
+	adminClient inet256grpc.AdminClient
+	log         *logrus.Logger
 }
 
 func NewExtendedClient(endpoint string) (inet256srv.Service, error) {
-	inetClient, err := dial(endpoint)
+	gc, err := dial(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return &client{inetClient: inetClient}, nil
+	return &client{
+		inetClient:  inet256grpc.NewINET256Client(gc),
+		adminClient: inet256grpc.NewAdminClient(gc),
+		log:         logrus.StandardLogger(),
+	}, nil
 }
 
 // NewClient creates an INET256 service using the specified endpoint for the API.
@@ -46,13 +50,8 @@ func NewEnvClient() (inet256.Service, error) {
 	return NewClient(endpoint)
 }
 
-func dial(endpoint string) (inet256grpc.INET256Client, error) {
-	gc, err := grpc.Dial(endpoint, grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	inetClient := inet256grpc.NewINET256Client(gc)
-	return inetClient, nil
+func dial(endpoint string) (*grpc.ClientConn, error) {
+	return grpc.Dial(endpoint, grpc.WithInsecure())
 }
 
 func (c *client) CreateNode(ctx context.Context, privKey p2p.PrivateKey) (inet256.Node, error) {
@@ -99,38 +98,35 @@ func (c *client) MTU(ctx context.Context, target inet256.Addr) int {
 	return int(res.Mtu)
 }
 
-func (c *client) MainAddr() inet256.Addr {
+func (c *client) MainAddr() (inet256.Addr, error) {
 	ctx := context.Background()
-	res, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
+	res, err := c.adminClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.log.Error(err)
-		return inet256.Addr{}
+		return inet256.Addr{}, err
 	}
-	return inet256.AddrFromBytes(res.LocalAddr)
+	return inet256.AddrFromBytes(res.LocalAddr), nil
 }
 
-func (c *client) TransportAddrs() []p2p.Addr {
+func (c *client) TransportAddrs() ([]p2p.Addr, error) {
 	ctx := context.Background()
-	res, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
+	res, err := c.adminClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.log.Error(err)
-		return nil
+		return nil, err
 	}
 	var ret []p2p.Addr
 	for _, addr := range res.TransportAddrs {
 		ret = append(ret, TransportAddr(addr))
 	}
-	return ret
+	return ret, nil
 }
 
-func (c *client) PeerStatus() []inet256srv.PeerStatus {
+func (c *client) PeerStatus() ([]inet256srv.PeerStatus, error) {
 	ctx := context.Background()
-	req, err := c.manageClient.GetStatus(ctx, &emptypb.Empty{})
+	req, err := c.adminClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.log.Error(err)
-		return nil
+		return nil, err
 	}
-	return inet256grpc.PeerStatusFromProto(req.PeerStatus)
+	return inet256grpc.PeerStatusFromProto(req.PeerStatus), nil
 }
 
 type TransportAddr string

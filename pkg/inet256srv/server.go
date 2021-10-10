@@ -18,9 +18,9 @@ const nameMemSwarm = "memory"
 type Service interface {
 	inet256.Service
 
-	MainAddr() Addr
-	TransportAddrs() []p2p.Addr
-	PeerStatus() []PeerStatus
+	MainAddr() (Addr, error)
+	TransportAddrs() ([]p2p.Addr, error)
+	PeerStatus() ([]PeerStatus, error)
 }
 
 type PeerStatus struct {
@@ -146,11 +146,11 @@ func (s *Server) LocalAddr() Addr {
 	return s.mainNode.LocalAddr()
 }
 
-func (s *Server) TransportAddrs() (ret []p2p.Addr) {
-	return s.mainNode.(*node).TransportAddrs()
+func (s *Server) TransportAddrs() ([]p2p.Addr, error) {
+	return s.mainNode.(*node).TransportAddrs(), nil
 }
 
-func (s *Server) PeerStatus() []PeerStatus {
+func (s *Server) PeerStatus() ([]PeerStatus, error) {
 	var ret []PeerStatus
 	mainNode := s.mainNode.(*node)
 	for _, id := range s.params.Peers.ListPeers() {
@@ -162,11 +162,11 @@ func (s *Server) PeerStatus() []PeerStatus {
 			Downloaded: mainNode.basePeerSwarm.GetRx(id),
 		})
 	}
-	return ret
+	return ret, nil
 }
 
-func (s *Server) MainAddr() Addr {
-	return s.MainNode().LocalAddr()
+func (s *Server) MainAddr() (Addr, error) {
+	return s.MainNode().LocalAddr(), nil
 }
 
 func (s *Server) MainNode() Node {
@@ -180,12 +180,4 @@ func (s *Server) Close() error {
 		n.Close()
 	}
 	return s.mainNode.Close()
-}
-
-func marshalAddr(a p2p.Addr) string {
-	data, err := a.MarshalText()
-	if err != nil {
-		panic(err)
-	}
-	return string(data)
 }

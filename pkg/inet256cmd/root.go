@@ -1,9 +1,12 @@
 package inet256cmd
 
 import (
-	"github.com/inet256/inet256/pkg/inet256d"
-	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"context"
+
+	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/client/go_client/inet256client"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
 )
 
@@ -15,30 +18,19 @@ var (
 	configPath string
 )
 
-func init() {
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "--config=./path/to/config/yaml")
-}
-
 var rootCmd = &cobra.Command{
 	Use:   "inet256",
 	Short: "inet256: A secure network with a 256 bit address space",
 }
 
-func setupDaemon(cmd *cobra.Command, args []string) (*inet256d.Daemon, error) {
-	if err := cmd.ParseFlags(args); err != nil {
-		return nil, err
-	}
-	if configPath == "" {
-		return nil, errors.New("must provide config path")
-	}
-	log.Infof("using config path: %v", configPath)
-	config, err := inet256d.LoadConfig(configPath)
+func newClient() (inet256srv.Service, error) {
+	return inet256client.NewExtendedClient(defaultAPIAddr)
+}
+
+func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Network, error) {
+	c, err := newClient()
 	if err != nil {
 		return nil, err
 	}
-	params, err := inet256d.MakeParams(configPath, *config)
-	if err != nil {
-		return nil, err
-	}
-	return inet256d.New(*params), nil
+	return c.CreateNode(ctx, privateKey)
 }

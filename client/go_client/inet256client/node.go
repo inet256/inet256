@@ -28,11 +28,11 @@ type node struct {
 }
 
 func NewNode(endpoint string, privKey p2p.PrivateKey) (inet256.Node, error) {
-	c, err := dial(endpoint)
+	gc, err := dial(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return newNode(c, privKey)
+	return newNode(inet256grpc.NewINET256Client(gc), privKey)
 }
 
 func NewNodeFromGRPC(client inet256grpc.INET256Client, privKey p2p.PrivateKey) (inet256.Node, error) {
