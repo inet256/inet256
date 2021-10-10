@@ -39,22 +39,3 @@ var daemonCmd = &cobra.Command{
 		return d.Run(context.Background())
 	},
 }
-
-func setupDaemon(cmd *cobra.Command, args []string) (*inet256d.Daemon, error) {
-	if err := cmd.ParseFlags(args); err != nil {
-		return nil, err
-	}
-	if configPath == "" {
-		return nil, errors.New("must provide config path")
-	}
-	log.Infof("using config path: %v", configPath)
-	config, err := inet256d.LoadConfig(configPath)
-	if err != nil {
-		return nil, err
-	}
-	params, err := inet256d.MakeParams(configPath, *config)
-	if err != nil {
-		return nil, err
-	}
-	return inet256d.New(*params), nil
-}

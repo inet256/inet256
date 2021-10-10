@@ -106,5 +106,5 @@ networks:
 - `param1` is a parameter specific to `algo1`. The parameter `param1` is set to different values in each instantiation.
 
 Network algorithms have to be compiled into the daemon to be used.
-The `networks` command in the CLI can be used to list the networks the daemon implements.
+The `ls-networks` command in the CLI can be used to list the networks the daemon implements.
 Different forks of the project may ship with different networks.

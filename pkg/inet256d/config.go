@@ -3,6 +3,8 @@ package inet256d
 import (
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -214,6 +216,17 @@ func LoadConfig(p string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+func ListNetworks() (ret []string) {
+	ty := reflect.TypeOf(NetworkSpec{})
+	for i := 0; i < ty.NumField(); i++ {
+		field := ty.Field(i)
+		name := strings.ToLower(field.Name)
+		ret = append(ret, name)
+	}
+	sort.Strings(ret)
+	return ret
 }
 
 func strPtr(x string) *string {

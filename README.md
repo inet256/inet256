@@ -47,6 +47,8 @@ This project provides tools for using INET256 networks, some of which are not ye
 - [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
 - [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to WireGuard.
 
+- [x] netcat.  Send newline separated messages to other nodes: `inet256 nc`.
+- [x] echo. A server to echo messages back to the sender: `inet256 echo`.
 
 ## Code Tour
 - `pkg/inet256` API definitions.  Mostly things required by the spec.
