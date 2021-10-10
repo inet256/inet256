@@ -13,8 +13,9 @@ func init() {
 }
 
 var createTrackerCmd = &cobra.Command{
-	Use:   "create-tracker-token",
-	Short: "creates a new tracker config",
+	Use:    "create-tracker-token",
+	Short:  "creates a new tracker config",
+	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.Errorf("must provide endpoint")

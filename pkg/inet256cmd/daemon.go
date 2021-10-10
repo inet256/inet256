@@ -9,9 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultAPIAddr = inet256d.DefaultAPIAddr
+const defaultAPIAddr = inet256d.DefaultAPIEndpoint
 
 func init() {
+	daemonCmd.Flags().StringVar(&configPath, "config", "", "--config=./path/to/config/yaml")
 	rootCmd.AddCommand(daemonCmd)
 }
 
@@ -37,4 +38,23 @@ var daemonCmd = &cobra.Command{
 		d := inet256d.New(*params)
 		return d.Run(context.Background())
 	},
+}
+
+func setupDaemon(cmd *cobra.Command, args []string) (*inet256d.Daemon, error) {
+	if err := cmd.ParseFlags(args); err != nil {
+		return nil, err
+	}
+	if configPath == "" {
+		return nil, errors.New("must provide config path")
+	}
+	log.Infof("using config path: %v", configPath)
+	config, err := inet256d.LoadConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+	params, err := inet256d.MakeParams(configPath, *config)
+	if err != nil {
+		return nil, err
+	}
+	return inet256d.New(*params), nil
 }

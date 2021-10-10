@@ -8,6 +8,8 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
+	"github.com/inet256/inet256/networks/beaconnet"
+	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
@@ -18,18 +20,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultAPIAddr = "127.0.0.1:2560"
+const DefaultAPIEndpoint = "127.0.0.1:2560"
 
 type PeerSpec struct {
 	ID    inet256.Addr `yaml:"id"`
 	Addrs []string     `yaml:"addrs"`
 }
 
+type NetworkSpec struct {
+	FloodNet  *struct{} `yaml:"floodnet,omitempty"`
+	BeaconNet *struct{} `yaml:"beaconnet,omitempty"`
+	OneHop    *struct{} `yaml:"onehop,omitempty"`
+}
+
 type TransportSpec struct {
 	UDP      *UDPTransportSpec      `yaml:"udp,omitempty"`
 	Ethernet *EthernetTransportSpec `yaml:"ethernet,omitempty"`
-
-	NATUPnP bool `yaml:"nat_upnp"`
 }
 
 type UDPTransportSpec string
@@ -50,21 +56,21 @@ type AutoPeeringSpec struct {
 }
 
 type Config struct {
-	PrivateKeyPath string          `yaml:"private_key_path"`
-	APIAddr        string          `yaml:"api_addr"`
-	Networks       []string        `yaml:"networks"`
-	Transports     []TransportSpec `yaml:"transports"`
-	Peers          []PeerSpec      `yaml:"peers"`
+	PrivateKeyPath string                 `yaml:"private_key_path"`
+	APIEndpoint    string                 `yaml:"api_endpoint"`
+	Networks       map[string]NetworkSpec `yaml:"networks"`
+	Transports     []TransportSpec        `yaml:"transports"`
+	Peers          []PeerSpec             `yaml:"peers"`
 
 	Discovery   []DiscoverySpec   `yaml:"discovery"`
 	AutoPeering []AutoPeeringSpec `yaml:"autopeering"`
 }
 
 func (c Config) GetAPIAddr() string {
-	if c.APIAddr == "" {
-		return DefaultAPIAddr
+	if c.APIEndpoint == "" {
+		return DefaultAPIEndpoint
 	}
-	return c.APIAddr
+	return c.APIEndpoint
 }
 
 func MakeParams(configPath string, c Config) (*Params, error) {
@@ -102,13 +108,17 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		peers.SetAddrs(pspec.ID, addrs)
 	}
 	// networks
-	nspecs := []inet256srv.NetworkSpec{}
-	for _, netName := range c.Networks {
-		nspec, exists := name2Network[netName]
-		if !exists {
-			return nil, errors.Errorf("no network: %s", netName)
+	netFacts := make(map[inet256srv.NetworkCode]inet256.NetworkFactory)
+	for codeStr, spec := range c.Networks {
+		code, err := codeFromString(codeStr)
+		if err != nil {
+			return nil, err
 		}
-		nspecs = append(nspecs, nspec)
+		factory, err := networkFactoryFromSpec(spec)
+		if err != nil {
+			return nil, err
+		}
+		netFacts[code] = factory
 	}
 	// discovery
 	dscSrvs := []discovery.Service{}
@@ -133,12 +143,12 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		MainNodeParams: inet256srv.Params{
 			PrivateKey: privateKey,
 			Swarms:     swarms,
-			Networks:   nspecs,
+			Networks:   netFacts,
 			Peers:      peers,
 		},
 		DiscoveryServices:   dscSrvs,
 		AutoPeeringServices: apSrvs,
-		APIAddr:             c.APIAddr,
+		APIAddr:             c.APIEndpoint,
 	}
 	return params, nil
 }
@@ -176,8 +186,8 @@ func makeAutoPeeringService(spec AutoPeeringSpec, addrSchema multiswarm.AddrSche
 
 func DefaultConfig() Config {
 	return Config{
-		Networks: DefaultNetworks(),
-		APIAddr:  DefaultAPIAddr,
+		Networks:    DefaultNetworks(),
+		APIEndpoint: DefaultAPIEndpoint,
 		Transports: []TransportSpec{
 			{
 				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0:0")),
@@ -186,12 +196,12 @@ func DefaultConfig() Config {
 	}
 }
 
-func DefaultNetworks() []string {
-	var names []string
-	for name := range name2Network {
-		names = append(names, name)
+func DefaultNetworks() map[string]NetworkSpec {
+	return map[string]NetworkSpec{
+		"beacon0": NetworkSpec{
+			BeaconNet: &struct{}{},
+		},
 	}
-	return names
 }
 
 func LoadConfig(p string) (*Config, error) {
@@ -208,4 +218,28 @@ func LoadConfig(p string) (*Config, error) {
 
 func strPtr(x string) *string {
 	return &x
+}
+
+func codeFromString(x string) (inet256srv.NetworkCode, error) {
+	if len(x) > 8 {
+		return [8]byte{}, errors.Errorf("network code %q is too long, must be <= 8 bytes", x)
+	}
+	b := []byte(x)
+	for len(b) < 8 {
+		b = append(b, 0x00)
+	}
+	return *(*[8]byte)(b), nil
+}
+
+func networkFactoryFromSpec(spec NetworkSpec) (inet256.NetworkFactory, error) {
+	switch {
+	case spec.BeaconNet != nil:
+		return beaconnet.Factory, nil
+	case spec.FloodNet != nil:
+		return floodnet.Factory, nil
+	case spec.OneHop != nil:
+		return inet256srv.OneHopFactory, nil
+	default:
+		return nil, errors.Errorf("empty network spec")
+	}
 }

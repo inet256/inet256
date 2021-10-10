@@ -80,11 +80,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runGRPCServer(ctx, d.params.APIAddr, s)
 	})
 	eg.Go(func() error {
-		d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, s.TransportAddrs, dscPeerStores)
+		d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, adaptTransportAddrs(s.TransportAddrs), dscPeerStores)
 		return nil
 	})
 	eg.Go(func() error {
-		d.runAutoPeeringServices(ctx, localID, d.params.AutoPeeringServices, apPeerStores, s.TransportAddrs)
+		d.runAutoPeeringServices(ctx, localID, d.params.AutoPeeringServices, apPeerStores, adaptTransportAddrs(s.TransportAddrs))
 		return nil
 	})
 	return eg.Wait()
