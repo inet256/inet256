@@ -16,7 +16,7 @@ The INET256 API and Address Spec: [Spec](./docs/10_Spec.md)
 
 The architecture of the reference implementation: [Architecture](./ARCHITECTURE.md)
 
-Documentation for the daemon's config file: [Daemon Config](./docs/20_Daemon_Config.md)
+Documentation for the daemon's config file: [Daemon Config](./docs/22_Daemon_Config.md)
 
 ## Features
 - Stable addresses derived from public keys
