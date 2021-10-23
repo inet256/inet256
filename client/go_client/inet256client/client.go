@@ -62,7 +62,7 @@ func (c *client) CreateNode(ctx context.Context, privKey p2p.PrivateKey) (inet25
 	return n, nil
 }
 
-func (c *client) DeleteNode(privKey p2p.PrivateKey) error {
+func (c *client) DeleteNode(ctx context.Context, privKey p2p.PrivateKey) error {
 	panic("not implemented")
 }
 

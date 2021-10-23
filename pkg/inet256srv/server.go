@@ -113,7 +113,7 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 	return node, nil
 }
 
-func (s *Server) DeleteNode(privateKey p2p.PrivateKey) error {
+func (s *Server) DeleteNode(ctx context.Context, privateKey p2p.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()

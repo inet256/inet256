@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"io"
-	sync "sync"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -23,19 +22,13 @@ var _ INET256Server = &Server{}
 type Server struct {
 	s inet256.Service
 
-	mu     sync.Mutex
-	nodes  map[inet256.Addr]inet256.Node
-	counts map[inet256.Addr]int
-
 	UnimplementedINET256Server
 	UnimplementedAdminServer
 }
 
 func NewServer(s inet256.Service) *Server {
 	return &Server{
-		s:      s,
-		nodes:  make(map[inet256.Addr]inet256.Node),
-		counts: make(map[inet256.Addr]int),
+		s: s,
 	}
 }
 
