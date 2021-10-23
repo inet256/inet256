@@ -47,7 +47,7 @@ var portalCmd = &cobra.Command{
 		}
 		return inet256ipv6.RunPortal(ctx, inet256ipv6.PortalParams{
 			AllowFunc: config.GetAllowFunc(),
-			Network:   n,
+			Node:      n,
 			Logger:    logrus.New(),
 		})
 	},

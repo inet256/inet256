@@ -127,10 +127,7 @@ func (n *node) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient, 
 	if err != nil {
 		return nil, err
 	}
-	privKeyBytes, err := serde.MarshalPrivateKey(n.privKey)
-	if err != nil {
-		panic(err)
-	}
+	privKeyBytes := serde.MarshalPrivateKey(n.privKey)
 	if err := cc.Send(&inet256grpc.ConnectMsg{
 		ConnectInit: &inet256grpc.ConnectInit{
 			PrivateKey: privKeyBytes,

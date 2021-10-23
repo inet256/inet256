@@ -19,6 +19,7 @@ import (
 
 type (
 	Addr           = inet256.Addr
+	Node           = inet256.Node
 	Network        = inet256.Network
 	NetworkFactory = inet256.NetworkFactory
 	PeerStore      = inet256.PeerStore
@@ -71,7 +72,7 @@ func TestSendRecvAll(t testing.TB, nets []Network) {
 	})
 }
 
-func TestSendRecvOne(t testing.TB, src, dst Network) {
+func TestSendRecvOne(t testing.TB, src, dst Node) {
 	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cf()
 

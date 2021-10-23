@@ -8,8 +8,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-func MarshalPrivateKey(privKey p2p.PrivateKey) ([]byte, error) {
-	return x509.MarshalPKCS8PrivateKey(privKey)
+func MarshalPrivateKey(privKey p2p.PrivateKey) []byte {
+	data, err := x509.MarshalPKCS8PrivateKey(privKey)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
@@ -25,10 +29,7 @@ func ParsePrivateKey(data []byte) (p2p.PrivateKey, error) {
 }
 
 func MarshalPrivateKeyPEM(privateKey p2p.PrivateKey) ([]byte, error) {
-	data, err := MarshalPrivateKey(privateKey)
-	if err != nil {
-		return nil, err
-	}
+	data := MarshalPrivateKey(privateKey)
 	privKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: data,

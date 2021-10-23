@@ -11,7 +11,6 @@ import (
 var (
 	ErrPublicKeyNotFound = p2p.ErrPublicKeyNotFound
 	ErrNoAddrWithPrefix  = errors.New("no address with prefix")
-	ErrWouldBlock        = errors.New("call to Recv would block")
 	ErrClosed            = net.ErrClosed
 )
 
@@ -34,8 +33,4 @@ type ErrAddrUnreachable struct {
 
 func (e ErrAddrUnreachable) Error() string {
 	return fmt.Sprintf("address is unreachable: %v", e.Addr)
-}
-
-func IsErrWouldBlock(err error) bool {
-	return err == ErrWouldBlock
 }

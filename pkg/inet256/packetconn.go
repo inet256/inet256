@@ -10,13 +10,14 @@ import (
 )
 
 type packetConn struct {
-	n Network
+	n Node
 
 	mu                          sync.RWMutex
 	readDeadline, writeDeadline *time.Time
 }
 
-func NewPacketConn(n Network) net.PacketConn {
+// NewPacketConn wraps a node with the net.PacketConn interface
+func NewPacketConn(n Node) net.PacketConn {
 	return &packetConn{n: n}
 }
 

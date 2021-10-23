@@ -12,7 +12,7 @@ import (
 )
 
 func TestServerLoopback(t *testing.T) {
-	s := inet256test.NewTestServer(t, inet256srv.OneHopFactory)
+	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
 	mainNode := s.MainNode()
 	inet256test.TestSendRecvOne(t, mainNode, mainNode)
 
@@ -31,7 +31,7 @@ func TestServerLoopback(t *testing.T) {
 }
 
 func TestServerOneHop(t *testing.T) {
-	s := inet256test.NewTestServer(t, inet256srv.OneHopFactory)
+	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
 	main := s.MainNode()
 
 	const N = 5
@@ -53,7 +53,7 @@ func TestServerOneHop(t *testing.T) {
 
 func TestServerCreateDelete(t *testing.T) {
 	ctx := context.Background()
-	s := inet256test.NewTestServer(t, inet256srv.OneHopFactory)
+	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
 
 	const N = 100
 	for i := 0; i < N; i++ {
@@ -64,7 +64,7 @@ func TestServerCreateDelete(t *testing.T) {
 
 	for i := 0; i < N; i++ {
 		pk := p2ptest.NewTestKey(t, i)
-		err := s.DeleteNode(pk)
+		err := s.DeleteNode(ctx, pk)
 		require.NoError(t, err)
 	}
 }

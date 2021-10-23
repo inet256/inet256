@@ -192,7 +192,7 @@ func (s swarmWrapper) Close() error {
 }
 
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
-	insecSwarm := SwarmFromNetwork(x)
+	insecSwarm := SwarmFromNode(x)
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
 		return p2p.PeerID(inet256.NewAddr(pubKey))
 	}

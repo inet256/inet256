@@ -28,7 +28,7 @@ func AllowAll(inet256.Addr) bool {
 }
 
 type PortalParams struct {
-	Network   inet256.Network
+	Node      inet256.Node
 	AllowFunc AllowFunc
 	Logger    *logrus.Logger
 }
@@ -52,7 +52,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 	if err != nil {
 		return err
 	}
-	localAddr := params.Network.LocalAddr()
+	localAddr := params.Node.LocalAddr()
 	localIPv6 := INet256ToIPv6(localAddr)
 	log.Infof("Created TUN %s", devName)
 	log.Infof("Local INET256: %v", localAddr)
@@ -62,10 +62,10 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 		return err
 	}
 	p := portal{
-		log:     log,
-		af:      af,
-		network: params.Network,
-		dev:     dev,
+		log:  log,
+		af:   af,
+		node: params.Node,
+		dev:  dev,
 	}
 	return p.run(ctx)
 }
@@ -74,9 +74,9 @@ type portal struct {
 	log *logrus.Logger
 	af  AllowFunc
 
-	network inet256.Network
-	dev     tun.Device
-	cache   sync.Map
+	node  inet256.Node
+	dev   tun.Device
+	cache sync.Map
 }
 
 func (p *portal) run(ctx context.Context) error {
@@ -146,7 +146,7 @@ func (p *portal) outboundLoop(ctx context.Context) error {
 }
 
 func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
-	network := p.network
+	node := p.node
 	header, err := ipv6.ParseHeader(data)
 	if err != nil {
 		return err
@@ -159,20 +159,20 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 		if err != nil {
 			return err
 		}
-		dst, err = network.FindAddr(ctx, prefix, nbits)
+		dst, err = node.FindAddr(ctx, prefix, nbits)
 		if err != nil {
 			return err
 		}
 		ent := &cacheEntry{addr: dst, createdAt: time.Now()}
 		p.putEntry(IPv6FromBytes(header.Dst), ent)
 	}
-	return network.Tell(ctx, dst, data)
+	return node.Tell(ctx, dst, data)
 }
 
 func (p *portal) inboundLoop(ctx context.Context) error {
 	var msg inet256.Message
 	for {
-		if err := inet256.Receive(ctx, p.network, &msg); err != nil {
+		if err := inet256.Receive(ctx, p.node, &msg); err != nil {
 			return err
 		}
 		if !p.af(msg.Src) {

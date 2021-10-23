@@ -9,7 +9,6 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -40,7 +39,8 @@ type Server struct {
 	mainNode     Node
 
 	mu    sync.Mutex
-	nodes map[inet256.Addr]Node
+	nodes map[inet256.Addr]*rcNode
+	rcs   map[inet256.Addr]int
 
 	log *logrus.Logger
 }
@@ -68,7 +68,8 @@ func NewServer(params Params) *Server {
 			Networks:   params.Networks,
 			Peers:      ChainPeerStore{memPeers, params.Peers},
 		}),
-		nodes: make(map[inet256.Addr]Node),
+		nodes: make(map[inet256.Addr]*rcNode),
+		rcs:   make(map[inet256.Addr]int),
 		log:   logrus.StandardLogger(),
 	}
 	return s
@@ -76,11 +77,13 @@ func NewServer(params Params) *Server {
 
 func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
 	id := inet256.NewAddr(privateKey.Public())
-	n, err := func() (Node, error) {
+	node, err := func() (Node, error) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if _, exists := s.nodes[id]; exists {
-			return nil, errors.Errorf("node already exists")
+		if node, exists := s.nodes[id]; exists {
+			s.rcs[id]++
+			s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]}).Infof("opened ref to node")
+			return node, nil
 		}
 		swarm := s.memrealm.NewSwarmWithKey(privateKey)
 
@@ -98,35 +101,29 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 				nameMemSwarm: swarm,
 			},
 		})
-		s.nodes[id] = n
-		return n, nil
+		rcn := &rcNode{node: n.(*node), s: s}
+		s.nodes[id] = rcn
+		s.rcs[id] = 1
+		s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]}).Infof("created node")
+		return rcn, nil
 	}()
 	if err != nil {
 		return nil, err
 	}
-	if err := n.Bootstrap(ctx); err != nil {
-		return nil, errors.Wrapf(err, "while bootstrapping node")
-	}
-	s.log.WithFields(logrus.Fields{"addr": id}).Info("created node")
-	return n, nil
+	return node, nil
 }
 
-func (s *Server) DeleteNode(privateKey p2p.PrivateKey) error {
+func (s *Server) DeleteNode(ctx context.Context, privateKey p2p.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	n, exists := s.nodes[id]
+	rcn, exists := s.nodes[id]
 	if !exists {
 		return nil
 	}
-	log := s.log.WithFields(logrus.Fields{"addr": id})
-	err := n.Close()
-	if err != nil {
-		log.Errorf("error closing node %v", err)
-	}
-	s.mainMemPeers.Remove(id)
+	err := rcn.node.Close()
+	delete(s.rcs, id)
 	delete(s.nodes, id)
-	log.Infof("deleted node")
 	return err
 }
 
@@ -177,7 +174,36 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, n := range s.nodes {
-		n.Close()
+		n.node.Close()
 	}
-	return s.mainNode.Close()
+	s.mainNode.Close()
+	s.rcs = make(map[inet256.Addr]int)
+	s.nodes = make(map[inet256.Addr]*rcNode)
+	return nil
+}
+
+type rcNode struct {
+	*node
+	s *Server
+}
+
+func (rcn *rcNode) Close() error {
+	s := rcn.s
+	id := rcn.node.LocalAddr()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rcs[id]--
+	log := s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]})
+	if s.rcs[id] < 1 {
+		if err := rcn.node.Close(); err != nil {
+			log.Warnf("error closing %v", err)
+		}
+		delete(s.nodes, id)
+		delete(s.rcs, id)
+		s.mainMemPeers.Remove(id)
+		log.Infof("deleted node")
+	} else {
+		log.Info("dropped ref to node")
+	}
+	return nil
 }
