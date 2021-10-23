@@ -1,5 +1,5 @@
 
-.PHONY: test protobuf drop-replace add-replace
+.PHONY: test protobuf drop-replace add-replace build
 
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
@@ -7,10 +7,10 @@ protobuf:
 install:
 	go install ./cmd/inet256
 
-build:
-	GOOS=darwin GOARCH=amd64 go build -o ./build-outputs/inet256_darwin-amd64 ./cmd/inet256 
-	GOOS=linux GOARCH=amd64 go build -o ./build-outputs/inet256_linux-amd64 ./cmd/inet256 
-	GOOS=windows GOARCH=amd64 go build -o ./build-outputs/inet256_windows-amd64 ./cmd/inet256
+build: protobuf
+	GOOS=darwin GOARCH=amd64 ./etc/build_go_binary.sh build/inet256_darwin-amd64_$(TAG) ./cmd/inet256
+	GOOS=linux GOARCH=amd64 ./etc/build_go_binary.sh build/inet256_linux-amd64_$(TAG) ./cmd/inet256
+	GOOS=windows GOARCH=amd64 ./etc/build_go_binary.sh build/inet256_windows-amd64_$(TAG) ./cmd/inet256
 
 test: protobuf
 	go test --race ./pkg/...
