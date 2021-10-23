@@ -10,6 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -40,6 +41,9 @@ func New(p Params) *Daemon {
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
+	promReg := prometheus.NewRegistry()
+	promReg.Register(prometheus.NewGoCollector())
+
 	nodeParams := d.params.MainNodeParams
 	localID := inet256.NewAddr(nodeParams.PrivateKey.Public())
 
@@ -77,7 +81,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return d.runGRPCServer(ctx, d.params.APIAddr, s)
+		return d.runHTTPServer(ctx, d.params.APIAddr, s, promReg)
 	})
 	eg.Go(func() error {
 		d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, adaptTransportAddrs(s.TransportAddrs), dscPeerStores)
