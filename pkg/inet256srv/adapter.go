@@ -9,22 +9,22 @@ import (
 
 // netAdapter converts an inet256.Network into a p2p.Swarm
 type netAdapter struct {
-	network Network
+	n Node
 }
 
-// SwarmFromNetwork converts a Network into a p2p.Swarm
-func SwarmFromNetwork(network Network) p2p.SecureSwarm {
+// SwarmFromNode converts a Network into a p2p.Swarm
+func SwarmFromNode(n Node) p2p.SecureSwarm {
 	return &netAdapter{
-		network: network,
+		n: n,
 	}
 }
 
 func (s *netAdapter) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
-	return s.network.Tell(ctx, dst.(inet256.Addr), p2p.VecBytes(nil, v))
+	return s.n.Tell(ctx, dst.(inet256.Addr), p2p.VecBytes(nil, v))
 }
 
 func (s *netAdapter) Receive(ctx context.Context, fn p2p.TellHandler) error {
-	return s.network.Receive(ctx, func(msg inet256.Message) {
+	return s.n.Receive(ctx, func(msg inet256.Message) {
 		fn(p2p.Message{
 			Src:     msg.Src,
 			Dst:     msg.Dst,
@@ -34,23 +34,23 @@ func (s *netAdapter) Receive(ctx context.Context, fn p2p.TellHandler) error {
 }
 
 func (s *netAdapter) LocalAddrs() []p2p.Addr {
-	return []p2p.Addr{inet256.NewAddr(s.network.PublicKey())}
+	return []p2p.Addr{inet256.NewAddr(s.n.PublicKey())}
 }
 
 func (s *netAdapter) PublicKey() p2p.PublicKey {
-	return s.network.PublicKey()
+	return s.n.PublicKey()
 }
 
 func (s *netAdapter) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.PublicKey, error) {
-	return s.network.LookupPublicKey(ctx, target.(inet256.Addr))
+	return s.n.LookupPublicKey(ctx, target.(inet256.Addr))
 }
 
 func (s *netAdapter) MTU(ctx context.Context, target p2p.Addr) int {
-	return s.network.MTU(ctx, target.(inet256.Addr))
+	return s.n.MTU(ctx, target.(inet256.Addr))
 }
 
 func (s *netAdapter) Close() error {
-	return s.network.Close()
+	return s.n.Close()
 }
 
 func (s *netAdapter) MaxIncomingSize() int {

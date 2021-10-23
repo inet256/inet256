@@ -2,24 +2,14 @@ package inet256
 
 import (
 	"context"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/sirupsen/logrus"
 )
 
-// Message is the essential information carried by Tell and Receive
-// provided as a struct for use in queues or other APIs
-type Message struct {
-	Src     Addr
-	Dst     Addr
-	Payload []byte
-}
-
-// ReceiveFunc is passed as a callback to Swarm.Receive
-type ReceiveFunc = func(Message)
-
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
+//
+// This interface is not described in the spec, and is incidental to the implementation.
 type Swarm interface {
 	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
 	Receive(ctx context.Context, th ReceiveFunc) error
@@ -33,15 +23,11 @@ type Swarm interface {
 const (
 	// TransportMTU is the guaranteed MTU presented to networks.
 	TransportMTU = (1 << 16) - 1
-	// MinMTU is the minimum MTU a network can provide to any address.
-	// Applications should be designed to operate correctly if they can only send messages up to this size.
-	MinMTU = 1 << 15
-	// MaxMTU is the size of largest message that a network will ever receive from any address.
-	// Applications should be prepared to receieve this much data at a time or they may encounter io.ErrShortBuffer
-	MaxMTU = 1 << 16
 )
 
-// Network is a network of connected nodes which can send messages to each other
+// Network is an instantiated network routing algorithm
+//
+// This interface is not described in the spec, and is incidental to the implementation.
 type Network interface {
 	Tell(ctx context.Context, addr Addr, data []byte) error
 	Receive(ctx context.Context, fn ReceiveFunc) error
@@ -72,40 +58,3 @@ type NetworkParams struct {
 type NetworkFactory func(NetworkParams) Network
 
 type Logger = logrus.Logger
-
-// Receive is a utility method for copying a message from the Network n into msg
-func Receive(ctx context.Context, n Network, msg *Message) error {
-	return n.Receive(ctx, func(m2 Message) {
-		msg.Src = m2.Src
-		msg.Dst = m2.Dst
-		msg.Payload = append(msg.Payload[:0], m2.Payload...)
-	})
-}
-
-func NonBlockingContext() context.Context {
-	return nonBlockingCtx{}
-}
-
-func IsNonBlockingContext(ctx context.Context) bool {
-	return ctx == NonBlockingContext()
-}
-
-type nonBlockingCtx struct{}
-
-func (ctx nonBlockingCtx) Err() error {
-	return ErrWouldBlock
-}
-
-func (ctx nonBlockingCtx) Done() <-chan struct{} {
-	ch := make(chan struct{})
-	close(ch)
-	return ch
-}
-
-func (ctx nonBlockingCtx) Deadline() (time.Time, bool) {
-	return time.Time{}, true
-}
-
-func (ctx nonBlockingCtx) Value(k interface{}) interface{} {
-	return context.Background().Value(k)
-}

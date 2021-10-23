@@ -27,7 +27,7 @@ func newClient() (inet256srv.Service, error) {
 	return inet256client.NewExtendedClient(defaultAPIAddr)
 }
 
-func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Network, error) {
+func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, error) {
 	c, err := newClient()
 	if err != nil {
 		return nil, err

@@ -44,10 +44,7 @@ func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyR
 	if err != nil {
 		return nil, err
 	}
-	keyData, err := serde.MarshalPrivateKey(priv)
-	if err != nil {
-		return nil, err
-	}
+	keyData := serde.MarshalPrivateKey(priv)
 	return &GenerateKeyRes{
 		PrivateKey: keyData,
 	}, nil
@@ -112,12 +109,15 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	node, err := s.getOrCreateNode(ctx, privKey)
+	node, err := s.s.CreateNode(ctx, privKey)
 	if err != nil {
 		return err
 	}
-	defer s.decrNode(privKey)
-
+	defer func() {
+		if err := node.Close(); err != nil {
+			logrus.Errorf("error closing node: %v", err)
+		}
+	}()
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		for {
@@ -163,45 +163,4 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		}
 	})
 	return eg.Wait()
-}
-
-func (s *Server) getOrCreateNode(ctx context.Context, privKey p2p.PrivateKey) (inet256.Node, error) {
-	id := inet256.NewAddr(privKey.Public())
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	node, exists := s.nodes[id]
-	if !exists {
-		ctx, cf := context.WithTimeout(ctx, 30*time.Second)
-		defer cf()
-		var err error
-		node, err = s.s.CreateNode(ctx, privKey)
-		if err != nil {
-			return nil, err
-		}
-		s.nodes[id] = node
-	}
-	s.counts[id]++
-	count := s.counts[id]
-	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("starting gRPC stream")
-	return node, nil
-}
-
-func (s *Server) decrNode(privKey p2p.PrivateKey) {
-	id := inet256.NewAddr(privKey.Public())
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, exists := s.nodes[id]
-	if !exists {
-		panic("decr non-existing node")
-	}
-	s.counts[id]--
-	count := s.counts[id]
-	logrus.WithFields(logrus.Fields{"addr": id, "count": count}).Info("closing gRPC stream")
-	if s.counts[id] == 0 {
-		if err := s.s.DeleteNode(privKey); err != nil {
-			logrus.Error("while closing node: ", err)
-		}
-		delete(s.counts, id)
-		delete(s.nodes, id)
-	}
 }

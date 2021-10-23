@@ -40,10 +40,7 @@ func DefaultPortalConfig() PortalConfig {
 	if err != nil {
 		panic(err)
 	}
-	pkBytes, err := serde.MarshalPrivateKey(privKey)
-	if err != nil {
-		panic(err)
-	}
+	pkBytes := serde.MarshalPrivateKey(privKey)
 	pkb64str := base64.StdEncoding.EncodeToString(pkBytes)
 	return PortalConfig{
 		PrivateKey: pkb64str,
