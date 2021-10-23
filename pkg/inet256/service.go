@@ -33,16 +33,29 @@ type ReceiveFunc = func(Message)
 //
 // This interface is compatible with the INET256 specification.
 type Node interface {
+	// Tell sends a message containing data to the node at addr.
+	// The message will be delivered at most once.
 	Tell(ctx context.Context, addr Addr, data []byte) error
+	// Receive calls fn with a message sent to this node.
+	// The message fields, and payload must not be accessed outside fn.
 	Receive(ctx context.Context, fn ReceiveFunc) error
 
+	// MTU finds the maximum message size that can be sent to addr.
+	// If the context expires, a reasonable default (normally a significant underestimate) will be returned.
 	MTU(ctx context.Context, addr Addr) int
+	// LookupPublicKey attempts to find the public key corresponding to addr.
+	// If it can't find it, ErrPublicKeyNotFound is returned.
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
+	// FindAddr looks for an address with nbits leading bits in common with prefix.
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
 
+	// LocalAddr returns this Node's address
 	LocalAddr() Addr
+	// PublicKey returns this Node's public key
 	PublicKey() PublicKey
 
+	// Close indicates no more messages should be sent or received from this node
+	// and releases any resources allocated for this node.
 	Close() error
 }
 
@@ -59,7 +72,7 @@ type Service interface {
 	MTU(ctx context.Context, addr Addr) int
 }
 
-// Receive is a utility method for copying a message from the Node n into msg
+// Receive is a utility function for copying a message from the Node n into msg
 func Receive(ctx context.Context, n Node, msg *Message) error {
 	return n.Receive(ctx, func(m2 Message) {
 		msg.Src = m2.Src
