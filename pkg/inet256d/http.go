@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -28,12 +29,15 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *inet25
 	defer l.Close()
 
 	grpcServer := d.makeGRPCServer(srv)
+	restServer := inet256http.NewServer(srv)
 
 	mux := chi.NewMux()
 	// grpc services
 	for name := range grpcServer.GetServiceInfo() {
 		mux.Handle("/"+name+"/*", grpcServer)
 	}
+	// REST API
+	mux.Handle("/v0/*", restServer)
 	// health check
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -1,24 +1,18 @@
 package inet256http
 
 import (
-	"context"
-	"encoding/json"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"sync"
 
 	"github.com/go-chi/chi"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 type Server struct {
 	service inet256.Service
 	router  chi.Router
-
-	mu        sync.Mutex
-	nodes     map[inet256.Addr]inet256.Node
-	refCounts map[inet256.Addr]int
+	log     *logrus.Logger
 }
 
 func NewServer(srv inet256.Service) *Server {
@@ -26,12 +20,13 @@ func NewServer(srv inet256.Service) *Server {
 	s := &Server{
 		service: srv,
 		router:  router,
+		log:     logrus.StandardLogger(),
 	}
 	router.Route("/v0", func(r chi.Router) {
-		r.Connect("/connect", s.connect)
-		r.Get("/nodes/{id}", s.lookup)
+		r.Post("/connect", s.connect)
+		r.Post("/findAddr", s.findAddr)
 		r.Get("/mtu/{id}", s.mtu)
-		r.Get("/findAddr", s.findAddr)
+		r.Get("/public-key/{id}", s.lookupKey)
 	})
 	return s
 }
@@ -40,55 +35,70 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.router.ServeHTTP(w, r)
 }
 
-func (s *Server) lookup(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func (s *Server) findAddr(w http.ResponseWriter, r *http.Request) {
-
+	var x FindAddrReq
+	readJSON(r.Body, &x)
 }
 
 func (s *Server) mtu(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (s *Server) lookupKey(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (s *Server) getNode(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := inet256.NewAddr(privateKey.Public())
-	n, exists := s.nodes[id]
-	if !exists {
-		var err error
-		n, err = s.service.CreateNode(ctx, privateKey)
-		if err != nil {
-			return nil, err
-		}
-		s.nodes[id] = n
-	}
-	s.refCounts[id] += 1
-	return n, nil
-}
-
-func (s *Server) dropNode(x inet256.Node) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := x.LocalAddr()
-	s.refCounts[id] -= 1
-	if s.refCounts[id] == 0 {
-		delete(s.nodes, id)
-		delete(s.refCounts, id)
-	}
-}
-
-func readJSON(r io.ReadCloser, x interface{}) error {
-	defer r.Close()
-	data, err := ioutil.ReadAll(r)
+	flusher := w.(http.Flusher)
+	ctx := r.Context()
+	privateKey, err := getPrivateKey(r)
 	if err != nil {
-		return err
+		writeError(w, http.StatusBadRequest, err)
+		return
 	}
-	return json.Unmarshal(data, &x)
+	node, err := s.service.CreateNode(ctx, privateKey)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer func() {
+		if err := node.Close(); err != nil {
+			s.log.Errorf("error closing node: %v", err)
+		}
+	}()
+	w.WriteHeader(http.StatusOK)
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		var msg inet256.Message
+		for {
+			if err := inet256.Receive(ctx, node, &msg); err != nil {
+				return err
+			}
+			if err := writeMessage(w, msg); err != nil {
+				return err
+			}
+			flusher.Flush()
+		}
+	})
+	eg.Go(func() error {
+		buf := make([]byte, inet256.MaxMTU)
+		for {
+			var src, dst inet256.Addr
+			n, err := readMessage(r.Body, &src, &dst, buf)
+			if err != nil {
+				return err
+			}
+			if err := node.Tell(ctx, dst, buf[:n]); err != nil {
+				return err
+			}
+		}
+	})
+	if err := eg.Wait(); err != nil {
+		logrus.Error(err)
+	}
+}
+
+func writeError(w http.ResponseWriter, status int, err error) {
+	w.WriteHeader(status)
+	w.Write([]byte(err.Error()))
 }

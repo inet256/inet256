@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
@@ -67,4 +68,20 @@ func TestServerCreateDelete(t *testing.T) {
 		err := s.DeleteNode(ctx, pk)
 		require.NoError(t, err)
 	}
+}
+
+func getMainAddr(x inet256.Service) inet256.Addr {
+	addr, err := x.(*inet256srv.Server).MainAddr()
+	if err != nil {
+		panic(err)
+	}
+	return addr
+}
+
+func getTransportAddrs(x inet256.Service) []p2p.Addr {
+	addrs, err := x.(*inet256srv.Server).TransportAddrs()
+	if err != nil {
+		panic(err)
+	}
+	return addrs
 }
