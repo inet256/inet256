@@ -1,6 +1,9 @@
 
 .PHONY: test protobuf drop-replace add-replace build
 
+clean:
+	-rm -r ./build/*
+
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
 

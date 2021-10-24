@@ -340,7 +340,7 @@ func (n *Network) broadcast(ctx context.Context, exclude inet256.Addr, mtype uin
 		peerID := peerID
 		eg.Go(func() error {
 			err := n.swarm.Tell(ctx, peerID, p2p.IOVec{hdr[:], body})
-			if inet256.IsUnreachable(err) {
+			if inet256.IsErrUnreachable(err) {
 				err = nil
 			}
 			err = errors.Wrapf(err, "tell %v: ", peerID)

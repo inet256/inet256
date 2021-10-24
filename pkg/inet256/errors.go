@@ -14,13 +14,13 @@ var (
 	ErrClosed            = net.ErrClosed
 )
 
-func IsPublicKeyNotFound(err error) bool {
+func IsErrPublicKeyNotFound(err error) bool {
 	return err == ErrPublicKeyNotFound
 }
 
-func IsUnreachable(err error) bool {
-	target := &ErrAddrUnreachable{}
-	return errors.Is(err, target)
+func IsErrUnreachable(err error) bool {
+	target := ErrAddrUnreachable{}
+	return errors.As(err, &target)
 }
 
 func IsErrClosed(err error) bool {

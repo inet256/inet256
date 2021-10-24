@@ -139,7 +139,7 @@ func (s *swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.Publi
 	}
 	addr, err := s.selectAddr(target.(inet256.Addr))
 	if err != nil {
-		if inet256.IsUnreachable(err) {
+		if inet256.IsErrUnreachable(err) {
 			err = inet256.ErrPublicKeyNotFound
 		}
 		return nil, err
