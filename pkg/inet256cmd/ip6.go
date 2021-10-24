@@ -2,20 +2,28 @@ package inet256cmd
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
+	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
+	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
+
+var privateKeyPath string
+var whitelistPath string
 
 func init() {
 	rootCmd.AddCommand(portalCmd)
-	rootCmd.AddCommand(createPortalConfigCmd)
+	rootCmd.AddCommand(ip6AddrCmd)
 
-	portalCmd.Flags().StringVar(&configPath, "config", "", "--config=./my-config.yml")
+	portalCmd.Flags().StringVar(&privateKeyPath, "private-key", "", "--private-key=path/to/key.pem")
+	portalCmd.Flags().StringVar(&whitelistPath, "whitelist", "", "--whitelist=path/to/whitelist.txt")
+
+	ip6AddrCmd.Flags().StringVar(&privateKeyPath, "private-key", "", "--private-key=path/to/key.pem")
 }
 
 var portalCmd = &cobra.Command{
@@ -25,18 +33,10 @@ var portalCmd = &cobra.Command{
 		if err := cmd.ParseFlags(args); err != nil {
 			return err
 		}
-		if configPath == "" {
-			return errors.New("must provide config path")
+		if privateKeyPath == "" {
+			return errors.New("must provide path to private key")
 		}
-		configData, err := ioutil.ReadFile(configPath)
-		if err != nil {
-			return err
-		}
-		config, err := inet256ipv6.ParsePortalConfig(configData)
-		if err != nil {
-			return err
-		}
-		privateKey, err := config.GetPrivateKey()
+		privateKey, err := getPrivateKeyFromFile(privateKeyPath)
 		if err != nil {
 			return err
 		}
@@ -45,25 +45,60 @@ var portalCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		allowFunc := inet256ipv6.AllowAll
+		if whitelistPath != "" {
+			data, err := ioutil.ReadFile(whitelistPath)
+			if err != nil {
+				return err
+			}
+			allowFunc, err = inet256ipv6.ParseWhitelist(data)
+			if err != nil {
+				return err
+			}
+		}
 		return inet256ipv6.RunPortal(ctx, inet256ipv6.PortalParams{
-			AllowFunc: config.GetAllowFunc(),
+			AllowFunc: allowFunc,
 			Node:      n,
 			Logger:    logrus.New(),
 		})
 	},
 }
 
-var createPortalConfigCmd = &cobra.Command{
-	Use:   "ip6-create-config",
-	Short: "writes a default config for an IPv6 portal to stdout",
+var ip6AddrCmd = &cobra.Command{
+	Use:   "ip6-addr",
+	Short: "writes the ipv6 address corresponding to a private or public key",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		out := cmd.OutOrStdout()
-		config := inet256ipv6.DefaultPortalConfig()
-		data, err := yaml.Marshal(config)
-		if err != nil {
-			panic(err)
+		if err := cmd.ParseFlags(args); err != nil {
+			return err
 		}
-		out.Write(data)
+		var x inet256.Addr
+		switch {
+		case privateKeyPath != "":
+			privateKey, err := getPrivateKeyFromFile(privateKeyPath)
+			if err != nil {
+				return err
+			}
+			x = inet256.NewAddr(privateKey.Public())
+		case len(args) == 1:
+			var err error
+			x, err = inet256.ParseAddrB64([]byte(args[0]))
+			if err != nil {
+				return err
+			}
+		default:
+			return errors.Errorf("must specify a key")
+		}
+		y := inet256ipv6.INet256ToIPv6(x)
+		fmt.Fprintf(out, "%v\n", y)
 		return nil
 	},
+}
+
+func getPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
+	data, err := ioutil.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	return serde.ParsePrivateKeyPEM(data)
 }

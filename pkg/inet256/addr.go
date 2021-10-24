@@ -73,3 +73,10 @@ func MarshalPublicKey(pubKey PublicKey) []byte {
 func HasPrefix(x []byte, prefix []byte, nbits int) bool {
 	return kademlia.HasPrefix(x, prefix, nbits)
 }
+
+// ParseAddrB64 attempts to parse a base64 encoded INET256 address from data
+func ParseAddrB64(data []byte) (Addr, error) {
+	addr := Addr{}
+	err := addr.UnmarshalText(data)
+	return addr, err
+}
