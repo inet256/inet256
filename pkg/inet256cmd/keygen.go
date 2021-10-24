@@ -3,17 +3,19 @@ package inet256cmd
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"io/ioutil"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/serde"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	rootCmd.AddCommand(keygenCmd)
-	rootCmd.AddCommand(deriveAddrCmd)
+	rootCmd.AddCommand(addrCmd)
+
+	addrCmd.Flags().StringVar(&privateKeyPath, "private-key", "", "--private-key path/to/private/key.pem")
 }
 
 var keygenCmd = &cobra.Command{
@@ -30,25 +32,26 @@ var keygenCmd = &cobra.Command{
 	},
 }
 
-var deriveAddrCmd = &cobra.Command{
-	Use:   "derive-addr",
-	Short: "derives an address from a private key, read from stdin",
+var addrCmd = &cobra.Command{
+	Use:   "addr",
+	Short: "derives an address from a private key",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		in := cmd.InOrStdin()
-		data, err := ioutil.ReadAll(in)
-		if err != nil {
+		if err := cmd.ParseFlags(args); err != nil {
 			return err
 		}
-		privateKey, err := serde.ParsePrivateKeyPEM(data)
+		if privateKeyPath == "" {
+			return errors.Errorf("must provide path to private key")
+		}
+		privateKey, err := getPrivateKeyFromFile(privateKeyPath)
 		if err != nil {
 			return err
 		}
 		id := inet256.NewAddr(privateKey.Public())
 		out := cmd.OutOrStdout()
-		data, _ = id.MarshalText()
+		data, _ := id.MarshalText()
 		data = append(data, '\n')
-		out.Write(data)
-		return nil
+		_, err = out.Write(data)
+		return err
 	},
 }
 

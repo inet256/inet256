@@ -7,7 +7,7 @@ It does define an upward facing API.
 
 ## Addresses
 INET256 addresses are 256 bits dervied from serializing, then hashing a public signing key.
-The signing algorithms supported are RSA and Ed25519
+The signing algorithms supported are RSA and Ed25519.
 Keys are serialized using the PKIX serialization format.
 Keys are hashed by taking the serialized format and feeding it to SHAKE256 XOF then reading 256 bits of output.
 

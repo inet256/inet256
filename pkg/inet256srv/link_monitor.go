@@ -67,7 +67,7 @@ func (lm *linkMonitor) heartbeatLoop(ctx context.Context) error {
 		func() {
 			ctx, cf := context.WithTimeout(ctx, period*2/3)
 			defer cf()
-			if err := lm.heartbeat(ctx); err != nil {
+			if err := lm.heartbeat(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				lm.log.Error("during heartbeat: ", err)
 			}
 		}()
@@ -139,7 +139,7 @@ func (lm *linkMonitor) PickAddr(id inet256.Addr) (p2p.Addr, error) {
 	// pick a random address from the store.
 	addrs := lm.peerStore.ListAddrs(id)
 	if len(addrs) == 0 {
-		return nil, errors.Errorf("no transport addresses for peer %v", id)
+		return nil, inet256.ErrAddrUnreachable{Addr: id}
 	}
 	addr := addrs[mrand.Intn(len(addrs))]
 	return addr, nil

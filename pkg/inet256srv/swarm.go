@@ -60,7 +60,11 @@ func (s *swarm) Tell(ctx context.Context, dst p2p.Addr, v p2p.IOVec) error {
 		return err
 	}
 	s.meters.Tx(dst2, p2p.VecSize(v))
-	return s.dataSwarm.Tell(ctx, addr, v)
+	err = s.dataSwarm.Tell(ctx, addr, v)
+	if errors.Is(err, context.DeadlineExceeded) {
+		err = nil
+	}
+	return err
 }
 
 func (s *swarm) Receive(ctx context.Context, th p2p.TellHandler) error {
@@ -135,6 +139,9 @@ func (s *swarm) LookupPublicKey(ctx context.Context, target p2p.Addr) (p2p.Publi
 	}
 	addr, err := s.selectAddr(target.(inet256.Addr))
 	if err != nil {
+		if inet256.IsUnreachable(err) {
+			err = inet256.ErrPublicKeyNotFound
+		}
 		return nil, err
 	}
 	return s.dataSwarm.LookupPublicKey(ctx, addr)

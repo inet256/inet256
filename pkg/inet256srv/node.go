@@ -34,6 +34,7 @@ type Params struct {
 type node struct {
 	params Params
 
+	secureSwarms   map[string]p2p.SecureSwarm
 	transportSwarm p2p.SecureSwarm
 	basePeerSwarm  *swarm
 	network        Network
@@ -69,6 +70,7 @@ func NewNode(params Params) Node {
 	)
 	return &node{
 		params:         params,
+		secureSwarms:   secureSwarms,
 		transportSwarm: transportSwarm,
 		basePeerSwarm:  basePeerSwarm,
 		network:        network,
@@ -127,7 +129,7 @@ func (n *node) Close() (retErr error) {
 	return el.Err()
 }
 
-// makeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
+// MakeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
 // then copies them to y.
 func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[string]p2p.SecureSwarm, error) {
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
@@ -148,4 +150,24 @@ func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[st
 
 	}
 	return y, nil
+}
+
+func NewAddrSchema(swarms map[string]p2p.Swarm) multiswarm.AddrSchema {
+	swarms2 := map[string]p2p.Swarm{}
+	for k, v := range swarms {
+		if _, ok := v.(p2p.SecureSwarm); !ok {
+			k = "quic+" + k
+			v = secureAddrParser{v}
+		}
+		swarms2[k] = v
+	}
+	return multiswarm.NewSchemaFromSwarms(swarms2)
+}
+
+type secureAddrParser struct {
+	p2p.Swarm
+}
+
+func (sap secureAddrParser) ParseAddr(x []byte) (p2p.Addr, error) {
+	return quicswarm.ParseAddr(sap.Swarm, x)
 }

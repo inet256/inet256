@@ -98,8 +98,8 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		}
 		swarms[swname] = sw
 	}
-	addrSchema := multiswarm.NewSchemaFromSwarms(swarms)
 	// peers
+	addrSchema := inet256srv.NewAddrSchema(swarms)
 	peers := inet256srv.NewPeerStore()
 	for _, pspec := range c.Peers {
 		addrs, err := serde.ParseAddrs(addrSchema.ParseAddr, pspec.Addrs)

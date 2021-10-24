@@ -26,9 +26,6 @@ We may benefit from some sort of standardization.
 ## A Standard
 Hopefully by exploring the design space, and tradeoffs between parameters herein, developers of new projects can be guided to the same point in the space, rather than all ending up a stone’s throw from one another.
 
-Most standards are doomed to fail, but this is usually due to there not actually being one simplest way to do something.
-When there are only a handful of ways to do something, and no party is losing functionality by not doing it their way, it is easy to standardize.
-
 ## Design
 In this case there are really only 2 parameters in the design space.
 ```
@@ -42,9 +39,6 @@ And there are already widely adopted standards for both of these things. Let’s
 SHA - Secure Hash Algorithm.
 Every once in a while the NIST in the U.S. holds a contest to certify one algorithm as SHA*X*.  These algorithms are the most widely used cryptographic hash functions.
 This is the most widely used standard, so we should use it.
-Sorry BLAKE.
-
-> Aside: If you are unfamiliar with the BLAKE functions you should take a look at BLAKE3.  It's very fast.
 
 The latest SHA*X* is SHA3, so let’s use that.
 Although the SHA3 functions are slower than the SHA2 family of functions, the SHA2 functions are vulnerable to length extension attacks.
@@ -80,7 +74,7 @@ DER is just a deterministic way of serializing ASN.1 structures.
 PKIX composes these along with a number from somewhere in the sky to identify the public key algorithm.
 X509 PKIX seems like the best candidate for our key serializing function.
 
-If you follow and agree with this reasoning then we have chosen `SHAKE-256` as the hash function.  And `X509 PKIX` as the key marshaling function.
+If you follow and agree with this reasoning then we have chosen 256 bits of `SHAKE-256` as the hash function.  And `X509 PKIX` as the key marshaling function.
 
 This particular method of allocating addresses, and determining what key is at an address is the **INET256 Address Scheme**
 
@@ -112,4 +106,4 @@ The way towards adoption is to develop applications that expect INET256 beneath 
 The goal is to create a growing ecosystem of networked applications sharing the same address space.
 Eventually the functionality in that ecosystem will become hard to ignore; tooling, routing algorithms, and other investment will manifest.
 
-Take a look at [Awesome INET256 Projects](https://github.com/inet256/awesome) to see what others are building.
+Take a look at [Awesome INET256 Projects](https://github.com/inet256/ecosystem) to see what others are building.
