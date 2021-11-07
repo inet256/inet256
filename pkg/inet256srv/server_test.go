@@ -22,7 +22,7 @@ func TestServerLoopback(t *testing.T) {
 	for i := range nodes {
 		pk := p2ptest.NewTestKey(t, i)
 		var err error
-		nodes[i], err = s.CreateNode(ctx, pk)
+		nodes[i], err = s.Open(ctx, pk)
 		require.NoError(t, err)
 	}
 	for i := range nodes {
@@ -40,7 +40,7 @@ func TestServerOneHop(t *testing.T) {
 	for i := range nodes {
 		pk := p2ptest.NewTestKey(t, i)
 		var err error
-		nodes[i], err = s.CreateNode(ctx, pk)
+		nodes[i], err = s.Open(ctx, pk)
 		require.NoError(t, err)
 	}
 	for i := range nodes {
@@ -58,13 +58,13 @@ func TestServerCreateDelete(t *testing.T) {
 	const N = 100
 	for i := 0; i < N; i++ {
 		pk := p2ptest.NewTestKey(t, i)
-		_, err := s.CreateNode(ctx, pk)
+		_, err := s.Open(ctx, pk)
 		require.NoError(t, err)
 	}
 
 	for i := 0; i < N; i++ {
 		pk := p2ptest.NewTestKey(t, i)
-		err := s.DeleteNode(ctx, pk)
+		err := s.Delete(ctx, pk)
 		require.NoError(t, err)
 	}
 }

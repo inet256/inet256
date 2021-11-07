@@ -7,7 +7,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256srv"
 )
 
-func PeerStatusFromProto(xs []*PeerStatus) []inet256srv.PeerStatus {
+func peerStatusFromProto(xs []*PeerStatus) []inet256srv.PeerStatus {
 	ys := make([]inet256srv.PeerStatus, len(xs))
 	for i := range xs {
 		lastSeen := make(map[string]time.Time, len(xs[i].LastSeen))
@@ -22,7 +22,7 @@ func PeerStatusFromProto(xs []*PeerStatus) []inet256srv.PeerStatus {
 	return ys
 }
 
-func PeerStatusToProto(xs []inet256srv.PeerStatus) []*PeerStatus {
+func peerStatusToProto(xs []inet256srv.PeerStatus) []*PeerStatus {
 	ys := make([]*PeerStatus, len(xs))
 	for i := range xs {
 		lastSeen := make(map[string]int64, len(xs[i].LastSeen))

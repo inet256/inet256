@@ -13,7 +13,7 @@ func TestNetwork(t *testing.T) {
 }
 
 func TestServer(t *testing.T) {
-	inet256test.TestService(t, func(t *testing.T, xs []inet256.Service) {
+	inet256test.TestService(t, func(t testing.TB, xs []inet256.Service) {
 		inet256srv.NewTestServers(t, Factory, xs)
 	})
 }

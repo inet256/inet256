@@ -32,5 +32,5 @@ func newNode(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, erro
 	if err != nil {
 		return nil, err
 	}
-	return c.CreateNode(ctx, privateKey)
+	return c.Open(ctx, privateKey)
 }

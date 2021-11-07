@@ -75,7 +75,7 @@ func NewServer(params Params) *Server {
 	return s
 }
 
-func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
+func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
 	id := inet256.NewAddr(privateKey.Public())
 	node, err := func() (Node, error) {
 		s.mu.Lock()
@@ -113,7 +113,7 @@ func (s *Server) CreateNode(ctx context.Context, privateKey p2p.PrivateKey) (Nod
 	return node, nil
 }
 
-func (s *Server) DeleteNode(ctx context.Context, privateKey p2p.PrivateKey) error {
+func (s *Server) Delete(ctx context.Context, privateKey p2p.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()

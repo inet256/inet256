@@ -17,13 +17,14 @@ New signing algorithms can be added or removed over time.
 The INET256 API is defined in terms of methods which can be implemented by libraries, RPCs, system calls, etc.
 The reference implementation uses gRPC.
 
-## `connect(privateKey) -> Node`
+## `open(privateKey) -> Node`
 The implementation must provide a way to create new nodes in the network with a caller-provided private signing key.
 The implementation is trusted to keep the key safe, and to manage running the node, and communicating with others.
 
-## `disconnect(privateKey)`
+## `delete(privateKey)`
 Should remove the node corresponding to private key from the network.
 After disconnecting the privateKey must not be retained by the implementation.
+Any Nodes from previous calls to open must return errors for subsequent operations.
 
 ## `Node.mtu(address) -> mtu`
 The implementation must provide a way to determine the maximum message size.

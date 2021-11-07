@@ -1,40 +1,39 @@
 package inet256ipv6
 
 import (
+	"context"
 	"crypto/ed25519"
 
-	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256grpc"
 	log "github.com/sirupsen/logrus"
 )
 
 type IPv6Addr = [16]byte
 
 type NATTable struct {
-	client inet256grpc.INET256Client
+	srv inet256.Service
 
 	outbound map[IPv6Addr]inet256.Addr
 	inbound  map[inet256.Addr]IPv6Addr
 	vnodes   map[inet256.Addr]inet256.Node
 }
 
-func NewNATTable(client inet256grpc.INET256Client) *NATTable {
+func NewNATTable(srv inet256.Service) *NATTable {
 	return &NATTable{
-		client:   client,
+		srv:      srv,
 		outbound: make(map[IPv6Addr]inet256.Addr),
 		inbound:  make(map[inet256.Addr]IPv6Addr),
 		vnodes:   make(map[inet256.Addr]inet256.Node),
 	}
 }
 
-func (nt *NATTable) AddClient(ipv6 IPv6Addr) inet256.Addr {
+func (nt *NATTable) AddClient(ctx context.Context, ipv6 IPv6Addr) inet256.Addr {
 	inside := ipv6
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}
-	vnode, err := inet256client.NewNodeFromGRPC(nt.client, priv)
+	vnode, err := nt.srv.Open(ctx, priv)
 	if err != nil {
 		panic(err)
 	}

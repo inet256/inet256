@@ -64,8 +64,8 @@ type Node interface {
 //
 // This interface is compatible with the INET256 specification.
 type Service interface {
-	CreateNode(ctx context.Context, privKey p2p.PrivateKey) (Node, error)
-	DeleteNode(ctx context.Context, privKey p2p.PrivateKey) error
+	Open(ctx context.Context, privKey p2p.PrivateKey) (Node, error)
+	Delete(ctx context.Context, privKey p2p.PrivateKey) error
 
 	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)

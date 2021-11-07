@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestService(t *testing.T, sf func(*testing.T, []inet256.Service)) {
+func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 	t.Run("Send", func(t *testing.T) {
 		xs := make([]inet256.Service, 1)
 		sf(t, xs)
@@ -28,7 +28,7 @@ func testServerSend(t *testing.T, s inet256.Service) {
 	nodes := make([]inet256.Node, N)
 	for i := range nodes {
 		pk := p2ptest.NewTestKey(t, i)
-		n, err := s.CreateNode(ctx, pk)
+		n, err := s.Open(ctx, pk)
 		require.NoError(t, err)
 		nodes[i] = n
 	}
@@ -45,7 +45,7 @@ func testMultipleServers(t *testing.T, srvs ...inet256.Service) {
 	for i, s := range srvs {
 		for j := 0; j < N; j++ {
 			pk := p2ptest.NewTestKey(t, i*N+j)
-			n, err := s.CreateNode(ctx, pk)
+			n, err := s.Open(ctx, pk)
 			require.NoError(t, err)
 			nodes[i*N+j] = n
 		}
