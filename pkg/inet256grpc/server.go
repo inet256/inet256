@@ -14,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -43,15 +45,26 @@ func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyR
 	}, nil
 }
 
-func (s *Server) Lookup(ctx context.Context, req *LookupReq) (*LookupRes, error) {
-	target := inet256.Addr{}
-	copy(target[:], req.TargetAddr)
+func (s *Server) FindAddr(ctx context.Context, req *FindAddrReq) (*FindAddrRes, error) {
+	addr, err := s.s.FindAddr(ctx, req.Prefix, int(req.Nbits))
+	if err != nil {
+		if errors.Is(err, inet256.ErrNoAddrWithPrefix) {
+			err = status.Errorf(codes.NotFound, "%v", err)
+		}
+		return nil, err
+	}
+	return &FindAddrRes{
+		Addr: addr[:],
+	}, nil
+}
+
+func (s *Server) LookupPublicKey(ctx context.Context, req *LookupPublicKeyReq) (*LookupPublicKeyRes, error) {
+	target := inet256.AddrFromBytes(req.Target)
 	pubKey, err := s.s.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
-	return &LookupRes{
-		Addr:      target[:],
+	return &LookupPublicKeyRes{
 		PublicKey: p2p.MarshalPublicKey(pubKey),
 	}, nil
 }
@@ -83,7 +96,7 @@ func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, erro
 	}
 	return &Status{
 		LocalAddr:      mainAddr[:],
-		PeerStatus:     PeerStatusToProto(stati),
+		PeerStatus:     peerStatusToProto(stati),
 		TransportAddrs: serde.MarshalAddrs(taddrs),
 	}, nil
 }
@@ -102,7 +115,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	node, err := s.s.CreateNode(ctx, privKey)
+	node, err := s.s.Open(ctx, privKey)
 	if err != nil {
 		return err
 	}
@@ -115,10 +128,10 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	eg.Go(func() error {
 		for {
 			msg, err := srv.Recv()
-			if err == io.EOF {
-				return nil
-			}
 			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
 				return err
 			}
 			if msg.ConnectInit != nil {
@@ -127,8 +140,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 			if msg.Datagram == nil {
 				continue
 			}
-			dst := inet256.Addr{}
-			copy(dst[:], msg.Datagram.Dst)
+			dst := inet256.AddrFromBytes(msg.Datagram.Dst)
 			if err := func() error {
 				ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cf()
@@ -156,4 +168,15 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 		}
 	})
 	return eg.Wait()
+}
+
+func (s *Server) Delete(ctx context.Context, req *DeleteReq) (*DeleteRes, error) {
+	privateKey, err := serde.ParsePrivateKey(req.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.s.Delete(ctx, privateKey); err != nil {
+		return nil, err
+	}
+	return &DeleteRes{}, nil
 }

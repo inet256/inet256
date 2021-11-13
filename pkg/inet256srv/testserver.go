@@ -25,7 +25,7 @@ func NewTestServer(t testing.TB, nf inet256.NetworkFactory) *Server {
 	return s
 }
 
-func NewTestServers(t *testing.T, nf inet256.NetworkFactory, xs []inet256.Service) {
+func NewTestServers(t testing.TB, nf inet256.NetworkFactory, xs []inet256.Service) {
 	r := memswarm.NewRealm()
 	stores := make([]inet256.PeerStore, len(xs))
 	srvs := make([]*Server, len(xs))

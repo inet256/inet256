@@ -10,13 +10,22 @@ message GenerateKeyRes {
     bytes private_key = 1;
 }
 
-message LookupReq {
-    bytes target_addr = 1;
+message FindAddrReq {
+    bytes prefix = 1;
+    uint32 nbits = 2;
 }
 
-message LookupRes {
+message FindAddrRes {
     bytes addr = 1;
     bytes public_key = 2;
+}
+
+message LookupPublicKeyReq {
+    bytes target = 1;
+}
+
+message LookupPublicKeyRes {
+    bytes public_key = 1;
 }
 
 message ConnectMsg {
@@ -54,15 +63,24 @@ message Status {
     repeated bytes running_nodes = 4;
 }
 
+message DeleteReq {
+    bytes private_key = 1;
+}
+
+message DeleteRes {}
+
 service INET256 {
     rpc GenerateKey(google.protobuf.Empty) returns (GenerateKeyRes) {}
-    rpc Lookup(LookupReq) returns (LookupRes) {}
+    rpc LookupPublicKey(LookupPublicKeyReq) returns (LookupPublicKeyRes) {}
+    rpc FindAddr(FindAddrReq) returns (FindAddrRes) {}
     rpc MTU(MTUReq) returns (MTURes) {}
 
     // Connect starts a session for sending and receiving messages
     // The first message must contain a private key. The corresponding public key will
     // be used to derive an address
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
+    // Delete disconnects all connected sessions for a given private key.
+    rpc Delete(DeleteReq) returns (DeleteRes) {}
 }
 
 service Admin {

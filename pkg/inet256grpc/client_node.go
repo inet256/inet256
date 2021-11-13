@@ -1,4 +1,4 @@
-package inet256client
+package inet256grpc
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
@@ -18,7 +17,7 @@ import (
 )
 
 type node struct {
-	inetClient inet256grpc.INET256Client
+	inetClient INET256Client
 	privKey    p2p.PrivateKey
 	localAddr  inet256.Addr
 	cf         context.CancelFunc
@@ -27,19 +26,7 @@ type node struct {
 	workers []*worker
 }
 
-func NewNode(endpoint string, privKey p2p.PrivateKey) (inet256.Node, error) {
-	gc, err := dial(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	return newNode(inet256grpc.NewINET256Client(gc), privKey)
-}
-
-func NewNodeFromGRPC(client inet256grpc.INET256Client, privKey p2p.PrivateKey) (inet256.Node, error) {
-	return newNode(client, privKey)
-}
-
-func newNode(inetClient inet256grpc.INET256Client, privKey p2p.PrivateKey) (*node, error) {
+func newNode(inetClient INET256Client, privKey p2p.PrivateKey) (*node, error) {
 	ctx, cf := context.WithCancel(context.Background())
 	n := &node{
 		cf:         cf,
@@ -122,14 +109,14 @@ func (n *node) runLoop(ctx context.Context) {
 	}
 }
 
-func (n *node) connect(ctx context.Context) (inet256grpc.INET256_ConnectClient, error) {
+func (n *node) connect(ctx context.Context) (INET256_ConnectClient, error) {
 	cc, err := n.inetClient.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	privKeyBytes := serde.MarshalPrivateKey(n.privKey)
-	if err := cc.Send(&inet256grpc.ConnectMsg{
-		ConnectInit: &inet256grpc.ConnectInit{
+	if err := cc.Send(&ConnectMsg{
+		ConnectInit: &ConnectInit{
 			PrivateKey: privKeyBytes,
 		},
 	}); err != nil {
@@ -151,14 +138,14 @@ func (n *node) pickWorker() *worker {
 }
 
 type worker struct {
-	getCC func(context.Context) (inet256grpc.INET256_ConnectClient, error)
+	getCC func(context.Context) (INET256_ConnectClient, error)
 	tells *netutil.TellHub
 
 	mu sync.RWMutex
-	cc inet256grpc.INET256_ConnectClient
+	cc INET256_ConnectClient
 }
 
-func newWorker(fn func(context.Context) (inet256grpc.INET256_ConnectClient, error), tells *netutil.TellHub) *worker {
+func newWorker(fn func(context.Context) (INET256_ConnectClient, error), tells *netutil.TellHub) *worker {
 	return &worker{
 		getCC: fn,
 		tells: tells,
@@ -194,21 +181,21 @@ func (w *worker) tell(ctx context.Context, dst inet256.Addr, data []byte) error 
 	if cc == nil {
 		return errors.Errorf("cannot send, no active connection to daemon")
 	}
-	return cc.Send(&inet256grpc.ConnectMsg{
-		Datagram: &inet256grpc.Datagram{
+	return cc.Send(&ConnectMsg{
+		Datagram: &Datagram{
 			Dst:     dst[:],
 			Payload: data,
 		},
 	})
 }
 
-func (w *worker) setClient(x inet256grpc.INET256_ConnectClient) {
+func (w *worker) setClient(x INET256_ConnectClient) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.cc = x
 }
 
-func (w *worker) getClient() inet256grpc.INET256_ConnectClient {
+func (w *worker) getClient() INET256_ConnectClient {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.cc
