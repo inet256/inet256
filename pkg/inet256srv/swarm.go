@@ -8,6 +8,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
@@ -33,7 +34,7 @@ type swarm struct {
 	meters    meterSet
 }
 
-func NewSwarm(x p2p.SecureSwarm, peerStore PeerStore) inet256.Swarm {
+func NewSwarm(x p2p.SecureSwarm, peerStore PeerStore) networks.Swarm {
 	return swarmWrapper{newSwarm(x, peerStore)}
 }
 

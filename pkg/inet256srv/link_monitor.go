@@ -10,6 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,7 +22,7 @@ type linkMonitor struct {
 	x           p2p.SecureSwarm
 	peerStore   PeerStore
 	expireAfter time.Duration
-	log         *Logger
+	log         *logrus.Logger
 	sg          netutil.ServiceGroup
 
 	mu        sync.RWMutex
@@ -29,7 +30,7 @@ type linkMonitor struct {
 	addrs     map[string]p2p.Addr
 }
 
-func newLinkMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *Logger) *linkMonitor {
+func newLinkMonitor(x p2p.SecureSwarm, peerStore PeerStore, log *logrus.Logger) *linkMonitor {
 	lm := &linkMonitor{
 		x:           x,
 		peerStore:   peerStore,

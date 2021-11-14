@@ -10,8 +10,10 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -20,9 +22,9 @@ import (
 type (
 	Addr           = inet256.Addr
 	Node           = inet256.Node
-	Network        = inet256.Network
-	NetworkFactory = inet256.NetworkFactory
-	PeerStore      = inet256.PeerStore
+	Network        = networks.Network
+	NetworkFactory = networks.Factory
+	PeerStore      = peers.Store
 )
 
 func TestNetwork(t *testing.T, nf NetworkFactory) {
@@ -99,7 +101,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	swarms := make([]p2p.SecureSwarm, N)
 	peerStores := make([]PeerStore, N)
 	keys := make([]p2p.PrivateKey, N)
-	netSwarms := make([]inet256.Swarm, N)
+	netSwarms := make([]networks.Swarm, N)
 	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
@@ -119,7 +121,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	nets := make([]Network, N)
 	for i := 0; i < N; i++ {
 		logger := newTestLogger(t)
-		nets[i] = nf(inet256.NetworkParams{
+		nets[i] = nf(networks.Params{
 			Peers:      peerStores[i],
 			PrivateKey: keys[i],
 			Swarm:      netSwarms[i],

@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"golang.org/x/sync/errgroup"
 )
 
-func Factory(params inet256.NetworkParams) inet256.Network {
+func Factory(params networks.Params) networks.Network {
 	return New(params.PrivateKey, params.Swarm, params.Peers, params.Logger)
 }
 
@@ -24,9 +25,9 @@ type Addr = inet256.Addr
 type Network struct {
 	localAddr  inet256.Addr
 	privateKey inet256.PrivateKey
-	onehop     inet256.PeerSet
-	swarm      inet256.Swarm
-	log        *inet256.Logger
+	onehop     networks.PeerSet
+	swarm      networks.Swarm
+	log        *networks.Logger
 
 	mu    sync.RWMutex
 	peers map[Addr]inet256.PublicKey
@@ -34,7 +35,7 @@ type Network struct {
 	recvHub *netutil.TellHub
 }
 
-func New(privateKey inet256.PrivateKey, ps inet256.Swarm, onehop inet256.PeerSet, log *inet256.Logger) inet256.Network {
+func New(privateKey inet256.PrivateKey, ps networks.Swarm, onehop networks.PeerSet, log *networks.Logger) *Network {
 	n := &Network{
 		localAddr:  inet256.NewAddr(privateKey.Public()),
 		privateKey: privateKey,

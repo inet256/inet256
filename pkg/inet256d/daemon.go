@@ -10,6 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -49,7 +50,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// discovery
 	dscSrvs := d.params.DiscoveryServices
-	dscPeerStores := make([]inet256.PeerStore, len(dscSrvs))
+	dscPeerStores := make([]peers.Store, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
 		dscPeerStores[i] = inet256srv.NewPeerStore()
@@ -58,12 +59,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// auto-peering
 	apSrvs := d.params.AutoPeeringServices
-	apPeerStores := make([]inet256.PeerStore, len(apSrvs))
+	apPeerStores := make([]peers.Store, len(apSrvs))
 	for i := range apSrvs {
 		apPeerStores[i] = inet256srv.NewPeerStore()
 	}
 
-	peerStores := []inet256.PeerStore{d.params.MainNodeParams.Peers}
+	peerStores := []peers.Store{d.params.MainNodeParams.Peers}
 	peerStores = append(peerStores, dscPeerStores...)
 	peerStores = append(peerStores, apPeerStores...)
 
@@ -123,7 +124,7 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256s
 	return gs.Serve(l)
 }
 
-func copyPeers(dst, src inet256.PeerStore) {
+func copyPeers(dst, src peers.Store) {
 	for _, id := range src.ListPeers() {
 		dst.Add(id)
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/autopeering"
@@ -110,7 +111,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		peers.SetAddrs(pspec.ID, addrs)
 	}
 	// networks
-	netFacts := make(map[inet256srv.NetworkCode]inet256.NetworkFactory)
+	netFacts := make(map[inet256srv.NetworkCode]networks.Factory)
 	for codeStr, spec := range c.Networks {
 		code, err := codeFromString(codeStr)
 		if err != nil {
@@ -244,7 +245,7 @@ func codeFromString(x string) (inet256srv.NetworkCode, error) {
 	return *(*[8]byte)(b), nil
 }
 
-func networkFactoryFromSpec(spec NetworkSpec) (inet256.NetworkFactory, error) {
+func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
 	switch {
 	case spec.BeaconNet != nil:
 		return beaconnet.Factory, nil

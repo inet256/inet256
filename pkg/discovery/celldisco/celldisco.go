@@ -19,11 +19,13 @@ func New(token string) (discovery.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	find := func(ctx context.Context, x inet256.Addr) ([]string, error) {
-		return client.Find(ctx, p2p.PeerID(x))
-	}
-	announce := func(ctx context.Context, x inet256.Addr, addrs []string) error {
-		return client.Announce(ctx, p2p.PeerID(x), addrs, ttl)
-	}
-	return discovery.NewPolling(period, find, announce), nil
+	return &discovery.PollingDiscovery{
+		Period: period,
+		Announce: func(ctx context.Context, x inet256.Addr, addrs []string) error {
+			return client.Announce(ctx, p2p.PeerID(x), addrs, ttl)
+		},
+		Find: func(ctx context.Context, x inet256.Addr) ([]string, error) {
+			return client.Find(ctx, p2p.PeerID(x))
+		},
+	}, nil
 }

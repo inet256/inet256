@@ -6,7 +6,7 @@ The daemon takes the path of the config file as a required flag
 inet256 daemon --config=path/to/config/file.yaml
 ```
 
-The configuration is provided in YAML.  It is deserialized into a structured defined in [pkg/inet256/config.go](../pkg/inet256d/config.go).
+The configuration is provided in YAML.  It is deserialized into a structured defined in [pkg/inet256d/config.go](../pkg/inet256d/config.go).
 
 # Fields
 

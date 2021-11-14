@@ -1,10 +1,21 @@
-package inet256
+package networks
 
 import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
+)
+
+type (
+	Addr        = inet256.Addr
+	ReceiveFunc = inet256.ReceiveFunc
+	PublicKey   = inet256.PublicKey
+	PrivateKey  = inet256.PrivateKey
+
+	PeerSet = peers.Set
 )
 
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
@@ -43,10 +54,10 @@ type Network interface {
 	Close() error
 }
 
-// NetworkParams are passed to a NetworkFactory to create a Network.
+// Params are passed to a NetworkFactory to create a Network.
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
-type NetworkParams struct {
+type Params struct {
 	PrivateKey PrivateKey
 	Swarm      Swarm
 	Peers      PeerSet
@@ -55,6 +66,6 @@ type NetworkParams struct {
 }
 
 // NetworkFactory is a constructor for a network
-type NetworkFactory func(NetworkParams) Network
+type Factory func(Params) Network
 
 type Logger = logrus.Logger

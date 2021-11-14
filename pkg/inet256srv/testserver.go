@@ -7,15 +7,17 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/stretchr/testify/require"
 )
 
-func NewTestServer(t testing.TB, nf inet256.NetworkFactory) *Server {
+func NewTestServer(t testing.TB, nf networks.Factory) *Server {
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
 	ps := NewPeerStore()
 	s := NewServer(Params{
-		Networks:   map[NetworkCode]inet256.NetworkFactory{{}: nf},
+		Networks:   map[NetworkCode]networks.Factory{{}: nf},
 		Peers:      ps,
 		PrivateKey: pk,
 	})
@@ -25,9 +27,9 @@ func NewTestServer(t testing.TB, nf inet256.NetworkFactory) *Server {
 	return s
 }
 
-func NewTestServers(t testing.TB, nf inet256.NetworkFactory, xs []inet256.Service) {
+func NewTestServers(t testing.TB, nf networks.Factory, xs []inet256.Service) {
 	r := memswarm.NewRealm()
-	stores := make([]inet256.PeerStore, len(xs))
+	stores := make([]peers.Store, len(xs))
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
 		pk := p2ptest.NewTestKey(t, math.MaxInt32+i)
@@ -36,7 +38,7 @@ func NewTestServers(t testing.TB, nf inet256.NetworkFactory, xs []inet256.Servic
 			Swarms: map[string]p2p.Swarm{
 				"external": r.NewSwarmWithKey(pk),
 			},
-			Networks:   map[NetworkCode]inet256.NetworkFactory{{}: nf},
+			Networks:   map[NetworkCode]networks.Factory{{}: nf},
 			Peers:      stores[i],
 			PrivateKey: pk,
 		})

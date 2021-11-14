@@ -8,16 +8,15 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
-type Logger = inet256.Logger
-
 const (
-	TransportMTU = inet256.TransportMTU
+	TransportMTU = networks.TransportMTU
 
 	MinMTU = inet256.MinMTU
 	MaxMTU = inet256.MaxMTU

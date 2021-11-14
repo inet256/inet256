@@ -10,25 +10,27 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-type PeerStore = inet256.PeerStore
-type PeerSet = inet256.PeerSet
+type PeerStore = peers.Store
+type PeerSet = networks.PeerSet
 type Node = inet256.Node
-type Network = inet256.Network
+type Network = networks.Network
 type Addr = inet256.Addr
-type NetworkParams = inet256.NetworkParams
+type NetworkParams = networks.Params
 type NetworkCode = [8]byte
 
 type Params struct {
 	p2p.PrivateKey
 	Swarms   map[string]p2p.Swarm
 	Peers    PeerStore
-	Networks map[NetworkCode]inet256.NetworkFactory
+	Networks map[NetworkCode]networks.Factory
 }
 
 type node struct {

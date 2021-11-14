@@ -5,6 +5,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 )
 
 type peerStore struct {
@@ -12,7 +13,7 @@ type peerStore struct {
 	m  map[inet256.Addr][]p2p.Addr
 }
 
-func NewPeerStore() inet256.PeerStore {
+func NewPeerStore() peers.Store {
 	return &peerStore{
 		m: map[inet256.Addr][]p2p.Addr{},
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/serde"
+	"github.com/sirupsen/logrus"
 )
 
 type AddressBook interface {
@@ -23,7 +24,7 @@ type Params struct {
 	AddressBook AddressBook
 	AddrParser  serde.AddrParserFunc
 
-	Logger *inet256.Logger
+	Logger *logrus.Logger
 }
 
 type Service interface {

@@ -15,6 +15,11 @@ import (
 
 const defaultAPIAddr = inet256d.DefaultAPIEndpoint
 
+type (
+	Addr = inet256.Addr
+	ID   = inet256.ID
+)
+
 func NewExtendedClient(endpoint string) (inet256srv.Service, error) {
 	return inet256grpc.NewExtendedClient(endpoint)
 }

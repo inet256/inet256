@@ -6,10 +6,9 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 )
-
-type PeerStore = inet256.PeerStore
 
 // AddrSource returns a list of addresses suitable for advertisement.
 type AddrSource = func() []p2p.Addr
@@ -20,7 +19,7 @@ type Params struct {
 	AddrSource AddrSource
 
 	// Inbound
-	PeerStore PeerStore
+	PeerStore peers.Store
 	ParseAddr func([]byte) (p2p.Addr, error)
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/pkg/errors"
@@ -25,8 +26,8 @@ const (
 type Network struct {
 	privateKey                 p2p.PrivateKey
 	log                        *logrus.Logger
-	swarm                      inet256.Swarm
-	peerSet                    inet256.PeerSet
+	swarm                      networks.Swarm
+	peerSet                    networks.PeerSet
 	beaconPeriod, peerStateTTL time.Duration
 
 	sg         netutil.ServiceGroup
@@ -35,11 +36,11 @@ type Network struct {
 	peerStates map[inet256.Addr]peerState
 }
 
-func Factory(params inet256.NetworkParams) inet256.Network {
+func Factory(params networks.Params) networks.Network {
 	return New(params)
 }
 
-func New(params inet256.NetworkParams) inet256.Network {
+func New(params networks.Params) *Network {
 	n := &Network{
 		privateKey:   params.PrivateKey,
 		log:          params.Logger,
@@ -122,7 +123,7 @@ func (n *Network) PublicKey() inet256.PublicKey {
 }
 
 func (n *Network) MTU(ctx context.Context, addr inet256.Addr) int {
-	return inet256.TransportMTU - HeaderSize
+	return networks.TransportMTU - HeaderSize
 }
 
 func (n *Network) Bootstrap(ctx context.Context) error {

@@ -43,10 +43,7 @@ Check out `networks/beaconnet` for an example of simple routing protocol. It's a
 This project provides tools for using INET256 networks, some of which are not yet implemented
 
 - [x] IPv6 Portal (TUN Device). Similar to CJDNS and Yggdrasil.
-- [ ] NAT Table from IPv6 to INET256. No port mappings, layer 3 only.
-- [ ] DHCPv6 server which gives out addresses corresponding to virtual nodes.
 - [ ] IPv4 VPN, declarative mappings from INET256 -> IPv4. similar to WireGuard.
-
 - [x] netcat.  Send newline separated messages to other nodes: `inet256 nc`.
 - [x] echo. A server to echo messages back to the sender: `inet256 echo`.
 
@@ -60,6 +57,10 @@ This project provides tools for using INET256 networks, some of which are not ye
 - `pkg/inet256ipv6` Logic for bridging INET256 to IPv6. Includes the IPv6 portal.
 
 - `pkg/inet256test` A test suite for Network implementations.
+
+- `pkg/autopeering` Autopeering interface definition and implementations
+
+- `pkg/discovery` discovery interface definition and implementations
 
 - `networks/` Network implementations, routing logic is in these.
 
