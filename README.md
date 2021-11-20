@@ -8,7 +8,7 @@ A 256 bit address space for peer-to-peer hosts/applications.
 
 > **The value proposition**:
 >
-> All you have to do to send messages to another process is know its address, which will never change.
+> All you have to know to send messages to another process is its address, which will never change.
 >
 > All you have to do to recieve messages is generate a private, public key pair and connect to the INET256 daemon
 
