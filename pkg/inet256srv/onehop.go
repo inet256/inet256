@@ -9,7 +9,6 @@ import (
 
 // OneHopFactory creates a network which isn't really a network.
 // It only supports sending messages to immediate neighbors.
-// This is useful for testing, and for running island nodes.
 func OneHopFactory(params NetworkParams) Network {
 	findAddr := func(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 		for _, id := range params.Peers.ListPeers() {
