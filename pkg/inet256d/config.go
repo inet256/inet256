@@ -13,6 +13,7 @@ import (
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/networks/floodnet"
+	"github.com/inet256/inet256/networks/multinet"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
@@ -31,9 +32,10 @@ type PeerSpec struct {
 }
 
 type NetworkSpec struct {
-	FloodNet  *struct{} `yaml:"floodnet,omitempty"`
-	BeaconNet *struct{} `yaml:"beaconnet,omitempty"`
-	OneHop    *struct{} `yaml:"onehop,omitempty"`
+	FloodNet  *struct{}              `yaml:"floodnet,omitempty"`
+	BeaconNet *struct{}              `yaml:"beaconnet,omitempty"`
+	OneHop    *struct{}              `yaml:"onehop,omitempty"`
+	Multi     map[string]NetworkSpec `yaml:"multi,omitempty"`
 }
 
 type TransportSpec struct {
@@ -59,11 +61,11 @@ type AutoPeeringSpec struct {
 }
 
 type Config struct {
-	PrivateKeyPath string                 `yaml:"private_key_path"`
-	APIEndpoint    string                 `yaml:"api_endpoint"`
-	Networks       map[string]NetworkSpec `yaml:"networks"`
-	Transports     []TransportSpec        `yaml:"transports"`
-	Peers          []PeerSpec             `yaml:"peers"`
+	PrivateKeyPath string          `yaml:"private_key_path"`
+	APIEndpoint    string          `yaml:"api_endpoint"`
+	Network        NetworkSpec     `yaml:"network"`
+	Transports     []TransportSpec `yaml:"transports"`
+	Peers          []PeerSpec      `yaml:"peers"`
 
 	Discovery   []DiscoverySpec   `yaml:"discovery"`
 	AutoPeering []AutoPeeringSpec `yaml:"autopeering"`
@@ -110,18 +112,10 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		peers.Add(pspec.ID)
 		peers.SetAddrs(pspec.ID, addrs)
 	}
-	// networks
-	netFacts := make(map[inet256srv.NetworkCode]networks.Factory)
-	for codeStr, spec := range c.Networks {
-		code, err := codeFromString(codeStr)
-		if err != nil {
-			return nil, err
-		}
-		factory, err := networkFactoryFromSpec(spec)
-		if err != nil {
-			return nil, err
-		}
-		netFacts[code] = factory
+	// network
+	networkFactory, err := networkFactoryFromSpec(c.Network)
+	if err != nil {
+		return nil, err
 	}
 	// discovery
 	dscSrvs := []discovery.Service{}
@@ -146,7 +140,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		MainNodeParams: inet256srv.Params{
 			PrivateKey: privateKey,
 			Swarms:     swarms,
-			Networks:   netFacts,
+			NewNetwork: networkFactory,
 			Peers:      peers,
 		},
 		DiscoveryServices:   dscSrvs,
@@ -189,7 +183,7 @@ func makeAutoPeeringService(spec AutoPeeringSpec, addrSchema multiswarm.AddrSche
 
 func DefaultConfig() Config {
 	return Config{
-		Networks:    DefaultNetworks(),
+		Network:     DefaultNetwork(),
 		APIEndpoint: DefaultAPIEndpoint,
 		Transports: []TransportSpec{
 			{
@@ -199,11 +193,9 @@ func DefaultConfig() Config {
 	}
 }
 
-func DefaultNetworks() map[string]NetworkSpec {
-	return map[string]NetworkSpec{
-		"beacon0": NetworkSpec{
-			BeaconNet: &struct{}{},
-		},
+func DefaultNetwork() NetworkSpec {
+	return NetworkSpec{
+		BeaconNet: &struct{}{},
 	}
 }
 
@@ -217,6 +209,14 @@ func LoadConfig(p string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+func SaveConfig(config Config, p string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(p, data, 0o644)
 }
 
 func ListNetworks() (ret []string) {
@@ -234,17 +234,6 @@ func strPtr(x string) *string {
 	return &x
 }
 
-func codeFromString(x string) (inet256srv.NetworkCode, error) {
-	if len(x) > 8 {
-		return [8]byte{}, errors.Errorf("network code %q is too long, must be <= 8 bytes", x)
-	}
-	b := []byte(x)
-	for len(b) < 8 {
-		b = append(b, 0x00)
-	}
-	return *(*[8]byte)(b), nil
-}
-
 func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
 	switch {
 	case spec.BeaconNet != nil:
@@ -253,7 +242,32 @@ func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
 		return floodnet.Factory, nil
 	case spec.OneHop != nil:
 		return inet256srv.OneHopFactory, nil
+	case spec.Multi != nil:
+		netFacts := make(map[multinet.NetworkCode]networks.Factory)
+		for codeStr, spec := range spec.Multi {
+			code, err := codeFromString(codeStr)
+			if err != nil {
+				return nil, err
+			}
+			factory, err := networkFactoryFromSpec(spec)
+			if err != nil {
+				return nil, err
+			}
+			netFacts[code] = factory
+		}
+		return multinet.NewFactory(netFacts), nil
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}
+}
+
+func codeFromString(x string) (multinet.NetworkCode, error) {
+	if len(x) > 8 {
+		return [8]byte{}, errors.Errorf("network code %q is too long, must be <= 8 bytes", x)
+	}
+	b := []byte(x)
+	for len(b) < 8 {
+		b = append(b, 0x00)
+	}
+	return *(*[8]byte)(b), nil
 }

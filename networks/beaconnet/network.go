@@ -63,7 +63,7 @@ func (n *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
 	return n.tellHub.Receive(ctx, fn)
 }
 
-func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
+func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data p2p.IOVec) error {
 	if n.peerSet.Contains(dst) {
 		return n.send(ctx, dst, dst, TypeData, data)
 	}
@@ -227,7 +227,7 @@ func (n *Network) handleBeacon(ctx context.Context, prev inet256.Addr, hdr Heade
 	if hdr.GetDst() != broadcastAddr {
 		ps := n.lookupPeerState(hdr.GetDst())
 		if ps != nil {
-			if err := n.send(ctx, ps.next, hdr.GetDst(), TypeBeacon, data); err != nil {
+			if err := n.send(ctx, ps.next, hdr.GetDst(), TypeBeacon, p2p.IOVec{data}); err != nil {
 				return err
 			}
 		}
@@ -324,7 +324,7 @@ func (n *Network) sendBeacon(ctx context.Context, next, dst inet256.Addr) error 
 	now := time.Now()
 	b := newBeacon(n.privateKey, now)
 	body := jsonMarshal(b)
-	return n.send(ctx, next, dst, TypeBeacon, body)
+	return n.send(ctx, next, dst, TypeBeacon, p2p.IOVec{body})
 }
 
 // broadcast sends a message with mtype and body to all peers
@@ -352,12 +352,12 @@ func (n *Network) broadcast(ctx context.Context, exclude inet256.Addr, mtype uin
 }
 
 // send sends a message with dst, mtype and body to peer next.
-func (n *Network) send(ctx context.Context, next, dst inet256.Addr, mtype uint8, body []byte) error {
+func (n *Network) send(ctx context.Context, next, dst inet256.Addr, mtype uint8, body p2p.IOVec) error {
 	hdr := Header{}
 	hdr.SetSrc(n.LocalAddr())
 	hdr.SetDst(dst)
 	hdr.SetType(mtype)
-	return n.swarm.Tell(ctx, next, p2p.IOVec{hdr[:], body})
+	return n.swarm.Tell(ctx, next, append(p2p.IOVec{hdr[:]}, body...))
 }
 
 func (n *Network) cleanupLoop(ctx context.Context) error {

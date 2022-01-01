@@ -11,6 +11,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/p2padapter"
 )
 
 const defaultAPIAddr = inet256d.DefaultAPIEndpoint
@@ -52,5 +53,5 @@ func NewTestService(t testing.TB) inet256.Service {
 
 // NewSwarm creates a p2p.SecureSwarm from an inet256.Node.
 func NewSwarm(n inet256.Node) p2p.SecureSwarm {
-	return inet256srv.SwarmFromNode(n)
+	return p2padapter.P2PSwarmFromNode(n)
 }

@@ -70,7 +70,7 @@ func TestFindAddr(t testing.TB, src, dst Network) {
 
 func TestSendRecvAll(t testing.TB, nets []Network) {
 	randomPairs(len(nets), func(i, j int) {
-		TestSendRecvOne(t, nets[i], nets[j])
+		TestSendRecvOne(t, net2node{nets[i]}, net2node{nets[j]})
 	})
 }
 
@@ -170,4 +170,12 @@ func newTestLogger(t testing.TB) *logrus.Logger {
 		ForceColors: true,
 	})
 	return logger
+}
+
+type net2node struct {
+	networks.Network
+}
+
+func (x net2node) Tell(ctx context.Context, dst Addr, data []byte) error {
+	return x.Network.Tell(ctx, dst, p2p.IOVec{data})
 }
