@@ -211,6 +211,14 @@ func LoadConfig(p string) (*Config, error) {
 	return c, nil
 }
 
+func SaveConfig(config Config, p string) error {
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(p, data, 0o644)
+}
+
 func ListNetworks() (ret []string) {
 	ty := reflect.TypeOf(NetworkSpec{})
 	for i := 0; i < ty.NumField(); i++ {
