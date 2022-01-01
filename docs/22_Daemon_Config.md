@@ -65,35 +65,32 @@ e.g.
 peers:
 - id: Zxk5ZDOqk7fc74d5dzYQQl4zTEjfe6zvQ6ffLFXpHEU 
   addrs:
-  - "quic+udp://12.34.56.78:9000"
+  - "quic+udp://Zxk5ZDOqk7fc74d5dzYQQl4zTEjfe6zvQ6ffLFXpHEU@12.34.56.78:9000"
 - id: fK_KKhsijufvMAEoni0pkGddacrZAL5DCxhAukOc9jg 
   addrs:
-  - "quic+udp://99.98.97.96:4500"
-  - "quic+udp://100.99.40.30:4050"
+  - "quic+udp://fK_KKhsijufvMAEoni0pkGddacrZAL5DCxhAukOc9jg@99.98.97.96:4500"
+  - "quic+udp://fK_KKhsijufvMAEoni0pkGddacrZAL5DCxhAukOc9jg@100.99.40.30:4050"
 ```
 
 The transport addresses also includes the protocol used to encrypt traffic over the transport.
 This is setup automatically, at a layer above the transport configuration.
 In order to see your node's transport addresses you can run `inet256 status` command.
 
-## `networks`
-This is a map from network *codes*, to network *specs*.
-The  *code* is used to multiplex multiple network protocols onto a single node.
-A *code* is a string less than or equal to 8 bytes in length.
-A spec is a specification for a network; it's the name of a network protocol and any parameters it takes.
+## `network`
+This is a specification for a network routing algorithm.
 
-This example creates a single network with code `beacon00` which uses the `beaconnet` algorithm.
-It does not provided any config files, so the empty object `{}` is used as the configuration to `beaconnet`
-
+The example below will run the `beaconnet` network on all Nodes created by the service.
 ```yaml
-networks:
-    "beacon00":
-        beaconnet: {}
+network:
+  beaconnet: {}
 ```
+`beaconnet` exposes no additional parameters so it's specification is just the empty object.
 
 Here is an example of 2 networks, using the same algorithm with different parameters.
+`multi` is a network which nests other network specs, and multiplexes them onto the transport layer.
 ```yaml
-networks:
+network:
+  multi:
     "n1":
         algo1:
             param1: 1
@@ -101,7 +98,7 @@ networks:
         algo1:
             param1: 2
 ```
-- `n1` and `n2` are the `codes`.
+- `n1` and `n2` are the network `codes` (used for multiplexing).
 - `algo1` is the name of the network algorithm.
 - `param1` is a parameter specific to `algo1`. The parameter `param1` is set to different values in each instantiation.
 
