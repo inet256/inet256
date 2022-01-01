@@ -28,7 +28,7 @@ type Server struct {
 	UnimplementedAdminServer
 }
 
-func NewServer(s inet256.Service) *Server {
+func NewServer(s inet256srv.Service) *Server {
 	return &Server{
 		s: s,
 	}

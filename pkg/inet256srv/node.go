@@ -2,17 +2,16 @@ package inet256srv
 
 import (
 	"context"
-	"encoding/binary"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/p2padapter"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -24,13 +23,12 @@ type Node = inet256.Node
 type Network = networks.Network
 type Addr = inet256.Addr
 type NetworkParams = networks.Params
-type NetworkCode = [8]byte
 
 type Params struct {
 	p2p.PrivateKey
-	Swarms   map[string]p2p.Swarm
-	Peers    PeerStore
-	Networks map[NetworkCode]networks.Factory
+	Swarms     map[string]p2p.Swarm
+	Peers      PeerStore
+	NewNetwork networks.Factory
 }
 
 type node struct {
@@ -49,26 +47,16 @@ func NewNode(params Params) Node {
 	}
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
-	mux := p2pmux.NewUint64SecureMux(basePeerSwarm)
-
-	// create multi network
-	networks := make([]Network, 0, len(params.Networks))
-	for code, factory := range params.Networks {
-		s := mux.Open(binary.BigEndian.Uint64(code[:]))
-		s = fragswarm.NewSecure(s, TransportMTU)
-		nw := factory(NetworkParams{
-			PrivateKey: params.PrivateKey,
-			Swarm:      swarmWrapper{s},
-			Peers:      params.Peers,
-			Logger:     logrus.StandardLogger(),
-		})
-		networks = append(networks, nw)
-	}
+	fragSw := fragswarm.NewSecure(basePeerSwarm, networks.TransportMTU)
+	nw := params.NewNetwork(NetworkParams{
+		PrivateKey: params.PrivateKey,
+		Swarm:      p2padapter.INET256FromP2P(fragSw),
+		Peers:      params.Peers,
+		Logger:     logrus.StandardLogger(),
+	})
 	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),
-		newSecureNetwork(params.PrivateKey,
-			newMultiNetwork(networks...),
-		),
+		newSecureNetwork(params.PrivateKey, nw),
 	)
 	return &node{
 		params:         params,
@@ -80,7 +68,7 @@ func NewNode(params Params) Node {
 }
 
 func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
-	return n.network.Tell(ctx, dst, data)
+	return n.network.Tell(ctx, dst, p2p.IOVec{data})
 }
 
 func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {

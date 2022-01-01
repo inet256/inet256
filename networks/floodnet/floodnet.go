@@ -54,8 +54,8 @@ func New(privateKey inet256.PrivateKey, ps networks.Swarm, onehop networks.PeerS
 	return n
 }
 
-func (n *Network) Tell(ctx context.Context, dst Addr, data []byte) error {
-	msg := newMessage(n.privateKey, dst, data, maxHops, modeData)
+func (n *Network) Tell(ctx context.Context, dst Addr, data p2p.IOVec) error {
+	msg := newMessage(n.privateKey, dst, p2p.VecBytes(nil, data), maxHops, modeData)
 	msgData, err := json.Marshal(msg)
 	if err != nil {
 		panic(err)

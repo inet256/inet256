@@ -29,6 +29,7 @@ type Swarm interface {
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
 	PublicKey() PublicKey
 	LocalAddr() Addr
+	MTU(ctx context.Context, addr Addr) int
 }
 
 const (
@@ -40,7 +41,7 @@ const (
 //
 // This interface is not described in the spec, and is incidental to the implementation.
 type Network interface {
-	Tell(ctx context.Context, addr Addr, data []byte) error
+	Tell(ctx context.Context, addr Addr, m p2p.IOVec) error
 	Receive(ctx context.Context, fn ReceiveFunc) error
 
 	MTU(ctx context.Context, addr Addr) int

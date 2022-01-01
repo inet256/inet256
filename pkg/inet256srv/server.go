@@ -65,7 +65,7 @@ func NewServer(params Params) *Server {
 		mainNode: NewNode(Params{
 			PrivateKey: params.PrivateKey,
 			Swarms:     params.Swarms,
-			Networks:   params.Networks,
+			NewNetwork: params.NewNetwork,
 			Peers:      ChainPeerStore{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]*rcNode),
@@ -94,7 +94,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, err
 		s.mainMemPeers.SetAddrs(id, []p2p.Addr{multiswarm.Addr{Transport: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
 		n := NewNode(Params{
-			Networks:   s.params.Networks,
+			NewNetwork: s.params.NewNetwork,
 			Peers:      ps,
 			PrivateKey: privateKey,
 			Swarms: map[string]p2p.Swarm{

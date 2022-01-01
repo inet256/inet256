@@ -17,7 +17,7 @@ func NewTestServer(t testing.TB, nf networks.Factory) *Server {
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
 	ps := NewPeerStore()
 	s := NewServer(Params{
-		Networks:   map[NetworkCode]networks.Factory{{}: nf},
+		NewNetwork: nf,
 		Peers:      ps,
 		PrivateKey: pk,
 	})
@@ -38,7 +38,7 @@ func NewTestServers(t testing.TB, nf networks.Factory, xs []inet256.Service) {
 			Swarms: map[string]p2p.Swarm{
 				"external": r.NewSwarmWithKey(pk),
 			},
-			Networks:   map[NetworkCode]networks.Factory{{}: nf},
+			NewNetwork: nf,
 			Peers:      stores[i],
 			PrivateKey: pk,
 		})

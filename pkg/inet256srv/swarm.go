@@ -11,6 +11,7 @@ import (
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/p2padapter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -35,7 +36,7 @@ type swarm struct {
 }
 
 func NewSwarm(x p2p.SecureSwarm, peerStore PeerStore) networks.Swarm {
-	return swarmWrapper{newSwarm(x, peerStore)}
+	return p2padapter.INET256FromP2P(newSwarm(x, peerStore))
 }
 
 func newSwarm(x p2p.SecureSwarm, peerStore PeerStore) *swarm {
@@ -164,43 +165,8 @@ func (s *swarm) GetRx(id inet256.Addr) uint64 {
 	return s.meters.Rx(id, 0)
 }
 
-// swarmWrapper converts a p2p.SecureSwarm to an inet256.Swarm
-type swarmWrapper struct {
-	s p2p.SecureSwarm
-}
-
-func (s swarmWrapper) Tell(ctx context.Context, dst Addr, m p2p.IOVec) error {
-	return s.s.Tell(ctx, dst, m)
-}
-
-func (s swarmWrapper) Receive(ctx context.Context, th inet256.ReceiveFunc) error {
-	return s.s.Receive(ctx, func(m p2p.Message) {
-		th(inet256.Message{
-			Src:     m.Src.(inet256.Addr),
-			Dst:     m.Dst.(inet256.Addr),
-			Payload: m.Payload,
-		})
-	})
-}
-
-func (s swarmWrapper) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
-	return s.s.LookupPublicKey(ctx, target)
-}
-
-func (s swarmWrapper) PublicKey() inet256.PublicKey {
-	return s.s.PublicKey()
-}
-
-func (s swarmWrapper) LocalAddr() Addr {
-	return s.s.LocalAddrs()[0].(Addr)
-}
-
-func (s swarmWrapper) Close() error {
-	return s.s.Close()
-}
-
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
-	insecSwarm := SwarmFromNode(x)
+	insecSwarm := p2padapter.P2PFromINET256(x)
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
 		return p2p.PeerID(inet256.NewAddr(pubKey))
 	}
@@ -208,7 +174,7 @@ func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
 	if err != nil {
 		panic(err)
 	}
-	secnet := networkFromSwarm(quic2Swarm{quicSw}, x.FindAddr, x.Bootstrap)
+	secnet := p2padapter.NetworkFromSwarm(p2padapter.INET256FromP2P(quic2Swarm{quicSw}), x.FindAddr, x.Bootstrap)
 	return secnet
 }
 

@@ -2,16 +2,12 @@ package inet256srv
 
 import (
 	"context"
-	"fmt"
 	"math"
-	"sync"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,149 +17,6 @@ const (
 	MinMTU = inet256.MinMTU
 	MaxMTU = inet256.MaxMTU
 )
-
-// multiNetwork presents multiple networks as a single network
-type multiNetwork struct {
-	networks []Network
-	addrMap  sync.Map
-	sg       *netutil.ServiceGroup
-	hub      *netutil.TellHub
-}
-
-func newMultiNetwork(networks ...Network) Network {
-	for i := 0; i < len(networks)-1; i++ {
-		if networks[i].LocalAddr() != networks[i+1].LocalAddr() {
-			panic("network addresses do not match")
-		}
-	}
-	hub := netutil.NewTellHub()
-	sg := &netutil.ServiceGroup{}
-	for i := range networks {
-		sg.Go(func(ctx context.Context) error {
-			for {
-				if err := networks[i].Receive(ctx, func(m inet256.Message) {
-					hub.Deliver(ctx, m)
-				}); err != nil {
-					return err
-				}
-			}
-		})
-	}
-	return &multiNetwork{
-		networks: networks,
-		sg:       sg,
-		hub:      hub,
-	}
-}
-
-func (mn *multiNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
-	network, err := mn.whichNetwork(ctx, dst)
-	if err != nil {
-		return err
-	}
-	return network.Tell(ctx, dst, data)
-}
-
-func (mn *multiNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
-	return mn.hub.Receive(ctx, fn)
-}
-
-func (mn *multiNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
-	addr, _, err := mn.addrWithPrefix(ctx, prefix, nbits)
-	return addr, err
-}
-
-func (mn *multiNetwork) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
-	network, err := mn.whichNetwork(ctx, target)
-	if err != nil {
-		return nil, err
-	}
-	return network.LookupPublicKey(ctx, target)
-}
-
-func (mn *multiNetwork) MTU(ctx context.Context, target Addr) int {
-	network, err := mn.whichNetwork(ctx, target)
-	if err != nil {
-		return MinMTU
-	}
-	return network.MTU(ctx, target)
-}
-
-func (mn *multiNetwork) PublicKey() inet256.PublicKey {
-	return mn.networks[0].PublicKey()
-}
-
-func (mn *multiNetwork) LocalAddr() Addr {
-	return mn.networks[0].LocalAddr()
-}
-
-func (mn *multiNetwork) Bootstrap(ctx context.Context) error {
-	eg := errgroup.Group{}
-	for _, n := range mn.networks {
-		n := n
-		eg.Go(func() error {
-			return n.Bootstrap(ctx)
-		})
-	}
-	return eg.Wait()
-}
-
-func (mn *multiNetwork) Close() (retErr error) {
-	var el netutil.ErrList
-	el.Do(mn.sg.Stop)
-	mn.hub.CloseWithError(inet256.ErrClosed)
-	for _, n := range mn.networks {
-		el.Do(n.Close)
-	}
-	return el.Err()
-}
-
-func (mn *multiNetwork) addrWithPrefix(ctx context.Context, prefix []byte, nbits int) (addr Addr, network Network, err error) {
-	var cf context.CancelFunc
-	if deadline, ok := ctx.Deadline(); ok {
-		now := time.Now()
-		ctx, cf = context.WithTimeout(ctx, deadline.Sub(now)/3)
-	} else {
-		ctx, cf = context.WithCancel(ctx)
-	}
-	defer cf()
-
-	addrs := make([]Addr, len(mn.networks))
-	errs := make([]error, len(mn.networks))
-	wg := sync.WaitGroup{}
-	wg.Add(len(mn.networks))
-	for i, network := range mn.networks[:] {
-		i := i
-		network := network
-		go func() {
-			addrs[i], errs[i] = network.FindAddr(ctx, prefix, nbits)
-			if errs[i] == nil {
-				cf()
-			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	for i, addr := range addrs {
-		if errs[i] == nil {
-			return addr, mn.networks[i], nil
-		}
-	}
-	return Addr{}, nil, fmt.Errorf("errors occurred %v", errs)
-}
-
-func (mn *multiNetwork) whichNetwork(ctx context.Context, addr Addr) (Network, error) {
-	x, exists := mn.addrMap.Load(addr)
-	if exists {
-		return x.(Network), nil
-	}
-	_, network, err := mn.addrWithPrefix(ctx, addr[:], len(addr)*8)
-	if err != nil {
-		return nil, errors.Wrap(err, "selecting network")
-	}
-	mn.addrMap.Store(addr, network)
-	return network, nil
-}
 
 type chainNetwork struct {
 	networks []Network
@@ -193,9 +46,9 @@ func newChainNetwork(ns ...Network) Network {
 	}
 }
 
-func (n chainNetwork) Tell(ctx context.Context, dst Addr, data []byte) (retErr error) {
+func (n chainNetwork) Tell(ctx context.Context, dst Addr, v p2p.IOVec) (retErr error) {
 	for _, n2 := range n.networks {
-		if err := n2.Tell(ctx, dst, data); err != nil {
+		if err := n2.Tell(ctx, dst, v); err != nil {
 			retErr = err
 		} else {
 			return nil
@@ -283,11 +136,15 @@ func newLoopbackNetwork(localKey p2p.PublicKey) Network {
 	return ln
 }
 
-func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, data []byte) error {
+func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, v p2p.IOVec) error {
 	if dst != n.localAddr {
 		return inet256.ErrAddrUnreachable{Addr: dst}
 	}
-	return n.hub.Deliver(ctx, netutil.Message{Src: dst, Dst: dst, Payload: data})
+	return n.hub.Deliver(ctx, netutil.Message{
+		Src:     dst,
+		Dst:     dst,
+		Payload: p2p.VecBytes(nil, v),
+	})
 }
 
 func (n *loopbackNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
