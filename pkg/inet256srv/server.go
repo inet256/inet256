@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -77,6 +78,9 @@ func NewServer(params Params) *Server {
 
 func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
 	id := inet256.NewAddr(privateKey.Public())
+	if id == s.mainID {
+		return nil, errors.Errorf("clients cannot use main node's key")
+	}
 	node, err := func() (Node, error) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
