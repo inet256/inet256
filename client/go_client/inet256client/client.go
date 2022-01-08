@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/networks/beaconnet"
+	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256grpc"
@@ -48,7 +48,7 @@ func NewPacketConn(n inet256.Node) net.PacketConn {
 
 // NewTestService can be used to spawn an inet256 service without any peering for use in tests
 func NewTestService(t testing.TB) inet256.Service {
-	return inet256srv.NewTestServer(t, beaconnet.Factory)
+	return inet256srv.NewTestServer(t, floodnet.Factory)
 }
 
 // NewSwarm creates a p2p.SecureSwarm from an inet256.Node.
