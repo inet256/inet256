@@ -3,7 +3,7 @@ module github.com/inet256/inet256
 go 1.18
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20220319171431-b3dc718375ab
+	github.com/brendoncarroll/go-p2p v0.0.0-20220319215352-6159b17bc462
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/pkg/errors v0.9.1
@@ -49,5 +49,3 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
-
-replace github.com/brendoncarroll/go-p2p => ../../brendoncarroll/go-p2p
