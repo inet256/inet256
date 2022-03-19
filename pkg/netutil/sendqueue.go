@@ -14,7 +14,7 @@ type TellFunc = func(ctx context.Context, dst inet256.Addr, m p2p.IOVec) error
 // SendQueue queues messages, and sends them in the background.
 type SendQueue struct {
 	log  *logrus.Logger
-	todo chan Message
+	todo chan inet256.Message
 	send TellFunc
 	sg   ServiceGroup
 	done chan struct{}
@@ -50,7 +50,7 @@ func (sq *SendQueue) run(ctx context.Context) error {
 }
 
 func (sq *SendQueue) Tell(ctx context.Context, dst inet256.Addr, m p2p.IOVec) error {
-	msg := Message{
+	msg := inet256.Message{
 		Dst:     dst,
 		Payload: p2p.VecBytes(nil, m),
 	}

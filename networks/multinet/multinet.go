@@ -23,7 +23,7 @@ type Spec map[NetworkCode]networks.Factory
 
 func NewFactory(spec Spec) networks.Factory {
 	return func(params networks.Params) networks.Network {
-		mux := p2pmux.NewUint64SecureMux(p2padapter.P2PFromINET256(params.Swarm))
+		mux := p2pmux.NewUint64SecureMux[inet256.Addr](p2padapter.P2PFromINET256(params.Swarm))
 		// create multi network
 		nwks := make([]networks.Network, 0, len(spec))
 		for code, factory := range spec {
@@ -62,7 +62,7 @@ func New(nwks ...networks.Network) *Network {
 	for i := range nwks {
 		sg.Go(func(ctx context.Context) error {
 			for {
-				if err := nwks[i].Receive(ctx, func(m inet256.Message) {
+				if err := nwks[i].Receive(ctx, func(m p2p.Message[inet256.Addr]) {
 					hub.Deliver(ctx, m)
 				}); err != nil {
 					return err
@@ -85,7 +85,7 @@ func (mn *Network) Tell(ctx context.Context, dst inet256.Addr, v p2p.IOVec) erro
 	return network.Tell(ctx, dst, v)
 }
 
-func (mn *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
+func (mn *Network) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {
 	return mn.hub.Receive(ctx, fn)
 }
 
@@ -131,10 +131,10 @@ func (mn *Network) Bootstrap(ctx context.Context) error {
 
 func (mn *Network) Close() (retErr error) {
 	var el netutil.ErrList
-	el.Do(mn.sg.Stop)
+	el.Add(mn.sg.Stop())
 	mn.hub.CloseWithError(inet256.ErrClosed)
 	for _, n := range mn.networks {
-		el.Do(n.Close)
+		el.Add(n.Close())
 	}
 	return el.Err()
 }

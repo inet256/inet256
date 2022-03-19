@@ -9,6 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -35,7 +36,7 @@ type Server struct {
 
 	memrealm     *memswarm.Realm
 	mainID       inet256.Addr
-	mainMemPeers PeerStore
+	mainMemPeers peers.Store[multiswarm.Addr]
 	mainMemSwarm *memswarm.Swarm
 	mainNode     Node
 
@@ -50,11 +51,11 @@ func NewServer(params Params) *Server {
 	r := memswarm.NewRealm()
 	msw := r.NewSwarmWithKey(params.PrivateKey)
 	if params.Swarms == nil {
-		params.Swarms = make(map[string]p2p.Swarm, 1)
+		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
 	}
-	params.Swarms[nameMemSwarm] = msw
+	params.Swarms[nameMemSwarm] = multiswarm.WrapSecureSwarm[memswarm.Addr](msw)
 
-	memPeers := NewPeerStore()
+	memPeers := NewPeerStore[TransportAddr]()
 
 	s := &Server{
 		params: params,
@@ -67,7 +68,7 @@ func NewServer(params Params) *Server {
 			PrivateKey: params.PrivateKey,
 			Swarms:     params.Swarms,
 			NewNetwork: params.NewNetwork,
-			Peers:      ChainPeerStore{memPeers, params.Peers},
+			Peers:      ChainPeerStore[TransportAddr]{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]*rcNode),
 		rcs:   make(map[inet256.Addr]int),
@@ -91,18 +92,18 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, err
 		}
 		swarm := s.memrealm.NewSwarmWithKey(privateKey)
 
-		ps := NewPeerStore()
+		ps := NewPeerStore[TransportAddr]()
 		ps.Add(s.mainID)
-		ps.SetAddrs(s.mainID, []p2p.Addr{multiswarm.Addr{Transport: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
+		ps.SetAddrs(s.mainID, []multiswarm.Addr{{Transport: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
 		s.mainMemPeers.Add(id)
-		s.mainMemPeers.SetAddrs(id, []p2p.Addr{multiswarm.Addr{Transport: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
+		s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Transport: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
 		n := NewNode(Params{
 			NewNetwork: s.params.NewNetwork,
 			Peers:      ps,
 			PrivateKey: privateKey,
-			Swarms: map[string]p2p.Swarm{
-				nameMemSwarm: swarm,
+			Swarms: map[string]multiswarm.DynSwarm{
+				nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr](swarm),
 			},
 		})
 		rcn := &rcNode{node: n.(*node), s: s}
@@ -147,7 +148,7 @@ func (s *Server) LocalAddr() Addr {
 	return s.mainNode.LocalAddr()
 }
 
-func (s *Server) TransportAddrs() ([]p2p.Addr, error) {
+func (s *Server) TransportAddrs() ([]multiswarm.Addr, error) {
 	return s.mainNode.(*node).TransportAddrs(), nil
 }
 

@@ -8,11 +8,12 @@ import (
 type Addr = inet256.Addr
 
 // PeerStore stores information about peers
-type Store interface {
+// TA is the type of the transport address
+type Store [T p2p.Addr]interface {
 	Add(x Addr)
 	Remove(x Addr)
-	SetAddrs(x Addr, addrs []p2p.Addr)
-	ListAddrs(x Addr) []p2p.Addr
+	SetAddrs(x Addr, addrs []T)
+	ListAddrs(x Addr) []T
 
 	Set
 }

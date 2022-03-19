@@ -22,9 +22,7 @@ type (
 //
 // This interface is not described in the spec, and is incidental to the implementation.
 type Swarm interface {
-	Tell(ctx context.Context, dst Addr, m p2p.IOVec) error
-	Receive(ctx context.Context, th ReceiveFunc) error
-
+	p2p.Teller[inet256.Addr]
 	Close() error
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
 	PublicKey() PublicKey
@@ -41,15 +39,11 @@ const (
 //
 // This interface is not described in the spec, and is incidental to the implementation.
 type Network interface {
-	Tell(ctx context.Context, addr Addr, m p2p.IOVec) error
-	Receive(ctx context.Context, fn ReceiveFunc) error
-
-	MTU(ctx context.Context, addr Addr) int
-	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)
-	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
-
-	LocalAddr() Addr
-	PublicKey() PublicKey
+	p2p.Teller[inet256.Addr]
+	p2p.Secure[inet256.Addr]
+	LocalAddr() inet256.Addr
+	MTU(context.Context, inet256.Addr) int
+	FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
 
 	Bootstrap(ctx context.Context) error
 	Close() error

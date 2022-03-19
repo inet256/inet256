@@ -17,26 +17,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type PeerStore = peers.Store
-type PeerSet = networks.PeerSet
-type Node = inet256.Node
-type Network = networks.Network
-type Addr = inet256.Addr
-type NetworkParams = networks.Params
+type (
+	Addr          = inet256.Addr
+	Node          = inet256.Node
+	TransportAddr = multiswarm.Addr
+
+	Network       = networks.Network
+	NetworkParams = networks.Params
+	PeerSet       = networks.PeerSet
+)
 
 type Params struct {
 	p2p.PrivateKey
-	Swarms     map[string]p2p.Swarm
-	Peers      PeerStore
+	Swarms     map[string]multiswarm.DynSwarm
+	Peers      peers.Store[TransportAddr]
 	NewNetwork networks.Factory
 }
 
 type node struct {
 	params Params
 
-	secureSwarms   map[string]p2p.SecureSwarm
-	transportSwarm p2p.SecureSwarm
-	basePeerSwarm  *swarm
+	secureSwarms   map[string]multiswarm.DynSecureSwarm
+	transportSwarm p2p.SecureSwarm[TransportAddr]
+	basePeerSwarm  *swarm[TransportAddr]
 	network        Network
 }
 
@@ -47,7 +50,7 @@ func NewNode(params Params) Node {
 	}
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
-	fragSw := fragswarm.NewSecure(basePeerSwarm, networks.TransportMTU)
+	fragSw := fragswarm.NewSecure[Addr](basePeerSwarm, networks.TransportMTU)
 	nw := params.NewNetwork(NetworkParams{
 		PrivateKey: params.PrivateKey,
 		Swarm:      p2padapter.INET256FromP2P(fragSw),
@@ -72,7 +75,13 @@ func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
 }
 
 func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
-	return n.network.Receive(ctx, fn)
+	return n.network.Receive(ctx, func(x p2p.Message[Addr]) {
+		fn(inet256.Message{
+			Src:     x.Src,
+			Dst:     x.Dst,
+			Payload: x.Payload,
+		})
+	})
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (addr Addr, err error) {
@@ -95,7 +104,7 @@ func (n *node) MTU(ctx context.Context, target Addr) int {
 	return n.network.MTU(ctx, target)
 }
 
-func (n *node) TransportAddrs() []p2p.Addr {
+func (n *node) TransportAddrs() []TransportAddr {
 	return n.transportSwarm.LocalAddrs()
 }
 
@@ -113,39 +122,39 @@ func (n *node) Bootstrap(ctx context.Context) error {
 
 func (n *node) Close() (retErr error) {
 	var el netutil.ErrList
-	el.Do(n.network.Close)
-	el.Do(n.basePeerSwarm.Close)
-	el.Do(n.transportSwarm.Close)
+	el.Add(n.network.Close())
+	el.Add(n.basePeerSwarm.Close())
+	el.Add(n.transportSwarm.Close())
 	return el.Err()
 }
 
 // MakeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
 // then copies them to y.
-func makeSecureSwarms(x map[string]p2p.Swarm, privateKey p2p.PrivateKey) (map[string]p2p.SecureSwarm, error) {
+func makeSecureSwarms(x map[string]multiswarm.DynSwarm, privateKey p2p.PrivateKey) (map[string]multiswarm.DynSecureSwarm, error) {
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
 		return p2p.PeerID(inet256.NewAddr(pubKey))
 	}
-	y := make(map[string]p2p.SecureSwarm, len(x))
+	y := make(map[string]multiswarm.DynSecureSwarm, len(x))
 	for k, s := range x {
-		if sec, ok := s.(p2p.SecureSwarm); ok {
+		if sec, ok := s.(multiswarm.DynSecureSwarm); ok {
 			y[k] = sec
 		} else {
 			var err error
 			k = "quic+" + k
-			y[k], err = quicswarm.New(s, privateKey, quicswarm.WithFingerprinter(fingerprinter))
+			secSw, err := quicswarm.New[p2p.Addr](s, privateKey, quicswarm.WithFingerprinter[p2p.Addr](fingerprinter))
 			if err != nil {
 				return nil, errors.Wrapf(err, "while securing swarm %v", k)
 			}
+			y[k] = multiswarm.WrapSecureSwarm[quicswarm.Addr[p2p.Addr]](secSw)
 		}
-
 	}
 	return y, nil
 }
 
-func NewAddrSchema(swarms map[string]p2p.Swarm) multiswarm.AddrSchema {
-	swarms2 := map[string]p2p.Swarm{}
+func NewAddrSchema(swarms map[string]multiswarm.DynSwarm) multiswarm.AddrSchema {
+	swarms2 := map[string]multiswarm.DynSwarm{}
 	for k, v := range swarms {
-		if _, ok := v.(p2p.SecureSwarm); !ok {
+		if _, ok := v.(multiswarm.DynSecureSwarm); !ok {
 			k = "quic+" + k
 			v = secureAddrParser{v}
 		}
@@ -155,9 +164,9 @@ func NewAddrSchema(swarms map[string]p2p.Swarm) multiswarm.AddrSchema {
 }
 
 type secureAddrParser struct {
-	p2p.Swarm
+	multiswarm.DynSwarm
 }
 
 func (sap secureAddrParser) ParseAddr(x []byte) (p2p.Addr, error) {
-	return quicswarm.ParseAddr(sap.Swarm, x)
+	return quicswarm.ParseAddr(sap.DynSwarm.ParseAddr, x)
 }

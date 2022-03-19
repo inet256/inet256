@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 type RetryOption = swarmutil.RetryOption
@@ -29,3 +30,9 @@ func NewLinear(period time.Duration) PulseTrain {
 }
 
 type ErrList = swarmutil.ErrList
+
+type TellHub = swarmutil.TellHub[inet256.Addr]
+
+func NewTellHub() *TellHub {
+	return swarmutil.NewTellHub[inet256.Addr]()
+}

@@ -63,7 +63,7 @@ func (n *Network) Tell(ctx context.Context, dst Addr, data p2p.IOVec) error {
 	return n.broadcast(ctx, msgData, n.localAddr)
 }
 
-func (n *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
+func (n *Network) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {
 	return n.recvHub.Receive(ctx, fn)
 }
 
@@ -143,7 +143,7 @@ func (nwk *Network) recvLoop(ctx context.Context) error {
 		var src inet256.Addr
 		var msg Message
 		var validMsg bool
-		if err := nwk.swarm.Receive(ctx, func(m inet256.Message) {
+		if err := nwk.swarm.Receive(ctx, func(m p2p.Message[inet256.Addr]) {
 			if err := json.Unmarshal(m.Payload, &msg); err != nil {
 				nwk.log.Warn("error parsing message from: ", m.Src, err)
 				return
@@ -191,7 +191,7 @@ func (n *Network) fromBelow(ctx context.Context, from inet256.Addr, msg Message)
 	case modeAdvertise:
 	case modeData:
 		if bytes.Equal(n.localAddr[:], msg.Dst) {
-			return n.recvHub.Deliver(ctx, inet256.Message{
+			return n.recvHub.Deliver(ctx, p2p.Message[inet256.Addr]{
 				Src:     src,
 				Dst:     n.localAddr,
 				Payload: msg.Payload,
