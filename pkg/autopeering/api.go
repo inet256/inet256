@@ -4,14 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 )
 
+type TransportAddr = multiswarm.Addr
+
 // AddrSource returns a list of addresses suitable for advertisement.
-type AddrSource = func() []p2p.Addr
+type AddrSource = func() []TransportAddr
 
 type Params struct {
 	// Outbound
@@ -19,8 +21,8 @@ type Params struct {
 	AddrSource AddrSource
 
 	// Inbound
-	PeerStore peers.Store
-	ParseAddr func([]byte) (p2p.Addr, error)
+	PeerStore peers.Store[TransportAddr]
+	ParseAddr func([]byte) (TransportAddr, error)
 }
 
 // Service manages the peers in a PeerStore, adding to and removing from them automatically

@@ -55,7 +55,7 @@ func NewServer(params Params) *Server {
 	}
 	params.Swarms[nameMemSwarm] = multiswarm.WrapSecureSwarm[memswarm.Addr](msw)
 
-	memPeers := NewPeerStore[TransportAddr]()
+	memPeers := peers.NewStore[TransportAddr]()
 
 	s := &Server{
 		params: params,
@@ -68,7 +68,7 @@ func NewServer(params Params) *Server {
 			PrivateKey: params.PrivateKey,
 			Swarms:     params.Swarms,
 			NewNetwork: params.NewNetwork,
-			Peers:      ChainPeerStore[TransportAddr]{memPeers, params.Peers},
+			Peers:      peers.ChainStore[TransportAddr]{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]*rcNode),
 		rcs:   make(map[inet256.Addr]int),
@@ -92,7 +92,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, err
 		}
 		swarm := s.memrealm.NewSwarmWithKey(privateKey)
 
-		ps := NewPeerStore[TransportAddr]()
+		ps := peers.NewStore[TransportAddr]()
 		ps.Add(s.mainID)
 		ps.SetAddrs(s.mainID, []multiswarm.Addr{{Transport: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
 		s.mainMemPeers.Add(id)

@@ -1,11 +1,10 @@
-package inet256srv
+package peers
 
 import (
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
 )
 
 type peerStore[T p2p.Addr] struct {
@@ -13,7 +12,7 @@ type peerStore[T p2p.Addr] struct {
 	m  map[inet256.Addr][]T
 }
 
-func NewPeerStore[T p2p.Addr]() peers.Store[T] {
+func NewStore[T p2p.Addr]() Store[T] {
 	return &peerStore[T]{
 		m: map[inet256.Addr][]T{},
 	}
@@ -74,21 +73,21 @@ func (s *peerStore[T]) ListAddrs(id inet256.Addr) []T {
 	return s.m[id]
 }
 
-type ChainPeerStore[T p2p.Addr] []peers.Store[T]
+type ChainStore[T p2p.Addr] []Store[T]
 
-func (ps ChainPeerStore[T]) Add(inet256.Addr) {
-	panic("cannot Add to ChainPeerStore")
+func (ps ChainStore[T]) Add(inet256.Addr) {
+	panic("cannot Add to ChainStore")
 }
 
-func (ps ChainPeerStore[T]) Remove(inet256.Addr) {
-	panic("cannot Remove from ChainPeerStore")
+func (ps ChainStore[T]) Remove(inet256.Addr) {
+	panic("cannot Remove from ChainStore")
 }
 
-func (ps ChainPeerStore[T]) SetAddrs(x inet256.Addr, addrs []T) {
-	panic("cannot SetAddrs on ChainPeerStore")
+func (ps ChainStore[T]) SetAddrs(x inet256.Addr, addrs []T) {
+	panic("cannot SetAddrs on ChainStore")
 }
 
-func (ps ChainPeerStore[T]) ListPeers() []inet256.Addr {
+func (ps ChainStore[T]) ListPeers() []inet256.Addr {
 	m := map[inet256.Addr]struct{}{}
 	for _, ps2 := range ps {
 		for _, id := range ps2.ListPeers() {
@@ -102,7 +101,7 @@ func (ps ChainPeerStore[T]) ListPeers() []inet256.Addr {
 	return ret
 }
 
-func (ps ChainPeerStore[T]) ListAddrs(id inet256.Addr) []T {
+func (ps ChainStore[T]) ListAddrs(id inet256.Addr) []T {
 	m := map[string]struct{}{}
 	ret := make([]T, 0, len(m))
 	for _, ps2 := range ps {
@@ -118,7 +117,7 @@ func (ps ChainPeerStore[T]) ListAddrs(id inet256.Addr) []T {
 	return ret
 }
 
-func (ps ChainPeerStore[T]) Contains(id inet256.Addr) bool {
+func (ps ChainStore[T]) Contains(id inet256.Addr) bool {
 	for _, ps2 := range ps {
 		if ps2.Contains(id) {
 			return true

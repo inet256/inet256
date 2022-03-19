@@ -17,16 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type (
-	Addr          = inet256.Addr
-	Node          = inet256.Node
-	TransportAddr = multiswarm.Addr
-
-	Network       = networks.Network
-	NetworkParams = networks.Params
-	PeerSet       = networks.PeerSet
-)
-
 type Params struct {
 	p2p.PrivateKey
 	Swarms     map[string]multiswarm.DynSwarm

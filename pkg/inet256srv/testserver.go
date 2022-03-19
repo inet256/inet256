@@ -15,7 +15,7 @@ import (
 
 func NewTestServer(t testing.TB, nf networks.Factory) *Server {
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
-	ps := NewPeerStore[TransportAddr]()
+	ps := peers.NewStore[TransportAddr]()
 	s := NewServer(Params{
 		NewNetwork: nf,
 		Peers:      ps,
@@ -33,7 +33,7 @@ func NewTestServers(t testing.TB, nf networks.Factory, xs []inet256.Service) {
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
 		pk := p2ptest.NewTestKey(t, math.MaxInt32+i)
-		stores[i] = NewPeerStore[TransportAddr]()
+		stores[i] = peers.NewStore[TransportAddr]()
 		srvs[i] = NewServer(Params{
 			Swarms: map[string]multiswarm.DynSwarm{
 				"external": multiswarm.WrapSecureSwarm[memswarm.Addr](r.NewSwarmWithKey(pk)),
