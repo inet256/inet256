@@ -52,6 +52,6 @@ func NewTestService(t testing.TB) inet256.Service {
 }
 
 // NewSwarm creates a p2p.SecureSwarm from an inet256.Node.
-func NewSwarm(n inet256.Node) p2p.SecureSwarm {
+func NewSwarm(n inet256.Node) p2p.SecureSwarm[inet256.Addr] {
 	return p2padapter.P2PSwarmFromNode(n)
 }

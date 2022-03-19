@@ -8,6 +8,7 @@ import (
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/p2padapter"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -22,6 +23,7 @@ type chainNetwork struct {
 	networks []Network
 	hub      *netutil.TellHub
 	sg       *netutil.ServiceGroup
+	p2padapter.ExtraSwarmMethods
 }
 
 func newChainNetwork(ns ...Network) Network {
@@ -31,7 +33,7 @@ func newChainNetwork(ns ...Network) Network {
 		i := i
 		sg.Go(func(ctx context.Context) error {
 			for {
-				if err := ns[i].Receive(ctx, func(m inet256.Message) {
+				if err := ns[i].Receive(ctx, func(m p2p.Message[inet256.Addr]) {
 					hub.Deliver(ctx, m)
 				}); err != nil {
 					return err
@@ -57,7 +59,7 @@ func (n chainNetwork) Tell(ctx context.Context, dst Addr, v p2p.IOVec) (retErr e
 	return retErr
 }
 
-func (n chainNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
+func (n chainNetwork) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {
 	return n.hub.Receive(ctx, fn)
 }
 
@@ -85,16 +87,20 @@ func (n chainNetwork) LocalAddr() Addr {
 	return n.networks[0].LocalAddr()
 }
 
+func (n chainNetwork) LocalAddrs() []Addr {
+	return []Addr{n.LocalAddr()}
+}
+
 func (n chainNetwork) PublicKey() inet256.PublicKey {
 	return n.networks[0].PublicKey()
 }
 
 func (n chainNetwork) Close() (retErr error) {
 	var el netutil.ErrList
-	el.Do(n.sg.Stop)
+	el.Add(n.sg.Stop())
 	n.hub.CloseWithError(inet256.ErrClosed)
 	for _, n2 := range n.networks {
-		el.Do(n2.Close)
+		el.Add(n2.Close())
 	}
 	return el.Err()
 }
@@ -109,6 +115,16 @@ func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
 	}
 	return min
 }
+
+// func (n chainNetwork) MaxIncomingSize() (ret int) {
+// 	for _, nw := range n.networks {
+// 		is := nw.MaxIncomingSize()
+// 		if is > ret {
+// 			ret = is
+// 		}
+// 	}
+// 	return ret
+// }
 
 func (n chainNetwork) Bootstrap(ctx context.Context) error {
 	eg := errgroup.Group{}
@@ -125,6 +141,7 @@ type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
 	hub       *netutil.TellHub
+	p2padapter.ExtraSwarmMethods
 }
 
 func newLoopbackNetwork(localKey p2p.PublicKey) Network {
@@ -140,14 +157,14 @@ func (n *loopbackNetwork) Tell(ctx context.Context, dst Addr, v p2p.IOVec) error
 	if dst != n.localAddr {
 		return inet256.ErrAddrUnreachable{Addr: dst}
 	}
-	return n.hub.Deliver(ctx, netutil.Message{
+	return n.hub.Deliver(ctx, p2p.Message[inet256.Addr]{
 		Src:     dst,
 		Dst:     dst,
 		Payload: p2p.VecBytes(nil, v),
 	})
 }
 
-func (n *loopbackNetwork) Receive(ctx context.Context, fn func(inet256.Message)) error {
+func (n *loopbackNetwork) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {
 	return n.hub.Receive(ctx, fn)
 }
 
@@ -160,6 +177,10 @@ func (n *loopbackNetwork) FindAddr(ctx context.Context, prefix []byte, nbits int
 
 func (n *loopbackNetwork) LocalAddr() Addr {
 	return n.localAddr
+}
+
+func (n *loopbackNetwork) LocalAddrs() []Addr {
+	return []Addr{n.LocalAddr()}
 }
 
 func (n *loopbackNetwork) PublicKey() inet256.PublicKey {

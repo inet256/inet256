@@ -48,7 +48,7 @@ func ParsePrivateKeyPEM(data []byte) (p2p.PrivateKey, error) {
 	return ParsePrivateKey(block.Bytes)
 }
 
-func MarshalAddrs(xs []p2p.Addr) []string {
+func MarshalAddrs[T p2p.Addr](xs []T) []string {
 	ys := make([]string, len(xs))
 	for i := range xs {
 		data, err := xs[i].MarshalText()
@@ -60,10 +60,8 @@ func MarshalAddrs(xs []p2p.Addr) []string {
 	return ys
 }
 
-type AddrParserFunc = func([]byte) (p2p.Addr, error)
-
-func ParseAddrs(parser AddrParserFunc, xs []string) ([]p2p.Addr, error) {
-	ys := make([]p2p.Addr, len(xs))
+func ParseAddrs[T p2p.Addr](parser p2p.AddrParser[T], xs []string) ([]T, error) {
+	ys := make([]T, len(xs))
 	for i := range xs {
 		addr, err := parser([]byte(xs[i]))
 		if err != nil {

@@ -4,9 +4,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
@@ -15,7 +15,7 @@ import (
 
 func NewTestServer(t testing.TB, nf networks.Factory) *Server {
 	pk := p2ptest.NewTestKey(t, math.MaxInt32)
-	ps := NewPeerStore()
+	ps := peers.NewStore[TransportAddr]()
 	s := NewServer(Params{
 		NewNetwork: nf,
 		Peers:      ps,
@@ -29,14 +29,14 @@ func NewTestServer(t testing.TB, nf networks.Factory) *Server {
 
 func NewTestServers(t testing.TB, nf networks.Factory, xs []inet256.Service) {
 	r := memswarm.NewRealm()
-	stores := make([]peers.Store, len(xs))
+	stores := make([]peers.Store[TransportAddr], len(xs))
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
 		pk := p2ptest.NewTestKey(t, math.MaxInt32+i)
-		stores[i] = NewPeerStore()
+		stores[i] = peers.NewStore[TransportAddr]()
 		srvs[i] = NewServer(Params{
-			Swarms: map[string]p2p.Swarm{
-				"external": r.NewSwarmWithKey(pk),
+			Swarms: map[string]multiswarm.DynSwarm{
+				"external": multiswarm.WrapSecureSwarm[memswarm.Addr](r.NewSwarmWithKey(pk)),
 			},
 			NewNetwork: nf,
 			Peers:      stores[i],
@@ -70,7 +70,7 @@ func getMainAddr(x *Server) inet256.Addr {
 	return addr
 }
 
-func getTransportAddrs(x *Server) []p2p.Addr {
+func getTransportAddrs(x *Server) []TransportAddr {
 	addrs, err := x.TransportAddrs()
 	if err != nil {
 		panic(err)

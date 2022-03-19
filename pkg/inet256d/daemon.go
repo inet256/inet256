@@ -18,6 +18,9 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
+type TransportAddr = inet256srv.TransportAddr
+type PeerStore = peers.Store[TransportAddr]
+
 type Params struct {
 	MainNodeParams      inet256srv.Params
 	DiscoveryServices   []discovery.Service
@@ -50,7 +53,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// discovery
 	dscSrvs := d.params.DiscoveryServices
-	dscPeerStores := make([]peers.Store, len(dscSrvs))
+	dscPeerStores := make([]PeerStore, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
 		dscPeerStores[i] = inet256srv.NewPeerStore()
@@ -59,17 +62,17 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// auto-peering
 	apSrvs := d.params.AutoPeeringServices
-	apPeerStores := make([]peers.Store, len(apSrvs))
+	apPeerStores := make([]PeerStore, len(apSrvs))
 	for i := range apSrvs {
 		apPeerStores[i] = inet256srv.NewPeerStore()
 	}
 
-	peerStores := []peers.Store{d.params.MainNodeParams.Peers}
+	peerStores := []PeerStore{d.params.MainNodeParams.Peers}
 	peerStores = append(peerStores, dscPeerStores...)
 	peerStores = append(peerStores, apPeerStores...)
 
 	// server
-	nodeParams.Peers = inet256srv.ChainPeerStore(peerStores)
+	nodeParams.Peers = peers.ChainStore[TransportAddr](peerStores)
 	s := inet256srv.NewServer(nodeParams)
 	defer func() {
 		if err := s.Close(); err != nil {
@@ -124,7 +127,7 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256s
 	return gs.Serve(l)
 }
 
-func copyPeers(dst, src peers.Store) {
+func copyPeers(dst, src peers.Store[inet256srv.TransportAddr]) {
 	for _, id := range src.ListPeers() {
 		dst.Add(id)
 	}

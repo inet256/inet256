@@ -3,15 +3,13 @@ package inet256d
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
-func (d *Daemon) runDiscoveryServices(ctx context.Context, localID inet256.Addr, ds []discovery.Service, localAddrs func() []p2p.Addr, ps []peers.Store) {
+func (d *Daemon) runDiscoveryServices(ctx context.Context, localID inet256.Addr, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore) {
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]
@@ -29,8 +27,8 @@ func (d *Daemon) runDiscoveryServices(ctx context.Context, localID inet256.Addr,
 	eg.Wait()
 }
 
-func adaptTransportAddrs(f func() ([]p2p.Addr, error)) func() []p2p.Addr {
-	return func() []p2p.Addr {
+func adaptTransportAddrs(f func() ([]TransportAddr, error)) func() []TransportAddr {
+	return func() []TransportAddr {
 		addrs, err := f()
 		if err != nil {
 			panic(err)

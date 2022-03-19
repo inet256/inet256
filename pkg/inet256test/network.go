@@ -24,7 +24,6 @@ type (
 	Node           = inet256.Node
 	Network        = networks.Network
 	NetworkFactory = networks.Factory
-	PeerStore      = peers.Store
 )
 
 func TestNetwork(t *testing.T, nf NetworkFactory) {
@@ -98,16 +97,16 @@ func TestSendRecvOne(t testing.TB, src, dst Node) {
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	N := len(adjList)
-	swarms := make([]p2p.SecureSwarm, N)
-	peerStores := make([]PeerStore, N)
+	swarms := make([]*memswarm.Swarm, N)
+	peerStores := make([]peers.Store[memswarm.Addr], N)
 	keys := make([]p2p.PrivateKey, N)
 	netSwarms := make([]networks.Swarm, N)
 	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(keys[i])
-		peerStores[i] = inet256srv.NewPeerStore()
-		netSwarms[i] = inet256srv.NewSwarm(swarms[i], peerStores[i])
+		peerStores[i] = peers.NewStore[memswarm.Addr]()
+		netSwarms[i] = inet256srv.NewSwarm[memswarm.Addr](swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {
@@ -115,7 +114,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 			peerID := inet256.NewAddr(swarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
 			peerStores[i].Add(peerID)
-			peerStores[i].SetAddrs(peerID, []p2p.Addr{addr})
+			peerStores[i].SetAddrs(peerID, []memswarm.Addr{addr})
 		}
 	}
 	nets := make([]Network, N)
@@ -178,4 +177,14 @@ type net2node struct {
 
 func (x net2node) Tell(ctx context.Context, dst Addr, data []byte) error {
 	return x.Network.Tell(ctx, dst, p2p.IOVec{data})
+}
+
+func (x net2node) Receive(ctx context.Context, fn func(inet256.Message)) error {
+	return x.Network.Receive(ctx, func(x p2p.Message[Addr]) {
+		fn(inet256.Message{
+			Src:     x.Src,
+			Dst:     x.Dst,
+			Payload: x.Payload,
+		})
+	})
 }

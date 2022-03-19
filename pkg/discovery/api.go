@@ -4,25 +4,27 @@ import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/serde"
 	"github.com/sirupsen/logrus"
 )
 
+type TransportAddr = multiswarm.Addr
+
 type AddressBook interface {
-	SetAddrs(x inet256.Addr, addrs []p2p.Addr)
+	SetAddrs(x inet256.Addr, addrs []TransportAddr)
 	ListPeers() []inet256.Addr
 }
 
 type Params struct {
 	// Announcing
 	LocalID       inet256.Addr
-	GetLocalAddrs func() []p2p.Addr
+	GetLocalAddrs func() []TransportAddr
 
 	// Finding
 	AddressBook AddressBook
-	AddrParser  serde.AddrParserFunc
+	AddrParser  p2p.AddrParser[TransportAddr]
 
 	Logger *logrus.Logger
 }

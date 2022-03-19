@@ -59,7 +59,7 @@ func New(params networks.Params) *Network {
 	return n
 }
 
-func (n *Network) Receive(ctx context.Context, fn func(inet256.Message)) error {
+func (n *Network) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {
 	return n.tellHub.Receive(ctx, fn)
 }
 
@@ -133,8 +133,8 @@ func (n *Network) Bootstrap(ctx context.Context) error {
 func (n *Network) Close() error {
 	var el netutil.ErrList
 	n.tellHub.CloseWithError(inet256.ErrClosed)
-	el.Do(n.sg.Stop)
-	el.Do(n.swarm.Close)
+	el.Add(n.sg.Stop())
+	el.Add(n.swarm.Close())
 	return el.Err()
 }
 
@@ -152,7 +152,7 @@ func (n *Network) DumpState() string {
 func (nwk *Network) recvLoop(ctx context.Context) error {
 	var msg2 inet256.Message
 	for {
-		if err := nwk.swarm.Receive(ctx, func(msg inet256.Message) {
+		if err := nwk.swarm.Receive(ctx, func(msg p2p.Message[inet256.Addr]) {
 			msg2 = inet256.Message{
 				Src:     msg.Src,
 				Dst:     msg.Dst,
@@ -241,7 +241,7 @@ func (n *Network) handleData(ctx context.Context, prev inet256.Addr, hdr Header,
 	switch {
 	// local
 	case dst == n.LocalAddr():
-		return n.tellHub.Deliver(ctx, inet256.Message{
+		return n.tellHub.Deliver(ctx, p2p.Message[inet256.Addr]{
 			Src:     src,
 			Dst:     dst,
 			Payload: body,

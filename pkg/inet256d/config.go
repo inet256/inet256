@@ -93,7 +93,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		return nil, err
 	}
 	// transports
-	swarms := map[string]p2p.Swarm{}
+	swarms := map[string]multiswarm.DynSwarm{}
 	for _, tspec := range c.Transports {
 		sw, swname, err := makeTransport(tspec, privateKey)
 		if err != nil {
@@ -150,14 +150,14 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	return params, nil
 }
 
-func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (p2p.Swarm, string, error) {
+func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (multiswarm.DynSwarm, string, error) {
 	switch {
 	case spec.UDP != nil:
 		s, err := udpswarm.New(string(*spec.UDP))
 		if err != nil {
 			return nil, "", err
 		}
-		return s, "udp", nil
+		return multiswarm.WrapSwarm[udpswarm.Addr](s), "udp", nil
 	case spec.Ethernet != nil:
 		return nil, "", errors.Errorf("ethernet transport not implemented")
 	default:

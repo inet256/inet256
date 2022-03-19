@@ -51,7 +51,13 @@ func (n *node) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
 }
 
 func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
-	return n.recvHub.Receive(ctx, fn)
+	return n.recvHub.Receive(ctx, func(x p2p.Message[inet256.Addr]) {
+		fn(inet256.Message{
+			Src:     x.Src,
+			Dst:     x.Dst,
+			Payload: x.Payload,
+		})
+	})
 }
 
 func (n *node) Close() error {
@@ -165,7 +171,7 @@ func (w *worker) run(ctx context.Context) error {
 				return err
 			}
 			dg := msg.Datagram
-			if err := w.tells.Deliver(ctx, inet256.Message{
+			if err := w.tells.Deliver(ctx, p2p.Message[inet256.Addr]{
 				Src:     inet256.AddrFromBytes(dg.Src),
 				Dst:     inet256.AddrFromBytes(dg.Dst),
 				Payload: dg.Payload,
