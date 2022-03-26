@@ -22,6 +22,7 @@ type AddressBook interface {
 
 type Params struct {
 	// Announcing
+	PrivateKey    inet256.PrivateKey
 	LocalID       inet256.Addr
 	GetLocalAddrs func() []TransportAddr
 

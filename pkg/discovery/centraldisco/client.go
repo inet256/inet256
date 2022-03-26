@@ -11,41 +11,30 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const purposeAnnounce = "inet256/centraldisco/announce"
+const purposeAnnounce = "inet256/discovery/central/announce"
 
 type Client struct {
-	client     internal.DiscoveryClient
-	privateKey p2p.PrivateKey
+	client internal.DiscoveryClient
 }
 
-func DialClient(ctx context.Context, addr string) (*Client, error) {
-	gc, err := grpc.DialContext(ctx, addr)
-	if err != nil {
-		return nil, err
-	}
+// NewClient returns a client connected using gc, and privatKey for signing announcements
+func NewClient(gc grpc.ClientConnInterface) *Client {
 	return &Client{
 		client: internal.NewDiscoveryClient(gc),
-	}, nil
-}
-
-func NewClient(gc grpc.ClientConnInterface, privateKey p2p.PrivateKey) *Client {
-	return &Client{
-		client:     internal.NewDiscoveryClient(gc),
-		privateKey: privateKey,
 	}
 }
 
-func (c *Client) Announce(ctx context.Context, endpoints []string) error {
+func (c *Client) Announce(ctx context.Context, privKey p2p.PrivateKey, endpoints []string) error {
 	ts := tai64.Now().TAI64().Marshal()
 	announceBytes, _ := proto.Marshal(&internal.Announce{
 		Endpoints: endpoints,
 		Tai64:     ts[:],
 	})
-	sig, err := p2p.Sign(nil, c.privateKey, purposeAnnounce, announceBytes)
+	sig, err := p2p.Sign(nil, privKey, purposeAnnounce, announceBytes)
 	if err != nil {
 		return err
 	}
-	pubKeyBytes := inet256.MarshalPublicKey(c.privateKey.Public())
+	pubKeyBytes := inet256.MarshalPublicKey(privKey.Public())
 	_, err = c.client.Announce(ctx, &internal.AnnounceReq{
 		PublicKey: pubKeyBytes,
 		Announce:  announceBytes,

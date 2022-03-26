@@ -12,6 +12,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,6 +27,7 @@ type peerState struct {
 }
 
 type Server struct {
+	log    *logrus.Logger
 	parser discovery.AddrParser
 
 	mu sync.RWMutex
@@ -40,8 +42,9 @@ func RunServer(l net.Listener, s *Server) error {
 	return gs.Serve(l)
 }
 
-func NewServer(parser discovery.AddrParser) *Server {
+func NewServer(log *logrus.Logger, parser discovery.AddrParser) *Server {
 	return &Server{
+		log:    log,
 		parser: parser,
 		m:      make(map[inet256.Addr]*peerState),
 	}
@@ -62,6 +65,11 @@ func (s *Server) Announce(ctx context.Context, req *internal.AnnounceReq) (*inte
 	timeNext, err := tai64.Parse(x.Tai64)
 	if err != nil {
 		return nil, err
+	}
+	for _, endpoint := range x.Endpoints {
+		if _, err := s.parser([]byte(endpoint)); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "error parsing endpoint: %v", err)
+		}
 	}
 	addr := inet256.NewAddr(pubKey)
 	s.mu.Lock()
@@ -85,10 +93,8 @@ func (s *Server) Find(ctx context.Context, req *internal.FindReq) (*internal.Fin
 		return nil, status.Errorf(codes.InvalidArgument, "target too short to be INET256 address")
 	}
 	addr := inet256.AddrFromBytes(req.GetTarget())
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	x, exists := s.m[addr]
-	if !exists {
+	x := s.get(addr)
+	if x == nil {
 		return nil, status.Errorf(codes.NotFound, "no announce found for peer %v", addr)
 	}
 	announceBytes, err := proto.Marshal(x.Announce)
@@ -100,4 +106,10 @@ func (s *Server) Find(ctx context.Context, req *internal.FindReq) (*internal.Fin
 		Announce:  announceBytes,
 		Sig:       x.Sig,
 	}, nil
+}
+
+func (s *Server) get(x inet256.Addr) *peerState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.m[x]
 }

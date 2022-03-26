@@ -11,6 +11,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -19,7 +20,7 @@ import (
 func TestClientServer(t *testing.T) {
 	ctx := context.Background()
 	// server
-	s := NewServer(addrParser)
+	s := NewServer(logrus.StandardLogger(), addrParser)
 	l, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 	defer l.Close()

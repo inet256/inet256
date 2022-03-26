@@ -12,7 +12,7 @@ import (
 
 type FindFunc = func(ctx context.Context, x inet256.Addr) ([]string, error)
 
-type AnnounceFunc = func(ctx context.Context, addrs []string) error
+type AnnounceFunc = func(ctx context.Context, privateKey inet256.PrivateKey, addrs []string) error
 
 type PollingDiscovery struct {
 	Period   time.Duration
@@ -50,7 +50,7 @@ func (s *PollingDiscovery) findLoop(ctx context.Context, params Params) error {
 
 func (s *PollingDiscovery) announceLoop(ctx context.Context, params Params) error {
 	return s.poll(ctx, params.Logger, func() error {
-		return s.Announce(ctx, serde.MarshalAddrs(params.GetLocalAddrs()))
+		return s.Announce(ctx, params.PrivateKey, serde.MarshalAddrs(params.GetLocalAddrs()))
 	})
 }
 
