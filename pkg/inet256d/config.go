@@ -185,6 +185,10 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 	case spec.Local != nil:
 		return nil, errors.New("local discovery not yet supported")
 	case spec.Central != nil:
+		period := spec.Central.Period
+		if period == 0 {
+			period = defaultPollingPeriod
+		}
 		endpoint := spec.Central.Endpoint
 		var opts []grpc.DialOption
 		if strings.HasPrefix(endpoint, "http://") {
@@ -198,7 +202,7 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 			return nil, err
 		}
 		client := centraldisco.NewClient(gc)
-		return centraldisco.NewService(client, spec.Central.Period), nil
+		return centraldisco.NewService(client, period), nil
 	default:
 		return nil, errors.Errorf("empty discovery spec")
 	}

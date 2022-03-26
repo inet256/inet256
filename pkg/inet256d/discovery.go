@@ -2,6 +2,7 @@ package inet256d
 
 import (
 	"context"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/discovery"
@@ -10,6 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
+
+const defaultPollingPeriod = 30 * time.Second
 
 func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[inet256srv.TransportAddr]) {
 	eg := errgroup.Group{}

@@ -105,3 +105,13 @@ network:
 Network algorithms have to be compiled into the daemon to be used.
 The `ls-networks` command in the CLI can be used to list the networks the daemon implements.
 Different forks of the project may ship with different networks.
+
+## `discovery`
+A list of discovery service specs.
+Discovery services allow the daemon to find transport addresses for a given INET256 peer.  This makes peering over the internet easier.
+
+```yaml
+discovery: 
+- central:
+
+```

@@ -31,7 +31,7 @@ var centralDiscoveryCmd = &cobra.Command{
 			return err
 		}
 		defer l.Close()
-		logger.Infof("serving on %s...", laddr)
+		logger.Infof("serving on %s...", l.Addr().String())
 		return gs.Serve(l)
 	},
 }
