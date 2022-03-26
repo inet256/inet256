@@ -29,6 +29,9 @@ testv: protobuf
 	go test --race -v -count=1 ./cmd/...
 	go test --race -v -count=1 ./e2etest
 
+docker:
+	docker build -t inet256:local .
+
 drop-replace:
 	go mod edit -dropreplace github.com/brendoncarroll/go-p2p
 
