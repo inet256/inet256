@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option go_package = "github.com/inet256/inet256/pkg/discovery/centraldisco/internal";
+
+message AnnounceReq {
+    bytes public_key = 1;
+    bytes announce = 2;
+    bytes sig = 3;
+}
+
+message AnnounceRes {
+}
+
+message Announce {
+    repeated string endpoints = 1;
+    bytes tai64 = 2;
+}
+
+message FindReq {
+    bytes target = 1;    
+}
+
+message FindRes {
+    bytes public_key = 1;
+    bytes announce = 2;
+    bytes sig = 3;
+}
+
+service Discovery {
+    rpc Find (FindReq) returns (FindRes) {};
+    rpc Announce(AnnounceReq) returns (AnnounceRes) {};
+}

@@ -11,6 +11,8 @@ import (
 )
 
 type ServiceGroup struct {
+	Logger *logrus.Logger
+
 	setupOnce sync.Once
 	ctx       context.Context
 	cf        context.CancelFunc
@@ -33,10 +35,14 @@ func (sg *ServiceGroup) Go(fn func(context.Context) error) {
 				return nil
 			}
 			if isContextDone(sg.ctx) {
-				logrus.Errorf("while stopping service group: %v", err)
+				if sg.Logger != nil {
+					sg.Logger.Errorf("while stopping service group: %v", err)
+				}
 				return nil
 			}
-			logrus.Errorf("service crashed with %v. restarting...", err)
+			if sg.Logger != nil {
+				sg.Logger.Errorf("service crashed with %v. restarting...", err)
+			}
 			time.Sleep(time.Second)
 		}
 	})

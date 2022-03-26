@@ -10,7 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type TransportAddr = multiswarm.Addr
+type (
+	TransportAddr = multiswarm.Addr
+	AddrParser    = p2p.AddrParser[TransportAddr]
+)
 
 type AddressBook interface {
 	SetAddrs(x inet256.Addr, addrs []TransportAddr)
