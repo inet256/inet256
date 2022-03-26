@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
@@ -30,8 +31,10 @@ func TestClientServer(t *testing.T) {
 	// clients
 	gc, err := grpc.Dial(l.Addr().String(), grpc.WithInsecure())
 	require.NoError(t, err)
-	c1 := NewClient(gc, p2ptest.NewTestKey(t, 0))
-	c2 := NewClient(gc, p2ptest.NewTestKey(t, 1))
+	c1 := NewClient(gc)
+	c2 := NewClient(gc)
+	pk1 := p2ptest.NewTestKey(t, 0)
+	pk2 := p2ptest.NewTestKey(t, 1)
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {
@@ -39,15 +42,15 @@ func TestClientServer(t *testing.T) {
 	})
 
 	// announce
-	err = c1.Announce(ctx, []string{"udp://127.0.0.1:1234"})
+	err = c1.Announce(ctx, pk1, []string{"udp://127.0.0.1:1234"}, time.Hour)
 	require.NoError(t, err)
-	err = c2.Announce(ctx, []string{"udp://127.0.0.1:1235"})
+	err = c2.Announce(ctx, pk2, []string{"udp://127.0.0.1:1235"}, time.Hour)
 	require.NoError(t, err)
 	// find
-	endpoints, err := c1.Find(ctx, inet256.NewAddr(c2.privateKey.Public()))
+	endpoints, err := c1.Find(ctx, inet256.NewAddr(pk1.Public()))
 	require.NoError(t, err)
 	require.Len(t, endpoints, 1)
-	endpoints, err = c2.Find(ctx, inet256.NewAddr(c1.privateKey.Public()))
+	endpoints, err = c2.Find(ctx, inet256.NewAddr(pk2.Public()))
 	require.NoError(t, err)
 
 	gs.Stop()

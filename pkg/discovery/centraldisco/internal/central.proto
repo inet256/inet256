@@ -14,6 +14,7 @@ message AnnounceRes {
 message Announce {
     repeated string endpoints = 1;
     bytes tai64 = 2;
+    int64 ttl_seconds = 3;
 }
 
 message FindReq {

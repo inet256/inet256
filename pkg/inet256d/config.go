@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
@@ -17,10 +18,12 @@ import (
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
+	"github.com/inet256/inet256/pkg/discovery/centraldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 )
 
@@ -47,19 +50,23 @@ type UDPTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
-	Cell    *CellDiscoverySpec    `yaml:"cell"`
-	Local   *LocalDiscoverySpec   `yaml:"local"`
-	Central *CentralDiscoverySpec `yaml:"central"`
+	Cell    *CellDiscoverySpec    `yaml:"cell,omitempty"`
+	Local   *LocalDiscoverySpec   `yaml:"local,omitempty"`
+	Central *CentralDiscoverySpec `yaml:"central,omitempty"`
 }
 
-type CellDiscoverySpec = string
+type CellDiscoverySpec struct {
+	Endpoint string        `yaml:"endpoint"`
+	Period   time.Duration `yaml:"period,omitempty"`
+}
 
 type LocalDiscoverySpec struct {
 	MulticastAddr string `yaml:"multicast_addr"`
 }
 
 type CentralDiscoverySpec struct {
-	Endpoint string `yaml:"endpoint"`
+	Endpoint string        `yaml:"endpoint"`
+	Period   time.Duration `yaml:"period,omitempty"`
 }
 
 type AutoPeeringSpec struct {
@@ -173,7 +180,16 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (multiswarm.DynSw
 func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Cell != nil:
-		return celldisco.New(*spec.Cell)
+		return celldisco.New(spec.Cell.Endpoint)
+	case spec.Local != nil:
+		return nil, errors.New("local discovery not yet supported")
+	case spec.Central != nil:
+		gc, err := grpc.Dial(spec.Central.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+		client := centraldisco.NewClient(gc)
+		return centraldisco.NewService(client, spec.Central.Period), nil
 	default:
 		return nil, errors.Errorf("empty discovery spec")
 	}

@@ -20,6 +20,7 @@ import (
 
 type peerState struct {
 	Timestamp time.Time
+	TTL       time.Duration
 
 	PublicKey []byte
 	Announce  *internal.Announce
@@ -81,6 +82,7 @@ func (s *Server) Announce(ctx context.Context, req *internal.AnnounceReq) (*inte
 	}
 	s.m[addr] = &peerState{
 		Timestamp: timeNext.GoTime(),
+		TTL:       time.Duration(x.TtlSeconds) * time.Second,
 		Announce:  &x,
 		Sig:       req.Sig,
 		PublicKey: req.PublicKey,

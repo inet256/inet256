@@ -2,6 +2,8 @@ package centraldisco
 
 import (
 	"context"
+	"math"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-tai64"
@@ -24,11 +26,12 @@ func NewClient(gc grpc.ClientConnInterface) *Client {
 	}
 }
 
-func (c *Client) Announce(ctx context.Context, privKey p2p.PrivateKey, endpoints []string) error {
+func (c *Client) Announce(ctx context.Context, privKey p2p.PrivateKey, endpoints []string, ttl time.Duration) error {
 	ts := tai64.Now().TAI64().Marshal()
 	announceBytes, _ := proto.Marshal(&internal.Announce{
-		Endpoints: endpoints,
-		Tai64:     ts[:],
+		Endpoints:  endpoints,
+		Tai64:      ts[:],
+		TtlSeconds: int64(math.Ceil(ttl.Seconds())),
 	})
 	sig, err := p2p.Sign(nil, privKey, purposeAnnounce, announceBytes)
 	if err != nil {
