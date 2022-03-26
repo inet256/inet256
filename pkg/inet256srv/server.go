@@ -48,7 +48,8 @@ type Server struct {
 }
 
 func NewServer(params Params) *Server {
-	r := memswarm.NewRealm()
+	memLogger := logrus.StandardLogger()
+	r := memswarm.NewRealm(memswarm.WithLogger(memLogger))
 	msw := r.NewSwarmWithKey(params.PrivateKey)
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
