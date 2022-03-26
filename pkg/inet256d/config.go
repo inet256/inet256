@@ -47,14 +47,19 @@ type UDPTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
-	Cell  *CellDiscoverySpec `yaml:"cell"`
-	Local *LocalDiscoverySpec
+	Cell    *CellDiscoverySpec    `yaml:"cell"`
+	Local   *LocalDiscoverySpec   `yaml:"local"`
+	Central *CentralDiscoverySpec `yaml:"central"`
 }
 
 type CellDiscoverySpec = string
 
 type LocalDiscoverySpec struct {
 	MulticastAddr string `yaml:"multicast_addr"`
+}
+
+type CentralDiscoverySpec struct {
+	Endpoint string `yaml:"endpoint"`
 }
 
 type AutoPeeringSpec struct {

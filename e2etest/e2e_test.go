@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -19,43 +18,49 @@ import (
 )
 
 func Test2Node(t *testing.T) {
-	dir1, dir2 := t.TempDir(), t.TempDir()
-
-	priv1 := p2ptest.NewTestKey(t, 1)
-	priv2 := p2ptest.NewTestKey(t, 2)
-	addr1 := inet256.NewAddr(priv1.Public())
-	addr2 := inet256.NewAddr(priv2.Public())
-
-	setupSide(t, dir1, priv1, 2561, 50001)
-	setupSide(t, dir2, priv2, 2562, 50002)
-
-	addPeer(t, dir1, addr2, []string{fmt.Sprintf("quic+udp://%v@127.0.0.1:50002", addr2)})
-	addPeer(t, dir2, addr1, []string{fmt.Sprintf("quic+udp://%v@127.0.0.1:50001", addr1)})
-
-	runDaemon(t, dir1)
-	runDaemon(t, dir2)
-
-	c1 := newClient(t, 2561)
-	c2 := newClient(t, 2562)
-
-	ctx := context.Background()
-	n1, err := c1.Open(ctx, p2ptest.NewTestKey(t, 101))
-	require.NoError(t, err)
-	t.Cleanup(func() { n1.Close() })
-	n2, err := c2.Open(ctx, p2ptest.NewTestKey(t, 102))
-	require.NoError(t, err)
-	t.Cleanup(func() { n2.Close() })
+	sides := make([]*side, 2)
+	for i := range sides {
+		sides[i] = newSide(t, i)
+	}
+	for i := range sides {
+		for j := range sides {
+			if i == j {
+				continue
+			}
+			sides[i].peerWith(t, sides[j])
+		}
+	}
+	for i := range sides {
+		sides[i].startDaemon(t)
+	}
+	n1 := sides[0].newNode(t, p2ptest.NewTestKey(t, 101))
+	n2 := sides[1].newNode(t, p2ptest.NewTestKey(t, 102))
 
 	inet256test.TestSendRecvOne(t, n1, n2)
 	inet256test.TestSendRecvOne(t, n2, n1)
 }
 
-func setupSide(t testing.TB, dir string, privateKey p2p.PrivateKey, apiPort, listenPort int) {
+type side struct {
+	i             int
+	dir           string
+	privateKey    inet256.PrivateKey
+	apiPort       int
+	transportPort int
+
+	d *inet256d.Daemon
+}
+
+func newSide(t testing.TB, i int) *side {
+	dir := t.TempDir()
+	privateKey := p2ptest.NewTestKey(t, i)
+	apiPort := 25600 + i
+	transportPort := 32000 + i
+
 	config := inet256d.DefaultConfig()
 	config.PrivateKeyPath = "./private_key.pem"
 	config.APIEndpoint = "127.0.0.1:" + strconv.Itoa(apiPort)
 	config.Transports = []inet256d.TransportSpec{
-		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(listenPort)),
+		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(transportPort)),
 	}
 	configPath := filepath.Join(dir, "config.yaml")
 	require.NoError(t, inet256d.SaveConfig(config, configPath))
@@ -65,18 +70,90 @@ func setupSide(t testing.TB, dir string, privateKey p2p.PrivateKey, apiPort, lis
 	require.NoError(t, err)
 	err = ioutil.WriteFile(keyPath, data, 0o644)
 	require.NoError(t, err)
+
+	return &side{
+		i:             i,
+		dir:           dir,
+		privateKey:    privateKey,
+		apiPort:       apiPort,
+		transportPort: transportPort,
+	}
 }
 
-func addPeer(t testing.TB, dir string, id inet256.Addr, addrs []string) {
-	configPath := filepath.Join(dir, "config.yaml")
-	config, err := inet256d.LoadConfig(configPath)
+func (s *side) updateConfig(t testing.TB, fn func(inet256d.Config) inet256d.Config) {
+	x, err := inet256d.LoadConfig(s.configPath())
 	require.NoError(t, err)
-	config.Peers = append(config.Peers, inet256d.PeerSpec{
-		ID:    id,
-		Addrs: addrs,
+	y := fn(*x)
+	require.NoError(t, inet256d.SaveConfig(y, s.configPath()))
+}
+
+func (s *side) peerWith(t testing.TB, s2 *side) {
+	s.addPeer(t, inet256d.PeerSpec{
+		ID:    s2.localAddr(),
+		Addrs: s2.transportAddrs(),
 	})
-	require.NoError(t, inet256d.SaveConfig(*config, configPath))
-	return
+}
+
+func (s *side) addPeer(t testing.TB, x inet256d.PeerSpec) {
+	s.updateConfig(t, func(config inet256d.Config) inet256d.Config {
+		config.Peers = append(config.Peers, x)
+		return config
+	})
+}
+
+func (s *side) addDiscovery(t testing.TB, x inet256d.DiscoverySpec) {
+	s.updateConfig(t, func(config inet256d.Config) inet256d.Config {
+		config.Discovery = append(config.Discovery, x)
+		return config
+	})
+}
+
+func (s *side) configPath() string {
+	return filepath.Join(s.dir, "config.yaml")
+}
+
+func (s *side) transportAddrs() []string {
+	return []string{fmt.Sprintf("quic+udp://%v@127.0.0.1:%d", s.localAddr(), s.transportPort)}
+}
+
+func (s *side) localAddr() inet256.Addr {
+	return inet256.NewAddr(s.privateKey.Public())
+}
+
+func (s *side) newClient(t testing.TB) inet256.Service {
+	client, err := inet256client.NewClient("127.0.0.1:" + strconv.Itoa(s.apiPort))
+	require.NoError(t, err)
+	return client
+}
+
+// newNode returns a node which is cleaned up at the end of the test
+func (s *side) newNode(t testing.TB, privateKey inet256.PrivateKey) inet256.Node {
+	client := s.newClient(t)
+	node, err := client.Open(context.Background(), privateKey)
+	require.NoError(t, err)
+	t.Cleanup(func() { node.Close() })
+	return node
+}
+
+func (s *side) startDaemon(t testing.TB) {
+	configPath := s.configPath()
+	c, err := inet256d.LoadConfig(configPath)
+	require.NoError(t, err)
+	params, err := inet256d.MakeParams(configPath, *c)
+	require.NoError(t, err)
+	d := inet256d.New(*params)
+
+	// run daemon, cancel then block until it exists during cleanup
+	ctx, cf := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		cf()
+		<-done
+	})
+	go func() {
+		defer close(done)
+		d.Run(ctx)
+	}()
 }
 
 func newUDPTransportSpec(x string) inet256d.TransportSpec {
@@ -84,26 +161,4 @@ func newUDPTransportSpec(x string) inet256d.TransportSpec {
 	return inet256d.TransportSpec{
 		UDP: &y,
 	}
-}
-
-func runDaemon(t testing.TB, dir string) {
-	d := newDaemon(t, dir)
-	ctx, cf := context.WithCancel(context.Background())
-	t.Cleanup(cf)
-	go d.Run(ctx)
-}
-
-func newDaemon(t testing.TB, dir string) *inet256d.Daemon {
-	configPath := filepath.Join(dir, "config.yaml")
-	c, err := inet256d.LoadConfig(configPath)
-	require.NoError(t, err)
-	params, err := inet256d.MakeParams(configPath, *c)
-	require.NoError(t, err)
-	return inet256d.New(*params)
-}
-
-func newClient(t testing.TB, apiPort int) inet256.Service {
-	client, err := inet256client.NewClient("127.0.0.1:" + strconv.Itoa(apiPort))
-	require.NoError(t, err)
-	return client
 }

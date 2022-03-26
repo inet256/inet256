@@ -113,7 +113,7 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256s
 		return err
 	}
 	defer l.Close()
-	logrus.Println("API listening on: ", l.Addr())
+	d.log.Println("API listening on: ", l.Addr())
 	gs := grpc.NewServer(grpc.KeepaliveParams(keepalive.ServerParameters{
 		Time:    1 * time.Second,
 		Timeout: 5 * time.Second,
