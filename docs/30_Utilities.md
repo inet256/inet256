@@ -15,3 +15,6 @@ Runs the [IP6 Portal](./31_IP6_Portal.md)
 
 ## `ip6-addr [--private-key <path>] [addr]`
 Prints the IPv6 address that would be assigned in the portal to a given INET256 address, or private key.
+
+## `inet256 central-discovery <laddr>`
+Starts a central discovery server listening on `laddr`

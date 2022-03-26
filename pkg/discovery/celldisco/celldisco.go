@@ -21,8 +21,9 @@ func New(token string) (discovery.Service, error) {
 	}
 	return &discovery.PollingDiscovery{
 		Period: period,
-		Announce: func(ctx context.Context, x inet256.Addr, addrs []string) error {
-			return client.Announce(ctx, p2p.PeerID(x), addrs, ttl)
+		Announce: func(ctx context.Context, privKey inet256.PrivateKey, addrs []string, ttl time.Duration) error {
+			addr := inet256.NewAddr(privKey.Public())
+			return client.Announce(ctx, p2p.PeerID(addr), addrs, ttl)
 		},
 		Find: func(ctx context.Context, x inet256.Addr) ([]string, error) {
 			return client.Find(ctx, p2p.PeerID(x))

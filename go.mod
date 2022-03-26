@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/brendoncarroll/go-p2p v0.0.0-20220319215352-6159b17bc462
+	github.com/brendoncarroll/go-tai64 v0.0.0-20211126175841-df086c7d155a
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/pkg/errors v0.9.1

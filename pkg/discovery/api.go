@@ -10,7 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type TransportAddr = multiswarm.Addr
+type (
+	TransportAddr = multiswarm.Addr
+	AddrParser    = p2p.AddrParser[TransportAddr]
+)
 
 type AddressBook interface {
 	SetAddrs(x inet256.Addr, addrs []TransportAddr)
@@ -19,6 +22,7 @@ type AddressBook interface {
 
 type Params struct {
 	// Announcing
+	PrivateKey    inet256.PrivateKey
 	LocalID       inet256.Addr
 	GetLocalAddrs func() []TransportAddr
 
