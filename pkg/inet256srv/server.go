@@ -95,9 +95,9 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, err
 
 		ps := peers.NewStore[TransportAddr]()
 		ps.Add(s.mainID)
-		ps.SetAddrs(s.mainID, []multiswarm.Addr{{Transport: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
+		ps.SetAddrs(s.mainID, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
 		s.mainMemPeers.Add(id)
-		s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Transport: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
+		s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
 		n := NewNode(Params{
 			NewNetwork: s.params.NewNetwork,

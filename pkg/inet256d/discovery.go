@@ -46,7 +46,7 @@ func adaptTransportAddrs(f func() ([]TransportAddr, error)) func() []TransportAd
 		}
 		addrs2 := addrs[:0]
 		for _, addr := range addrs {
-			if _, exists := broadcastTransports[addr.Transport]; exists {
+			if _, exists := broadcastTransports[addr.Scheme]; exists {
 				addrs2 = append(addrs2, addr)
 			}
 		}
