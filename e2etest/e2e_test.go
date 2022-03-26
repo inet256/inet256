@@ -136,6 +136,9 @@ func (s *side) newNode(t testing.TB, privateKey inet256.PrivateKey) inet256.Node
 }
 
 func (s *side) startDaemon(t testing.TB) {
+	if s.d != nil {
+		panic("daemon already started")
+	}
 	configPath := s.configPath()
 	c, err := inet256d.LoadConfig(configPath)
 	require.NoError(t, err)
@@ -148,12 +151,15 @@ func (s *side) startDaemon(t testing.TB) {
 	done := make(chan struct{})
 	t.Cleanup(func() {
 		cf()
+		t.Log("canceled daemon context.  waiting for daemon to exit...")
 		<-done
 	})
 	go func() {
 		defer close(done)
 		d.Run(ctx)
 	}()
+
+	s.d = d
 }
 
 func newUDPTransportSpec(x string) inet256d.TransportSpec {

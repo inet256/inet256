@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -26,6 +27,7 @@ type Params struct {
 	DiscoveryServices   []discovery.Service
 	AutoPeeringServices []autopeering.Service
 	APIAddr             string
+	TransportAddrParser p2p.AddrParser[inet256srv.TransportAddr]
 }
 
 type Daemon struct {
@@ -88,7 +90,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runHTTPServer(ctx, d.params.APIAddr, s, promReg)
 	})
 	eg.Go(func() error {
-		d.runDiscoveryServices(ctx, localID, d.params.DiscoveryServices, adaptTransportAddrs(s.TransportAddrs), dscPeerStores)
+		d.runDiscoveryServices(ctx, d.params.MainNodeParams.PrivateKey, d.params.DiscoveryServices, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
 		return nil
 	})
 	eg.Go(func() error {

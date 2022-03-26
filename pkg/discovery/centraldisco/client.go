@@ -10,6 +10,8 @@ import (
 	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
 	"github.com/inet256/inet256/pkg/inet256"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -50,7 +52,10 @@ func (c *Client) Find(ctx context.Context, target inet256.Addr) ([]string, error
 	res, err := c.client.Find(ctx, &internal.FindReq{
 		Target: target[:],
 	})
-	if err != nil {
+	switch {
+	case status.Code(err) == codes.NotFound:
+		return nil, nil
+	case err != nil:
 		return nil, err
 	}
 	pubKey, err := inet256.ParsePublicKey(res.PublicKey)

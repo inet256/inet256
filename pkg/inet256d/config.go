@@ -158,6 +158,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		DiscoveryServices:   dscSrvs,
 		AutoPeeringServices: apSrvs,
 		APIAddr:             c.APIEndpoint,
+		TransportAddrParser: addrSchema.ParseAddr,
 	}
 	return params, nil
 }
@@ -184,7 +185,15 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 	case spec.Local != nil:
 		return nil, errors.New("local discovery not yet supported")
 	case spec.Central != nil:
-		gc, err := grpc.Dial(spec.Central.Endpoint)
+		endpoint := spec.Central.Endpoint
+		var opts []grpc.DialOption
+		if strings.HasPrefix(endpoint, "http://") {
+			endpoint = strings.TrimPrefix(endpoint, "http://")
+			opts = append(opts, grpc.WithInsecure())
+		} else if strings.HasPrefix(endpoint, "https://") {
+			endpoint = strings.TrimPrefix(endpoint, "https://")
+		}
+		gc, err := grpc.Dial(endpoint, opts...)
 		if err != nil {
 			return nil, err
 		}
