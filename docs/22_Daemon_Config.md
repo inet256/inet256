@@ -110,8 +110,12 @@ Different forks of the project may ship with different networks.
 A list of discovery service specs.
 Discovery services allow the daemon to find transport addresses for a given INET256 peer.  This makes peering over the internet easier.
 
+In the example below a central discovery server is configured to announce and find peers.
 ```yaml
-discovery: 
+discovery:
 - central:
-
+    endpoint: "123.234.132.231:8000"
 ```
+
+Discovery services *do not* create connections to unknown peers.
+A discovery service continuously attempts to find transport addresses for all of the peers specified in the configuration.

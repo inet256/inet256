@@ -56,8 +56,8 @@ type DiscoverySpec struct {
 }
 
 type CellDiscoverySpec struct {
-	Endpoint string        `yaml:"endpoint"`
-	Period   time.Duration `yaml:"period,omitempty"`
+	Token  string        `yaml:"token"`
+	Period time.Duration `yaml:"period,omitempty"`
 }
 
 type LocalDiscoverySpec struct {
@@ -181,7 +181,7 @@ func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (multiswarm.DynSw
 func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Cell != nil:
-		return celldisco.New(spec.Cell.Endpoint)
+		return celldisco.New(spec.Cell.Token)
 	case spec.Local != nil:
 		return nil, errors.New("local discovery not yet supported")
 	case spec.Central != nil:
