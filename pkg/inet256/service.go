@@ -35,7 +35,7 @@ type ReceiveFunc = func(Message)
 type Node interface {
 	// Tell sends a message containing data to the node at addr.
 	// The message will be delivered at most once.
-	Tell(ctx context.Context, addr Addr, data []byte) error
+	Send(ctx context.Context, addr Addr, data []byte) error
 	// Receive calls fn with a message sent to this node.
 	// The message fields, and payload must not be accessed outside fn.
 	Receive(ctx context.Context, fn ReceiveFunc) error
@@ -64,12 +64,25 @@ type Node interface {
 //
 // This interface is compatible with the INET256 specification.
 type Service interface {
-	Open(ctx context.Context, privKey p2p.PrivateKey) (Node, error)
+	Open(ctx context.Context, privKey p2p.PrivateKey, opts ...NodeOption) (Node, error)
 	Delete(ctx context.Context, privKey p2p.PrivateKey) error
+}
 
-	LookupPublicKey(ctx context.Context, addr Addr) (p2p.PublicKey, error)
-	FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error)
-	MTU(ctx context.Context, addr Addr) int
+// NodeOption is the type of functions which configure a Node.
+type NodeOption = func(*NodeConfig)
+
+// NodeConfig is an aggregate of applied NodeOptions
+// Not all implementations will support all the options.
+type NodeConfig struct {
+}
+
+// CollectNodeOptions applyies each option in opts to a NodeOptions
+// and returns the result.
+func CollectNodeOptions(opts []NodeOption) (cfg NodeConfig) {
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return cfg
 }
 
 // Receive is a utility function for copying a message from the Node n into msg

@@ -28,7 +28,7 @@ func (pc *packetConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 	}
 	ctx, cf := pc.getWriteContext()
 	defer cf()
-	if err = pc.n.Tell(ctx, dst, p); err != nil {
+	if err = pc.n.Send(ctx, dst, p); err != nil {
 		return 0, err
 	}
 	return len(p), nil

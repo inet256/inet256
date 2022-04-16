@@ -38,7 +38,7 @@ type client struct {
 	log         *logrus.Logger
 }
 
-func (c *client) Open(ctx context.Context, privKey p2p.PrivateKey) (inet256.Node, error) {
+func (c *client) Open(ctx context.Context, privKey p2p.PrivateKey, opts ...inet256.NodeOption) (inet256.Node, error) {
 	n, err := newNode(c.inetClient, privKey)
 	if err != nil {
 		return nil, err

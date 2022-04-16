@@ -79,7 +79,7 @@ type p2pNode struct {
 }
 
 func (pn p2pNode) Tell(ctx context.Context, dst inet256.Addr, v p2p.IOVec) error {
-	return pn.Node.Tell(ctx, dst, p2p.VecBytes(nil, v))
+	return pn.Node.Send(ctx, dst, p2p.VecBytes(nil, v))
 }
 
 func (pn p2pNode) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr])) error {

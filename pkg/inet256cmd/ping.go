@@ -36,6 +36,6 @@ var pingCmd = &cobra.Command{
 		}
 
 		fmt.Println("pinging", dst)
-		return node.Tell(ctx, dst, []byte("ping"))
+		return node.Send(ctx, dst, []byte("ping"))
 	},
 }

@@ -78,7 +78,7 @@ func NewServer(params Params) *Server {
 	return s
 }
 
-func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey) (Node, error) {
+func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...inet256.NodeOption) (Node, error) {
 	id := inet256.NewAddr(privateKey.Public())
 	if id == s.mainID {
 		return nil, errors.Errorf("clients cannot use main node's key")

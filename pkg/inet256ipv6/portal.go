@@ -166,7 +166,7 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 		ent := &cacheEntry{addr: dst, createdAt: time.Now()}
 		p.putEntry(IPv6FromBytes(header.Dst), ent)
 	}
-	return node.Tell(ctx, dst, data)
+	return node.Send(ctx, dst, data)
 }
 
 func (p *portal) inboundLoop(ctx context.Context) error {

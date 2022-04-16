@@ -46,7 +46,7 @@ func newNode(inetClient INET256Client, privKey p2p.PrivateKey) (*node, error) {
 	return n, nil
 }
 
-func (n *node) Tell(ctx context.Context, dst inet256.Addr, data []byte) error {
+func (n *node) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
 	return n.pickWorker().tell(ctx, dst, data)
 }
 

@@ -55,7 +55,7 @@ var ncCmd = &cobra.Command{
 		eg.Go(func() error {
 			scn := bufio.NewScanner(in)
 			for scn.Scan() {
-				if err := node.Tell(ctx, remote, scn.Bytes()); err != nil {
+				if err := node.Send(ctx, remote, scn.Bytes()); err != nil {
 					return err
 				}
 			}
