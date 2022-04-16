@@ -46,7 +46,16 @@ func (s *Server) GenerateKey(ctx context.Context, _ *empty.Empty) (*GenerateKeyR
 }
 
 func (s *Server) FindAddr(ctx context.Context, req *FindAddrReq) (*FindAddrRes, error) {
-	addr, err := s.s.FindAddr(ctx, req.Prefix, int(req.Nbits))
+	privKey, err := serde.ParsePrivateKey(req.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	node, err := s.s.Open(ctx, privKey)
+	if err != nil {
+		return nil, err
+	}
+	defer node.Close()
+	addr, err := node.FindAddr(ctx, req.Prefix, int(req.Nbits))
 	if err != nil {
 		if errors.Is(err, inet256.ErrNoAddrWithPrefix) {
 			err = status.Errorf(codes.NotFound, "%v", err)
@@ -59,8 +68,17 @@ func (s *Server) FindAddr(ctx context.Context, req *FindAddrReq) (*FindAddrRes, 
 }
 
 func (s *Server) LookupPublicKey(ctx context.Context, req *LookupPublicKeyReq) (*LookupPublicKeyRes, error) {
+	privKey, err := serde.ParsePrivateKey(req.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	node, err := s.s.Open(ctx, privKey)
+	if err != nil {
+		return nil, err
+	}
+	defer node.Close()
 	target := inet256.AddrFromBytes(req.Target)
-	pubKey, err := s.s.LookupPublicKey(ctx, target)
+	pubKey, err := node.LookupPublicKey(ctx, target)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +88,17 @@ func (s *Server) LookupPublicKey(ctx context.Context, req *LookupPublicKeyReq) (
 }
 
 func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
+	privKey, err := serde.ParsePrivateKey(req.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	node, err := s.s.Open(ctx, privKey)
+	if err != nil {
+		return nil, err
+	}
+	defer node.Close()
 	target := inet256.AddrFromBytes(req.Target)
-	mtu := s.s.MTU(ctx, target)
+	mtu := node.MTU(ctx, target)
 	return &MTURes{
 		Mtu: int64(mtu),
 	}, nil
@@ -144,7 +171,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 			if err := func() error {
 				ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cf()
-				return node.Tell(ctx, dst, msg.Datagram.Payload)
+				return node.Send(ctx, dst, msg.Datagram.Payload)
 			}(); err != nil {
 				return err
 			}

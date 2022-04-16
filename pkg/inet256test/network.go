@@ -87,7 +87,7 @@ func TestSendRecvOne(t testing.TB, src, dst Node) {
 	})
 	sent := "test data"
 	eg.Go(func() error {
-		return src.Tell(ctx, dst.LocalAddr(), []byte(sent))
+		return src.Send(ctx, dst.LocalAddr(), []byte(sent))
 	})
 	require.NoError(t, eg.Wait())
 	require.Equal(t, sent, string(recieved.Payload))
@@ -175,7 +175,7 @@ type net2node struct {
 	networks.Network
 }
 
-func (x net2node) Tell(ctx context.Context, dst Addr, data []byte) error {
+func (x net2node) Send(ctx context.Context, dst Addr, data []byte) error {
 	return x.Network.Tell(ctx, dst, p2p.IOVec{data})
 }
 

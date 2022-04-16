@@ -29,7 +29,7 @@ var echoCmd = &cobra.Command{
 			if err := inet256.Receive(ctx, node, &msg); err != nil {
 				return err
 			}
-			if err := node.Tell(ctx, msg.Src, msg.Payload); err != nil {
+			if err := node.Send(ctx, msg.Src, msg.Payload); err != nil {
 				logrus.Error(err)
 				continue
 			}

@@ -3,7 +3,7 @@ module github.com/inet256/inet256
 go 1.18
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20220326223556-1a1c4fb9a306
+	github.com/brendoncarroll/go-p2p v0.0.0-20220413233351-498e6f69068f
 	github.com/brendoncarroll/go-tai64 v0.0.0-20211126175841-df086c7d155a
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
@@ -30,10 +30,10 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1 // indirect
-	github.com/lucas-clemente/quic-go v0.25.0 // indirect
-	github.com/marten-seemann/qtls-go1-16 v0.1.4 // indirect
-	github.com/marten-seemann/qtls-go1-17 v0.1.0 // indirect
-	github.com/marten-seemann/qtls-go1-18 v0.1.0-beta.1 // indirect
+	github.com/lucas-clemente/quic-go v0.27.1-0.20220403132755-332473668a99 // indirect
+	github.com/marten-seemann/qtls-go1-16 v0.1.5 // indirect
+	github.com/marten-seemann/qtls-go1-17 v0.1.1 // indirect
+	github.com/marten-seemann/qtls-go1-18 v0.1.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect

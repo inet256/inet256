@@ -60,7 +60,7 @@ func NewNode(params Params) Node {
 	}
 }
 
-func (n *node) Tell(ctx context.Context, dst Addr, data []byte) error {
+func (n *node) Send(ctx context.Context, dst Addr, data []byte) error {
 	return n.network.Tell(ctx, dst, p2p.IOVec{data})
 }
 

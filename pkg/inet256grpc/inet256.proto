@@ -11,8 +11,9 @@ message GenerateKeyRes {
 }
 
 message FindAddrReq {
-    bytes prefix = 1;
-    uint32 nbits = 2;
+    bytes private_key = 1;
+    bytes prefix = 2;
+    uint32 nbits = 3;
 }
 
 message FindAddrRes {
@@ -21,7 +22,8 @@ message FindAddrRes {
 }
 
 message LookupPublicKeyReq {
-    bytes target = 1;
+    bytes private_key = 1;
+    bytes target = 2;
 }
 
 message LookupPublicKeyRes {
@@ -44,11 +46,13 @@ message Datagram {
 }
 
 message MTUReq {
-    bytes target = 1;
+    bytes private_key = 1;
+    bytes target = 2;
 }
 
 message MTURes {
-    int64 mtu = 1;
+    bytes private_key = 1;
+    int64 mtu = 2;
 }
 
 message PeerStatus {
