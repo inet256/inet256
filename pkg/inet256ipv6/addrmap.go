@@ -1,100 +1,115 @@
 package inet256ipv6
 
 import (
-	"net"
+	"fmt"
+	"net/netip"
 
+	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/pkg/errors"
 )
 
-var Subnet net.IPNet
+var netPrefix netip.Prefix = netip.MustParsePrefix("0200::/7")
 
-func init() {
-	_, ipnet, err := net.ParseCIDR("0200::/7")
-	if err != nil {
-		panic(err)
+// NetworkPrefix returns the IPv6 prefix where all INET256 addresses are mapped.
+func NetworkPrefix() netip.Prefix {
+	return netPrefix
+}
+
+// INET256PrefixFromIPv6 returns the a prefix and nbits for passing to FindAddr
+func INET256PrefixFromIPv6(x netip.Addr) ([]byte, int, error) {
+	if !x.Is6() {
+		return nil, 0, fmt.Errorf("ip %v is not v6", x)
 	}
-	Subnet = *ipnet
-}
-
-func IPv6ToPrefix(x net.IP) ([]byte, int, error) {
-	if !Subnet.Contains(x) {
-		return nil, 0, errors.Errorf("ip %v not in subnet", x)
+	if !netPrefix.Contains(x) {
+		return nil, 0, fmt.Errorf("ip %v not in subnet", x)
 	}
-	bitOff, _ := Subnet.Mask.Size()
-
-	c := make([]byte, 16)
-	n := bitCopy(c, 0, x, bitOff)
-
-	data, l := uncompress(c[:ceilDiv(n, 8)])
-	return data, l, nil
+	comp := bitstr.FromSource(bitstr.BytesMSB{
+		Bytes: x.AsSlice(),
+		Begin: netPrefix.Bits(),
+		End:   128,
+	})
+	addrPrefix, nbits := uncompress(comp).AsBytesMSB()
+	return addrPrefix, nbits, nil
 }
 
-func INet256ToIPv6(x inet256.Addr) net.IP {
-	ip6 := IPv6Addr{}
-	copy(ip6[:], Subnet.IP)
-
-	bitOff, _ := Subnet.Mask.Size()
-	c := compress(x[:])
-	bitCopy(ip6[:], bitOff, c, 0)
-
-	return (net.IP)(ip6[:])
-}
-
-func compress(x []byte) []byte {
-	lz := leading0s(x)
-	if lz > 255 {
-		panic("cannot compress address")
+// IPv6FromINET256 returns the IPv6 address corresponding to x.
+// There is only 1 IPv6 per INET256
+func IPv6FromINET256(x inet256.Addr) netip.Addr {
+	buf := &bitstr.Buffer{}
+	buf.AppendAll(bitstr.BytesMSB{
+		Bytes: netPrefix.Addr().AsSlice(),
+		Begin: 0,
+		End:   netPrefix.Bits(),
+	})
+	compress(buf, bitstr.FromSource(bitstr.BytesMSB{
+		Bytes: x[:],
+		Begin: 0,
+		End:   256,
+	}))
+	buf.Truncate(128)
+	data, nbits := buf.BitString().AsBytesMSB()
+	if nbits != 128 {
+		panic(nbits)
 	}
-
-	y := make([]byte, len(x)-(lz+1)/8)
-	y[0] = uint8(lz)
-	bitCopy(y, 8, x, lz+1) // lz+1 skips first 1
-	return y
-}
-
-func uncompress(x []byte) ([]byte, int) {
-	lz := int(x[0])
-	y := make([]byte, ceilDiv(lz+1, 8)+len(x)-1)
-
-	for i := 0; i < lz; i++ {
-		y[i/8] = 0 // set to 0
+	addr, ok := netip.AddrFromSlice(data)
+	if !ok {
+		panic(data)
 	}
-	y[lz/8] |= 0x80 >> (lz % 8) // set the first 1
-	n := bitCopy(y, lz+1, x, 8) // copy the rest
-	l := n + lz + 1
-	return y, l
+	return addr
 }
 
-func bitCopy(dst []byte, doff int, src []byte, soff int) int {
-	di := doff
-	si := soff
-	for di/8 < len(dst) && si/8 < len(src) {
-		// construct masks
-		var sm uint8 = 0x80 >> (si % 8)
-		var dm uint8 = 0x80 >> (di % 8)
-
-		if (src[si/8] & sm) > 0 {
-			dst[di/8] |= dm // if the bit is set, OR the mask
-		} else {
-			dst[di/8] &= (^dm) // if the bit is not set, AND the inverse mask
+// compress writes a compressed version of x to buf
+// compression removes leading 0s and the first 1, writes the number of leading zeros
+// as a 7 bit integer to buf.
+func compress(buf *bitstr.Buffer, x bitstr.String) {
+	var firstOne int
+	for i := 0; i < x.Len(); i++ {
+		if x.At(i) {
+			break
 		}
-		di++
-		si++
+		firstOne++
 	}
-	n := di - doff
+	if firstOne >= 128 {
+		panic("cannot compress >= 128 zeros")
+	}
+	leadingZeros := uint8(firstOne)
+	writeUint7(buf, leadingZeros)
+	buf.AppendAll(bitstr.Slice{x, firstOne + 1, x.Len()})
+}
+
+// uncompress expands a compressed bitstring
+func uncompress(x bitstr.String) bitstr.String {
+	buf := bitstr.Buffer{}
+	// leading zeros
+	lz := readUint7(x)
+	for i := 0; i < int(lz); i++ {
+		buf.Append(false)
+	}
+	// first one
+	buf.Append(true)
+	// the rest
+	buf.AppendAll(bitstr.Slice{x, 7, x.Len()})
+	return buf.BitString()
+}
+
+// writeUint7 writes a Little-Endian uint7 to buf
+func writeUint7(buf *bitstr.Buffer, x uint8) {
+	if x >= 128 {
+		panic("cannot write value >= 128 in 7 bits")
+	}
+	for i := 0; i < 7; i++ {
+		m := uint8(64 >> i)
+		buf.Append(x&m > 0)
+	}
+}
+
+// readUint7 reads a Little-Endian uint8 from buf
+func readUint7(buf bitstr.Source) uint8 {
+	var n uint8
+	for i := 0; i < 7; i++ {
+		if buf.At(i) {
+			n |= uint8(64 >> i)
+		}
+	}
 	return n
-}
-
-func ceilDiv(x int, z int) int {
-	if x%z > 0 {
-		return (x / z) + 1
-	}
-	return x / z
-}
-
-func IPv6FromBytes(x []byte) IPv6Addr {
-	a := IPv6Addr{}
-	copy(a[:], x)
-	return a
 }

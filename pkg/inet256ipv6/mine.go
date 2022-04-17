@@ -25,6 +25,9 @@ const (
 	PreImageResistance128Bits = 16
 )
 
+// MineAddr repeatedly generates private-keys using entropy from r, derives INET256 addresses from them,
+// and checks how well they compress into the IPv6 mapping.
+// goal is the number of leading 0s to achieve in address before stopping.
 func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, p2p.PrivateKey, error) {
 	N := runtime.GOMAXPROCS(0)
 	const checkEvery = 1000
