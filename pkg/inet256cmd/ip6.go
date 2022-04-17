@@ -81,7 +81,7 @@ func NewIP6AddrCmd() *cobra.Command {
 		default:
 			return errors.Errorf("must specify a key")
 		}
-		y := inet256ipv6.IPv6FromINET256(x)
+		y := inet256ipv6.INet256ToIPv6(x)
 		fmt.Fprintf(out, "%v\n", y)
 		return nil
 	}
