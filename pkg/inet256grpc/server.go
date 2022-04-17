@@ -10,6 +10,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/rcsrv"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -22,7 +23,7 @@ import (
 var _ INET256Server = &Server{}
 
 type Server struct {
-	s inet256.Service
+	s   inet256.Service
 
 	UnimplementedINET256Server
 	UnimplementedAdminServer
@@ -30,7 +31,7 @@ type Server struct {
 
 func NewServer(s inet256.Service) *Server {
 	return &Server{
-		s: s,
+		s: rcsrv.Wrap(s),
 	}
 }
 

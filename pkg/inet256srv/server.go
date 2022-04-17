@@ -41,8 +41,7 @@ type Server struct {
 	mainNode     Node
 
 	mu    sync.Mutex
-	nodes map[inet256.Addr]*rcNode
-	rcs   map[inet256.Addr]int
+	nodes map[inet256.Addr]*node
 
 	log *logrus.Logger
 }
@@ -71,8 +70,7 @@ func NewServer(params Params) *Server {
 			NewNetwork: params.NewNetwork,
 			Peers:      peers.ChainStore[TransportAddr]{memPeers, params.Peers},
 		}),
-		nodes: make(map[inet256.Addr]*rcNode),
-		rcs:   make(map[inet256.Addr]int),
+		nodes: make(map[inet256.Addr]*node),
 		log:   logrus.StandardLogger(),
 	}
 	return s
@@ -83,52 +81,41 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...in
 	if id == s.mainID {
 		return nil, errors.Errorf("clients cannot use main node's key")
 	}
-	node, err := func() (Node, error) {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if node, exists := s.nodes[id]; exists {
-			s.rcs[id]++
-			s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]}).Infof("opened ref to node")
-			return node, nil
-		}
-		swarm := s.memrealm.NewSwarmWithKey(privateKey)
-
-		ps := peers.NewStore[TransportAddr]()
-		ps.Add(s.mainID)
-		ps.SetAddrs(s.mainID, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
-		s.mainMemPeers.Add(id)
-		s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
-
-		n := NewNode(Params{
-			NewNetwork: s.params.NewNetwork,
-			Peers:      ps,
-			PrivateKey: privateKey,
-			Swarms: map[string]multiswarm.DynSwarm{
-				nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr](swarm),
-			},
-		})
-		rcn := &rcNode{node: n.(*node), s: s}
-		s.nodes[id] = rcn
-		s.rcs[id] = 1
-		s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]}).Infof("created node")
-		return rcn, nil
-	}()
-	if err != nil {
-		return nil, err
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.nodes[id]; exists {
+		return nil, errors.New("node is already open")
 	}
-	return node, nil
+	swarm := s.memrealm.NewSwarmWithKey(privateKey)
+
+	ps := peers.NewStore[TransportAddr]()
+	ps.Add(s.mainID)
+	ps.SetAddrs(s.mainID, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
+	s.mainMemPeers.Add(id)
+	s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
+
+	n := NewNode(Params{
+		NewNetwork: s.params.NewNetwork,
+		Peers:      ps,
+		PrivateKey: privateKey,
+		Swarms: map[string]multiswarm.DynSwarm{
+			nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr](swarm),
+		},
+	})
+	s.nodes[id] = n.(*node)
+	s.log.WithFields(logrus.Fields{"addr": id}).Infof("created node")
+	return n, nil
 }
 
 func (s *Server) Delete(ctx context.Context, privateKey p2p.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	rcn, exists := s.nodes[id]
+	n, exists := s.nodes[id]
 	if !exists {
 		return nil
 	}
-	err := rcn.node.Close()
-	delete(s.rcs, id)
+	err := n.Close()
 	delete(s.nodes, id)
 	return err
 }
@@ -180,36 +167,9 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, n := range s.nodes {
-		n.node.Close()
+		n.Close()
 	}
+	s.nodes = make(map[inet256.Addr]*node)
 	s.mainNode.Close()
-	s.rcs = make(map[inet256.Addr]int)
-	s.nodes = make(map[inet256.Addr]*rcNode)
-	return nil
-}
-
-type rcNode struct {
-	*node
-	s *Server
-}
-
-func (rcn *rcNode) Close() error {
-	s := rcn.s
-	id := rcn.node.LocalAddr()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rcs[id]--
-	log := s.log.WithFields(logrus.Fields{"addr": id, "count": s.rcs[id]})
-	if s.rcs[id] < 1 {
-		if err := rcn.node.Close(); err != nil {
-			log.Warnf("error closing %v", err)
-		}
-		delete(s.nodes, id)
-		delete(s.rcs, id)
-		s.mainMemPeers.Remove(id)
-		log.Infof("deleted node")
-	} else {
-		log.Info("dropped ref to node")
-	}
 	return nil
 }
