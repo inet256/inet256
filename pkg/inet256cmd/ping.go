@@ -10,32 +10,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(pingCmd)
-}
-
-var pingCmd = &cobra.Command{
-	Use:   "ping",
-	Short: "ping an inet256 node",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-		privKey := generateKey()
-		node, err := newNode(ctx, privKey)
-		if err != nil {
-			return err
-		}
-		if len(args) < 1 {
-			return errors.New("must provide target addr")
-		}
-
-		dst := inet256.Addr{}
-		if n, err := base64.RawURLEncoding.Decode(dst[:], []byte(args[0])); err != nil {
-			return err
-		} else if n != len(dst) {
-			return errors.New("arg not long enough to be address")
-		}
-
-		fmt.Println("pinging", dst)
-		return node.Send(ctx, dst, []byte("ping"))
-	},
+func NewPingCmd(newNode NodeFactory) *cobra.Command {
+	return &cobra.Command{
+		Use:   "ping <target_addr>",
+		Short: "ping an inet256 node",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := context.Background()
+			privKey := generateKey()
+			node, err := newNode(ctx, privKey)
+			if err != nil {
+				return err
+			}
+			dst := inet256.Addr{}
+			if n, err := base64.RawURLEncoding.Decode(dst[:], []byte(args[0])); err != nil {
+				return err
+			} else if n != len(dst) {
+				return errors.New("arg not long enough to be address")
+			}
+			fmt.Println("pinging", dst, "...")
+			return node.Send(ctx, dst, []byte("ping"))
+		},
+	}
 }

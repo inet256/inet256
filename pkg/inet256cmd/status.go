@@ -10,54 +10,52 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func init() {
-	rootCmd.AddCommand(statusCmd)
-}
-
-var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "prints status of the main node",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := newClient()
-		if err != nil {
-			return err
-		}
-		var localAddr inet256.Addr
-		var transportAddrs []p2p.Addr
-		var peerStatuses []inet256srv.PeerStatus
-		eg := errgroup.Group{}
-		eg.Go(func() error {
-			var err error
-			localAddr, err = c.MainAddr()
-			return err
-		})
-		eg.Go(func() error {
-			var err error
-			transportAddrs, err = c.TransportAddrs()
-			return err
-		})
-		eg.Go(func() error {
-			var err error
-			peerStatuses, err = c.PeerStatus()
-			return err
-		})
-		if err := eg.Wait(); err != nil {
-			return err
-		}
-
-		w := cmd.OutOrStdout()
-		fmt.Fprintf(w, "LOCAL ADDR: %v\n", localAddr)
-		fmt.Fprintf(w, "TRANSPORTS:\n")
-		for _, addr := range transportAddrs {
-			fmt.Fprintf(w, "\t%s\n", addr)
-		}
-		fmt.Fprintf(w, "PEERS:\n")
-		for _, status := range peerStatuses {
-			fmt.Fprintf(w, "\t%s\n", status.Addr)
-			for addr, lastSeen := range status.LastSeen {
-				fmt.Fprintf(w, "\t\t%s\t%v\n", addr, lastSeen)
+func newStatusCmd(newClient func() (inet256srv.Service, error)) *cobra.Command {
+	return &cobra.Command{
+		Use:   "status",
+		Short: "prints status of the main node",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := newClient()
+			if err != nil {
+				return err
 			}
-		}
-		return nil
-	},
+			var localAddr inet256.Addr
+			var transportAddrs []p2p.Addr
+			var peerStatuses []inet256srv.PeerStatus
+			eg := errgroup.Group{}
+			eg.Go(func() error {
+				var err error
+				localAddr, err = c.MainAddr()
+				return err
+			})
+			eg.Go(func() error {
+				var err error
+				transportAddrs, err = c.TransportAddrs()
+				return err
+			})
+			eg.Go(func() error {
+				var err error
+				peerStatuses, err = c.PeerStatus()
+				return err
+			})
+			if err := eg.Wait(); err != nil {
+				return err
+			}
+
+			w := cmd.OutOrStdout()
+			fmt.Fprintf(w, "LOCAL ADDR: %v\n", localAddr)
+			fmt.Fprintf(w, "TRANSPORTS:\n")
+			for _, addr := range transportAddrs {
+				fmt.Fprintf(w, "\t%s\n", addr)
+			}
+			fmt.Fprintf(w, "PEERS:\n")
+			for _, status := range peerStatuses {
+				fmt.Fprintf(w, "\t%s\n", status.Addr)
+				for addr, lastSeen := range status.LastSeen {
+					fmt.Fprintf(w, "\t\t%s\t%v\n", addr, lastSeen)
+				}
+			}
+			return nil
+		},
+	}
 }

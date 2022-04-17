@@ -13,30 +13,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var privateKeyPath string
-var whitelistPath string
-
-func init() {
-	rootCmd.AddCommand(portalCmd)
-	rootCmd.AddCommand(ip6AddrCmd)
-
-	portalCmd.Flags().StringVar(&privateKeyPath, "private-key", "", "--private-key=path/to/key.pem")
-	portalCmd.Flags().StringVar(&whitelistPath, "whitelist", "", "--whitelist=path/to/whitelist.txt")
-
-	ip6AddrCmd.Flags().StringVar(&privateKeyPath, "private-key", "", "--private-key=path/to/key.pem")
-}
-
-var portalCmd = &cobra.Command{
-	Use:   "ip6-portal",
-	Short: "runs an IP6 portal",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := cmd.ParseFlags(args); err != nil {
-			return err
-		}
-		if privateKeyPath == "" {
+func NewIP6PortalCmd(newNode func(context.Context, inet256.PrivateKey) (inet256.Node, error)) *cobra.Command {
+	c := &cobra.Command{
+		Use:   "ip6-portal",
+		Short: "runs an IP6 portal",
+	}
+	privateKeyPath := c.Flags().String("private-key", "", "--private-key=path/to/key.pem")
+	whitelistPath := c.Flags().String("whitelist", "", "--whitelist=path/to/whitelist.txt")
+	c.RunE = func(cmd *cobra.Command, args []string) error {
+		if *privateKeyPath == "" {
 			return errors.New("must provide path to private key")
 		}
-		privateKey, err := getPrivateKeyFromFile(privateKeyPath)
+		privateKey, err := loadPrivateKeyFromFile(*privateKeyPath)
 		if err != nil {
 			return err
 		}
@@ -46,8 +34,8 @@ var portalCmd = &cobra.Command{
 			return err
 		}
 		allowFunc := inet256ipv6.AllowAll
-		if whitelistPath != "" {
-			data, err := ioutil.ReadFile(whitelistPath)
+		if *whitelistPath != "" {
+			data, err := ioutil.ReadFile(*whitelistPath)
 			if err != nil {
 				return err
 			}
@@ -61,21 +49,25 @@ var portalCmd = &cobra.Command{
 			Node:      n,
 			Logger:    logrus.New(),
 		})
-	},
+	}
+	return c
 }
 
-var ip6AddrCmd = &cobra.Command{
-	Use:   "ip6-addr",
-	Short: "writes the ipv6 address corresponding to a private or public key",
-	RunE: func(cmd *cobra.Command, args []string) error {
+func NewIP6AddrCmd() *cobra.Command {
+	c := &cobra.Command{
+		Use:   "ip6-addr",
+		Short: "writes the ipv6 address corresponding to a private or public key",
+	}
+	privateKeyPath := c.Flags().String("private-key", "", "--private-key=path/to/key.pem")
+	c.RunE = func(cmd *cobra.Command, args []string) error {
 		out := cmd.OutOrStdout()
 		if err := cmd.ParseFlags(args); err != nil {
 			return err
 		}
 		var x inet256.Addr
 		switch {
-		case privateKeyPath != "":
-			privateKey, err := getPrivateKeyFromFile(privateKeyPath)
+		case *privateKeyPath != "":
+			privateKey, err := loadPrivateKeyFromFile(*privateKeyPath)
 			if err != nil {
 				return err
 			}
@@ -92,11 +84,12 @@ var ip6AddrCmd = &cobra.Command{
 		y := inet256ipv6.INet256ToIPv6(x)
 		fmt.Fprintf(out, "%v\n", y)
 		return nil
-	},
+	}
+	return c
 }
 
-func getPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
-	data, err := ioutil.ReadFile(privateKeyPath)
+func loadPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
+	data, err := ioutil.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}
