@@ -6,6 +6,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256ipv6"
 	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/spf13/cobra"
 )
@@ -39,8 +40,8 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(NewPingCmd(newNode))
 	c.AddCommand(NewNetCatCmd(newNode))
 	c.AddCommand(NewEchoCmd(newNode))
-	c.AddCommand(NewIP6PortalCmd(newNode))
-	c.AddCommand(NewIP6AddrCmd())
+	c.AddCommand(inet256ipv6.NewIP6PortalCmd(newNode))
+	c.AddCommand(inet256ipv6.NewIP6AddrCmd())
 	c.AddCommand(NewKeygenCmd())
 	c.AddCommand(NewAddrCmd())
 

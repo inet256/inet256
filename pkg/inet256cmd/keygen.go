@@ -3,6 +3,7 @@ package inet256cmd
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"io/ioutil"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -60,4 +61,12 @@ func generateKey() p2p.PrivateKey {
 		panic(err)
 	}
 	return priv
+}
+
+func loadPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
+	data, err := ioutil.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	return serde.ParsePrivateKeyPEM(data)
 }
