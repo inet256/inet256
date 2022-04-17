@@ -2,9 +2,10 @@ package inet256ipv6
 
 import (
 	"context"
-	"net"
+	"net/netip"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -53,7 +54,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 		return err
 	}
 	localAddr := params.Node.LocalAddr()
-	localIPv6 := INet256ToIPv6(localAddr)
+	localIPv6 := IPv6FromINET256(localAddr)
 	log.Infof("Created TUN %s", devName)
 	log.Infof("Local INET256: %v", localAddr)
 	log.Infof("Local IPv6: %v", localIPv6)
@@ -152,10 +153,11 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 		return err
 	}
 	var dst inet256.Addr
-	if e := p.getEntry(IPv6FromBytes(header.Dst)); e != nil {
+	ip := netip.AddrFrom16(*(*[16]byte)(header.Dst))
+	if e := p.getEntry(ip); e != nil {
 		dst = e.addr
 	} else {
-		prefix, nbits, err := IPv6ToPrefix(header.Dst)
+		prefix, nbits, err := INET256PrefixFromIPv6(ip)
 		if err != nil {
 			return err
 		}
@@ -164,7 +166,7 @@ func (p *portal) handleOutbound(ctx context.Context, data []byte) error {
 			return err
 		}
 		ent := &cacheEntry{addr: dst, createdAt: time.Now()}
-		p.putEntry(IPv6FromBytes(header.Dst), ent)
+		p.putEntry(ip, ent)
 	}
 	return node.Send(ctx, dst, data)
 }
@@ -190,19 +192,19 @@ func (p *portal) handleInbound(src inet256.Addr, data []byte) error {
 	if err != nil {
 		return err
 	}
-	srcIP := INet256ToIPv6(src)
-	if !header.Src.Equal(srcIP) {
+	srcIP := IPv6FromINET256(src)
+	if !header.Src.Equal(srcIP.AsSlice()) {
 		return errors.Errorf("dropping inbound message from wrong source")
 	}
 	_, err = p.dev.Write(data, 0)
 	return err
 }
 
-func (p *portal) putEntry(key IPv6Addr, e *cacheEntry) {
+func (p *portal) putEntry(key netip.Addr, e *cacheEntry) {
 	p.cache.LoadOrStore(key, e)
 }
 
-func (p *portal) getEntry(key IPv6Addr) *cacheEntry {
+func (p *portal) getEntry(key netip.Addr) *cacheEntry {
 	v, ok := p.cache.Load(key)
 	if !ok {
 		return nil
@@ -210,10 +212,10 @@ func (p *portal) getEntry(key IPv6Addr) *cacheEntry {
 	return v.(*cacheEntry)
 }
 
-func configureInterface(iface string, ipAddr net.IP) error {
+func configureInterface(iface string, ipAddr netip.Addr) error {
 	switch runtime.GOOS {
 	case "darwin":
-		return ifconfigCmd(iface, "inet6", ipAddr.String(), "prefixlen", "7")
+		return ifconfigCmd(iface, "inet6", ipAddr.String(), "prefixlen", strconv.Itoa(netPrefix.Bits()))
 	default:
 		return errors.Errorf("unsupported OS: %s", runtime.GOOS)
 	}

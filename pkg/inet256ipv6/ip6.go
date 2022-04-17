@@ -1,4 +1,4 @@
-package inet256cmd
+package inet256ipv6
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256ipv6"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -33,18 +32,18 @@ func NewIP6PortalCmd(newNode func(context.Context, inet256.PrivateKey) (inet256.
 		if err != nil {
 			return err
 		}
-		allowFunc := inet256ipv6.AllowAll
+		allowFunc := AllowAll
 		if *whitelistPath != "" {
 			data, err := ioutil.ReadFile(*whitelistPath)
 			if err != nil {
 				return err
 			}
-			allowFunc, err = inet256ipv6.ParseWhitelist(data)
+			allowFunc, err = ParseWhitelist(data)
 			if err != nil {
 				return err
 			}
 		}
-		return inet256ipv6.RunPortal(ctx, inet256ipv6.PortalParams{
+		return RunPortal(ctx, PortalParams{
 			AllowFunc: allowFunc,
 			Node:      n,
 			Logger:    logrus.New(),
@@ -81,7 +80,7 @@ func NewIP6AddrCmd() *cobra.Command {
 		default:
 			return errors.Errorf("must specify a key")
 		}
-		y := inet256ipv6.INet256ToIPv6(x)
+		y := IPv6FromINET256(x)
 		fmt.Fprintf(out, "%v\n", y)
 		return nil
 	}
