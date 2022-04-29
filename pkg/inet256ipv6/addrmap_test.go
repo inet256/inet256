@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/assert"
@@ -33,18 +34,19 @@ func TestCompress(t *testing.T) {
 }
 
 func Test256To6(t *testing.T) {
-	const N = 100
+	const N = 10000
 	for i := 0; i < N; i++ {
 		addr := inet256.Addr{}
 		_, err := rand.Read(addr[:])
 		require.NoError(t, err)
+		lz := kademlia.Leading0s(addr[:])
 
 		ip := IPv6FromINET256(addr)
-		t.Logf("IP: %v", ip)
 		require.True(t, netPrefix.Contains(ip))
 		prefix, nbits, err := INET256PrefixFromIPv6(ip)
 		require.NoError(t, err)
 		require.True(t, inet256.HasPrefix(addr[:], prefix, nbits), "ADDR: %x PREFIX: %x", addr[:], prefix)
+		require.Equal(t, nbits, lz+(128-NetworkPrefix().Bits()-7)+1)
 	}
 }
 
