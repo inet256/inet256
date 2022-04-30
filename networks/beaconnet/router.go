@@ -8,7 +8,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/networks"
-	"github.com/inet256/inet256/networks/nettmpl1"
+	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 )
@@ -27,7 +27,7 @@ type Router struct {
 	ourBeacon   *Beacon
 }
 
-func NewRouter(log networks.Logger) nettmpl1.Router {
+func NewRouter(log networks.Logger) neteng.Router {
 	return &Router{
 		log:          log,
 		peerStateTTL: defaultPeerStateTTL,
@@ -37,7 +37,7 @@ func NewRouter(log networks.Logger) nettmpl1.Router {
 	}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey nettmpl1.PublicKeyFunc, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.privateKey = privateKey
@@ -50,7 +50,7 @@ func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, ge
 	}
 }
 
-func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send nettmpl1.SendFunc) bool {
+func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send neteng.SendFunc) bool {
 	var next inet256.Addr
 	if r.peers.Contains(dst) {
 		next = dst
@@ -65,13 +65,13 @@ func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send nettmpl1.Sen
 	return true
 }
 
-func (r *Router) HandleBelow(from inet256.Addr, data []byte, send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, info nettmpl1.InfoFunc) {
+func (r *Router) HandleBelow(from inet256.Addr, data []byte, send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc) {
 	if err := r.handleMessage(send, deliver, info, from, data); err != nil {
 		r.log.Warn(err)
 	}
 }
 
-func (r *Router) Heartbeat(now time.Time, send nettmpl1.SendFunc) {
+func (r *Router) Heartbeat(now time.Time, send neteng.SendFunc) {
 	if r.lastCleanup.Sub(now) >= r.peerStateTTL {
 		r.cleanupOnce(now)
 		r.lastCleanup = now
@@ -88,7 +88,7 @@ func (r *Router) Heartbeat(now time.Time, send nettmpl1.SendFunc) {
 	}
 }
 
-func (r *Router) FindAddr(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prefix []byte, nbits int) {
+func (r *Router) FindAddr(send neteng.SendFunc, info neteng.InfoFunc, prefix []byte, nbits int) {
 	// we don't use send here because there is nothing to do to accelerate receiveing new peer information.
 	addr, pubKey := func() (inet256.Addr, inet256.PublicKey) {
 		r.mu.Lock()
@@ -106,7 +106,7 @@ func (r *Router) FindAddr(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prefix
 	}
 }
 
-func (r *Router) LookupPublicKey(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, target inet256.Addr) {
+func (r *Router) LookupPublicKey(send neteng.SendFunc, info neteng.InfoFunc, target inet256.Addr) {
 	ps := r.lookupPeerState(target)
 	if ps != nil {
 		info(target, ps.publicKey)
@@ -114,7 +114,7 @@ func (r *Router) LookupPublicKey(send nettmpl1.SendFunc, info nettmpl1.InfoFunc,
 	}
 }
 
-func (r *Router) handleMessage(send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, info nettmpl1.InfoFunc, from inet256.Addr, payload []byte) error {
+func (r *Router) handleMessage(send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc, from inet256.Addr, payload []byte) error {
 	hdr, body, err := ParseMessage(payload)
 	if err != nil {
 		return err
@@ -134,7 +134,7 @@ func (r *Router) handleMessage(send nettmpl1.SendFunc, deliver nettmpl1.DeliverF
 }
 
 // handleBeacon handles updating the network state when a Beacon is received
-func (r *Router) handleBeacon(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prev inet256.Addr, hdr Header, b Beacon) error {
+func (r *Router) handleBeacon(send neteng.SendFunc, info neteng.InfoFunc, prev inet256.Addr, hdr Header, b Beacon) error {
 	pubKey, err := verifyBeacon(b)
 	if err != nil {
 		return err
@@ -164,7 +164,7 @@ func (r *Router) handleBeacon(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, pr
 	return nil
 }
 
-func (r *Router) handleData(send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, prev inet256.Addr, hdr Header, body []byte) error {
+func (r *Router) handleData(send neteng.SendFunc, deliver neteng.DeliverFunc, prev inet256.Addr, hdr Header, body []byte) error {
 	dst := hdr.GetDst()
 	src := hdr.GetSrc()
 	switch {
@@ -214,7 +214,7 @@ func (r *Router) lookupPeerState(dst inet256.Addr) *peerState {
 	return &peerState
 }
 
-func (r *Router) broadcast(send nettmpl1.SendFunc, exclude inet256.Addr, mtype uint8, body []byte) {
+func (r *Router) broadcast(send neteng.SendFunc, exclude inet256.Addr, mtype uint8, body []byte) {
 	hdr := Header{}
 	hdr.SetSrc(r.localID)
 	hdr.SetDst(broadcastAddr)
@@ -227,7 +227,7 @@ func (r *Router) broadcast(send nettmpl1.SendFunc, exclude inet256.Addr, mtype u
 	}
 }
 
-func (r *Router) send(send nettmpl1.SendFunc, next, dst inet256.Addr, mtype uint8, body p2p.IOVec) {
+func (r *Router) send(send neteng.SendFunc, next, dst inet256.Addr, mtype uint8, body p2p.IOVec) {
 	hdr := Header{}
 	hdr.SetSrc(r.localID)
 	hdr.SetDst(dst)

@@ -8,7 +8,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/networks"
-	"github.com/inet256/inet256/networks/nettmpl1"
+	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -19,13 +19,13 @@ func Factory(params networks.Params) networks.Network {
 const maxHops = 10
 
 type Network struct {
-	*nettmpl1.Network
+	*neteng.Network
 	router *Router
 }
 
 func New(params networks.Params) *Network {
 	r := NewRouter(params.Logger)
-	nwk := nettmpl1.New(params, r, 0)
+	nwk := neteng.New(params, r, 0)
 	return &Network{
 		Network: nwk,
 		router:  r,
@@ -47,7 +47,7 @@ func NewRouter(log networks.Logger) *Router {
 	return &Router{log: log}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey nettmpl1.PublicKeyFunc, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
 	r.peers = peers
 	r.privateKey = privateKey
 	r.publicKey = r.privateKey.Public()
@@ -56,7 +56,7 @@ func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, ge
 	r.keys = make(map[inet256.Addr]inet256.PublicKey)
 }
 
-func (r *Router) HandleBelow(from inet256.Addr, data []byte, send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, info nettmpl1.InfoFunc) {
+func (r *Router) HandleBelow(from inet256.Addr, data []byte, send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc) {
 	var msg Message
 	if err := json.Unmarshal(data, &msg); err != nil {
 		r.log.Warn("error parsing message from ", from, err)
@@ -67,7 +67,7 @@ func (r *Router) HandleBelow(from inet256.Addr, data []byte, send nettmpl1.SendF
 	}
 }
 
-func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send nettmpl1.SendFunc) bool {
+func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send neteng.SendFunc) bool {
 	msg := newMessage(r.privateKey, dst, p2p.VecBytes(nil, data), maxHops, modeData)
 	msgData, err := json.Marshal(msg)
 	if err != nil {
@@ -77,7 +77,7 @@ func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send nettmpl1.Sen
 	return true
 }
 
-func (r *Router) FindAddr(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prefix []byte, nbits int) {
+func (r *Router) FindAddr(send neteng.SendFunc, info neteng.InfoFunc, prefix []byte, nbits int) {
 	addr, pubKey := func() (inet256.Addr, inet256.PublicKey) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -95,7 +95,7 @@ func (r *Router) FindAddr(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prefix
 	r.solicit(send)
 }
 
-func (r *Router) LookupPublicKey(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, target inet256.Addr) {
+func (r *Router) LookupPublicKey(send neteng.SendFunc, info neteng.InfoFunc, target inet256.Addr) {
 	addr, pubKey := func() (inet256.Addr, inet256.PublicKey) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
@@ -113,9 +113,9 @@ func (r *Router) LookupPublicKey(send nettmpl1.SendFunc, info nettmpl1.InfoFunc,
 	r.solicit(send)
 }
 
-func (r *Router) Heartbeat(now time.Time, send nettmpl1.SendFunc) {}
+func (r *Router) Heartbeat(now time.Time, send neteng.SendFunc) {}
 
-func (r *Router) handleMessage(send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, info nettmpl1.InfoFunc, from inet256.Addr, msg Message) error {
+func (r *Router) handleMessage(send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc, from inet256.Addr, msg Message) error {
 	pubKey, err := inet256.ParsePublicKey(msg.SrcKey)
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (r *Router) handleMessage(send nettmpl1.SendFunc, deliver nettmpl1.DeliverF
 	return nil
 }
 
-func (r *Router) forward(send nettmpl1.SendFunc, from inet256.Addr, msg Message) {
+func (r *Router) forward(send neteng.SendFunc, from inet256.Addr, msg Message) {
 	if bytes.Equal(r.localID[:], msg.Dst) {
 		return
 	}
@@ -167,7 +167,7 @@ func (r *Router) forward(send nettmpl1.SendFunc, from inet256.Addr, msg Message)
 	r.broadcast(send, from, p2p.IOVec{data})
 }
 
-func (r *Router) broadcast(send nettmpl1.SendFunc, exclude inet256.Addr, data p2p.IOVec) {
+func (r *Router) broadcast(send neteng.SendFunc, exclude inet256.Addr, data p2p.IOVec) {
 	for _, id := range r.peers.ListPeers() {
 		if id == exclude {
 			continue
@@ -176,7 +176,7 @@ func (r *Router) broadcast(send nettmpl1.SendFunc, exclude inet256.Addr, data p2
 	}
 }
 
-func (r *Router) solicit(send nettmpl1.SendFunc) {
+func (r *Router) solicit(send neteng.SendFunc) {
 	msg := newMessage(r.privateKey, inet256.Addr{}, nil, 10, 1)
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -185,7 +185,7 @@ func (r *Router) solicit(send nettmpl1.SendFunc) {
 	r.broadcast(send, r.localID, p2p.IOVec{data})
 }
 
-func (r *Router) addPeerInfo(info nettmpl1.InfoFunc, pubKey inet256.PublicKey) {
+func (r *Router) addPeerInfo(info neteng.InfoFunc, pubKey inet256.PublicKey) {
 	src := inet256.NewAddr(pubKey)
 	r.mu.Lock()
 	r.keys[src] = pubKey

@@ -1,6 +1,6 @@
-// package nettmpl1 provides a template for implementing Networks
+// package neteng provides a template for implementing Networks
 // Network implements a networks.Network in terms of a Router
-package nettmpl1
+package neteng
 
 import (
 	"context"
