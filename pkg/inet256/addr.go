@@ -19,6 +19,9 @@ const (
 	MaxPublicKeySize = 1 << 15
 )
 
+// AddrSize is the size of an Addr in bytes
+const AddrSize = 32
+
 // Addr is an address in an INET256 Network.
 // It uniquely identifies a Node.
 type Addr [AddrSize]byte
@@ -28,8 +31,12 @@ type ID = Addr
 
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {
+	return NewAddrPKIX(MarshalPublicKey(pubKey))
+}
+
+func NewAddrPKIX(x []byte) Addr {
 	addr := Addr{}
-	sha3.ShakeSum256(addr[:], MarshalPublicKey(nil, pubKey))
+	sha3.ShakeSum256(addr[:], x)
 	return addr
 }
 

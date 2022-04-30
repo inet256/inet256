@@ -83,8 +83,12 @@ func CollectNodeOptions(opts []NodeOption) (cfg NodeConfig) {
 	return cfg
 }
 
+type Receiver interface {
+	Receive(ctx context.Context, fn ReceiveFunc) error
+}
+
 // Receive is a utility function for copying a message from the Node n into msg
-func Receive(ctx context.Context, n Node, msg *Message) error {
+func Receive(ctx context.Context, n Receiver, msg *Message) error {
 	return n.Receive(ctx, func(m2 Message) {
 		msg.Src = m2.Src
 		msg.Dst = m2.Dst

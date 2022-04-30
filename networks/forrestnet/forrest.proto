@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package inet256.forrestnet;
+
+option go_package = "github.com/inet256/inet256/networks/forrestnet";
+
+// Beacon is a chain to the root, signed at every link.
+// Beacons are periodically broadcast to all peers by the root,
+// and are amended and rebroadcast by non-root nodes.
+message Beacon {
+    bytes optimum = 4;
+    bytes root_key = 1;
+    bytes timestamp = 2;
+    repeated Link chain = 3;
+}
+
+message Link {
+    bytes public_key = 1;
+    uint32 branch = 2;
+    bytes sig = 3;
+}
+
+// LocationClaim
+message LocationClaim {
+    Beacon beacon = 1;
+    bytes sig = 2;
+}
+
+message RoutingTag {
+    bytes dst = 1;
+    bytes src = 2;
+    TreeLoc dst_loc = 3;
+    TreeLoc src_loc = 4;
+}
+
+message TreeLoc {
+    bytes root = 1;
+    repeated uint32 path = 2;
+}
+
+message FindNodeReq {
+    bytes prefix = 1;
+    uint32 nbits = 2;
+}
+
+message FindNodeRes {
+    bytes addr = 1;
+    repeated LocationClaim claims = 2;
+}
+
+message PutNodeReq {
+    bytes addr = 1;
+    repeated LocationClaim claims = 2;
+}

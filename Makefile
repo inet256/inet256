@@ -6,6 +6,7 @@ clean:
 
 protobuf:
 	cd ./pkg/discovery/centraldisco/internal && ./build.sh
+	cd ./networks/forrestnet && ./build.sh
 
 install:
 	go install ./cmd/inet256
