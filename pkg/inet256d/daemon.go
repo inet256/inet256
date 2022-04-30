@@ -10,7 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -19,15 +19,15 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-type TransportAddr = inet256srv.TransportAddr
+type TransportAddr = mesh256.TransportAddr
 type PeerStore = peers.Store[TransportAddr]
 
 type Params struct {
-	MainNodeParams      inet256srv.Params
+	MainNodeParams      mesh256.Params
 	DiscoveryServices   []discovery.Service
 	AutoPeeringServices []autopeering.Service
 	APIAddr             string
-	TransportAddrParser p2p.AddrParser[inet256srv.TransportAddr]
+	TransportAddrParser p2p.AddrParser[mesh256.TransportAddr]
 }
 
 type Daemon struct {
@@ -35,7 +35,7 @@ type Daemon struct {
 	log    *logrus.Logger
 
 	setupDone chan struct{}
-	s         *inet256srv.Server
+	s         *mesh256.Server
 }
 
 func New(p Params) *Daemon {
@@ -58,7 +58,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	dscPeerStores := make([]PeerStore, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
-		dscPeerStores[i] = inet256srv.NewPeerStore()
+		dscPeerStores[i] = mesh256.NewPeerStore()
 		copyPeers(dscPeerStores[i], d.params.MainNodeParams.Peers)
 	}
 
@@ -66,7 +66,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	apSrvs := d.params.AutoPeeringServices
 	apPeerStores := make([]PeerStore, len(apSrvs))
 	for i := range apSrvs {
-		apPeerStores[i] = inet256srv.NewPeerStore()
+		apPeerStores[i] = mesh256.NewPeerStore()
 	}
 
 	peerStores := []PeerStore{d.params.MainNodeParams.Peers}
@@ -75,7 +75,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// server
 	nodeParams.Peers = peers.ChainStore[TransportAddr](peerStores)
-	s := inet256srv.NewServer(nodeParams)
+	s := mesh256.NewServer(nodeParams)
 	defer func() {
 		if err := s.Close(); err != nil {
 			d.log.Error(err)
@@ -100,7 +100,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *inet256srv.Server) error) error {
+func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *mesh256.Server) error) error {
 	select {
 	case <-d.setupDone:
 		return cb(d.s)
@@ -109,7 +109,7 @@ func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *inet256srv.Server)
 	}
 }
 
-func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256srv.Server) error {
+func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *mesh256.Server) error {
 	l, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *inet256s
 	return gs.Serve(l)
 }
 
-func copyPeers(dst, src peers.Store[inet256srv.TransportAddr]) {
+func copyPeers(dst, src peers.Store[mesh256.TransportAddr]) {
 	for _, id := range src.ListPeers() {
 		dst.Add(id)
 	}

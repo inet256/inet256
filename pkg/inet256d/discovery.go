@@ -7,14 +7,14 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
 const defaultPollingPeriod = 30 * time.Second
 
-func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[inet256srv.TransportAddr]) {
+func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[mesh256.TransportAddr]) {
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]

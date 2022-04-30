@@ -12,7 +12,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -106,7 +106,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 		keys[i] = p2ptest.NewTestKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(keys[i])
 		peerStores[i] = peers.NewStore[memswarm.Addr]()
-		netSwarms[i] = inet256srv.NewSwarm[memswarm.Addr](swarms[i], peerStores[i])
+		netSwarms[i] = mesh256.NewSwarm[memswarm.Addr](swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {

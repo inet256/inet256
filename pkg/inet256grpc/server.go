@@ -9,7 +9,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/rcsrv"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
@@ -23,7 +23,7 @@ import (
 var _ INET256Server = &Server{}
 
 type Server struct {
-	s   inet256.Service
+	s inet256.Service
 
 	UnimplementedINET256Server
 	UnimplementedAdminServer
@@ -106,7 +106,7 @@ func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 }
 
 func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, error) {
-	srv, ok := s.s.(*inet256srv.Server)
+	srv, ok := s.s.(*mesh256.Server)
 	if !ok {
 		return nil, errors.Errorf("server does not support GetStatus")
 	}

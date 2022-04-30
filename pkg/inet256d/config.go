@@ -20,7 +20,7 @@ import (
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -114,8 +114,8 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		swarms[swname] = sw
 	}
 	// peers
-	addrSchema := inet256srv.NewAddrSchema(swarms)
-	peers := inet256srv.NewPeerStore()
+	addrSchema := mesh256.NewAddrSchema(swarms)
+	peers := mesh256.NewPeerStore()
 	for _, pspec := range c.Peers {
 		addrs, err := serde.ParseAddrs(addrSchema.ParseAddr, pspec.Addrs)
 		if err != nil {
@@ -149,7 +149,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	}
 
 	params := &Params{
-		MainNodeParams: inet256srv.Params{
+		MainNodeParams: mesh256.Params{
 			PrivateKey: privateKey,
 			Swarms:     swarms,
 			NewNetwork: networkFactory,
@@ -275,7 +275,7 @@ func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
 	case spec.FloodNet != nil:
 		return floodnet.Factory, nil
 	case spec.OneHop != nil:
-		return inet256srv.OneHopFactory, nil
+		return mesh256.OneHopFactory, nil
 	case spec.Multi != nil:
 		netFacts := make(map[multinet.NetworkCode]networks.Factory)
 		for codeStr, spec := range spec.Multi {

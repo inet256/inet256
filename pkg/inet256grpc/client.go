@@ -5,14 +5,14 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-func NewExtendedClient(endpoint string) (inet256srv.Service, error) {
+func NewExtendedClient(endpoint string) (mesh256.Service, error) {
 	gc, err := dial(endpoint)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (c *client) TransportAddrs() ([]p2p.Addr, error) {
 	return ret, nil
 }
 
-func (c *client) PeerStatus() ([]inet256srv.PeerStatus, error) {
+func (c *client) PeerStatus() ([]mesh256.PeerStatus, error) {
 	ctx := context.Background()
 	req, err := c.adminClient.GetStatus(ctx, &emptypb.Empty{})
 	if err != nil {

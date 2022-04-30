@@ -1,4 +1,4 @@
-package inet256srv
+package mesh256
 
 import (
 	"testing"

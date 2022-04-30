@@ -7,7 +7,7 @@ import (
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +16,7 @@ func Execute() error {
 }
 
 func NewRootCmd() *cobra.Command {
-	newClient := func() (inet256srv.Service, error) {
+	newClient := func() (mesh256.Service, error) {
 		return inet256client.NewExtendedClient(defaultAPIAddr)
 	}
 	newNode := func(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, error) {

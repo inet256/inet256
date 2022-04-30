@@ -51,7 +51,7 @@ This project provides tools for using INET256 networks, some of which are not ye
 ## Code Tour
 - `pkg/inet256` API definitions.  Mostly things required by the spec.
 
-- `pkg/inet256srv` The reference implementation of an INET256 Service. 
+- `pkg/mesh256` The reference implementation of an INET256 Service. 
 
 - `pkg/inet256d` The daemon that manages setting up transports, autopeering, discovery, the actual INET256 service, and the gRPC API.
 

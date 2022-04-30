@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/inet256/inet256/pkg/inet256grpc"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -20,7 +20,7 @@ import (
 )
 
 // runHTTPServer starts a listener at endpoint, and serves an HTTP API server backed by srv.
-func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *inet256srv.Server, pgath prometheus.Gatherer) error {
+func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh256.Server, pgath prometheus.Gatherer) error {
 	l, err := net.Listen("tcp", endpoint)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *inet25
 	return hSrv.Shutdown(context.Background())
 }
 
-func (d *Daemon) makeGRPCServer(s *inet256srv.Server) *grpc.Server {
+func (d *Daemon) makeGRPCServer(s *mesh256.Server) *grpc.Server {
 	gs := grpc.NewServer(grpc.KeepaliveParams(keepalive.ServerParameters{
 		Time:    1 * time.Second,
 		Timeout: 5 * time.Second,

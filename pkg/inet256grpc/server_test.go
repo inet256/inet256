@@ -6,15 +6,15 @@ import (
 
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/inet256/inet256/pkg/inet256test"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
 func TestGRPC(t *testing.T) {
 	inet256test.TestService(t, func(t testing.TB, xs []inet256.Service) {
-		inet256srv.NewTestServers(t, beaconnet.Factory, xs)
+		mesh256.NewTestServers(t, beaconnet.Factory, xs)
 		for i := range xs {
 			srv := NewServer(xs[i])
 			gs := grpc.NewServer()

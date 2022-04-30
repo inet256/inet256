@@ -1,4 +1,4 @@
-package inet256srv_test
+package mesh256_test
 
 import (
 	"context"
@@ -6,13 +6,13 @@ import (
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
 	"github.com/inet256/inet256/pkg/inet256test"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServerLoopback(t *testing.T) {
-	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
+	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
 	mainNode := s.MainNode()
 	inet256test.TestSendRecvOne(t, mainNode, mainNode)
 
@@ -31,7 +31,7 @@ func TestServerLoopback(t *testing.T) {
 }
 
 func TestServerOneHop(t *testing.T) {
-	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
+	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
 	main := s.MainNode()
 
 	const N = 5
@@ -53,7 +53,7 @@ func TestServerOneHop(t *testing.T) {
 
 func TestServerCreateDelete(t *testing.T) {
 	ctx := context.Background()
-	s := inet256srv.NewTestServer(t, inet256srv.OneHopFactory)
+	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
 
 	const N = 100
 	for i := 0; i < N; i++ {

@@ -5,12 +5,12 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
 
-func newStatusCmd(newClient func() (inet256srv.Service, error)) *cobra.Command {
+func newStatusCmd(newClient func() (mesh256.Service, error)) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "prints status of the main node",
@@ -21,7 +21,7 @@ func newStatusCmd(newClient func() (inet256srv.Service, error)) *cobra.Command {
 			}
 			var localAddr inet256.Addr
 			var transportAddrs []p2p.Addr
-			var peerStatuses []inet256srv.PeerStatus
+			var peerStatuses []mesh256.PeerStatus
 			eg := errgroup.Group{}
 			eg.Go(func() error {
 				var err error

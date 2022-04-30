@@ -5,7 +5,7 @@ import (
 
 	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/inet256d"
-	"github.com/inet256/inet256/pkg/inet256srv"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
 )
 
@@ -17,10 +17,10 @@ func newIslandCmd() *cobra.Command {
 			privateKey := generateKey()
 			d := inet256d.New(inet256d.Params{
 				APIAddr: defaultAPIAddr,
-				MainNodeParams: inet256srv.Params{
+				MainNodeParams: mesh256.Params{
 					NewNetwork: floodnet.Factory,
 					PrivateKey: privateKey,
-					Peers:      inet256srv.NewPeerStore(),
+					Peers:      mesh256.NewPeerStore(),
 				},
 			})
 			return d.Run(context.Background())
