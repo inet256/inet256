@@ -57,10 +57,10 @@ type Params struct {
 	Swarm      Swarm
 	Peers      PeerSet
 
-	Logger *Logger
+	Logger Logger
 }
 
 // NetworkFactory is a constructor for a network
 type Factory func(Params) Network
 
-type Logger = logrus.Logger
+type Logger = logrus.FieldLogger
