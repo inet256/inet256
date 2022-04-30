@@ -6,7 +6,7 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -39,9 +39,9 @@ type Service interface {
 
 func RunForever(ctx context.Context, srv Service, params Params) {
 	params.Logger.Info("starting discovery service")
-	netutil.Retry(ctx, func() error {
+	retry.Retry(ctx, func() error {
 		return srv.Run(ctx, params)
-	}, netutil.WithPredicate(func(err error) bool {
+	}, retry.WithPredicate(func(err error) bool {
 		params.Logger.WithError(err).Error()
 		return true
 	}))

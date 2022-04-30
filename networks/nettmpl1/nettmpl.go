@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/futures"
@@ -25,12 +26,15 @@ type DeliverFunc = func(src inet256.Addr, data []byte)
 // InfoFunc is the type of functions used to deliver information about peers
 type InfoFunc = func(inet256.Addr, inet256.PublicKey)
 
+// PublicKeyFunc is the type of functinos used to get the public key for an ID
+type PublicKeyFunc = func(inet256.Addr) inet256.PublicKey
+
 // Router contains logic for routing messages throughout the network
 // Routers do not maintain any backgroud goroutines or allocate any additional resources
 // If all references to a router are lost, resources MUST not leak.
 type Router interface {
 	// Reset is called to clear the state of the router
-	Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, now time.Time)
+	Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey PublicKeyFunc, now time.Time)
 	// HandleAbove handles a message from the application
 	HandleAbove(to inet256.Addr, data p2p.IOVec, send SendFunc) bool
 	// HandleBelow handles a message from the network.
@@ -60,7 +64,6 @@ type Network struct {
 }
 
 func New(params networks.Params, router Router, hbPeriod time.Duration) *Network {
-	router.Reset(params.PrivateKey, params.Peers, time.Now())
 	publicKey := params.PrivateKey.Public()
 	n := &Network{
 		params:    params,
@@ -73,6 +76,7 @@ func New(params networks.Params, router Router, hbPeriod time.Duration) *Network
 		findAddr:     futures.NewStore[bitstr.String, inet256.Addr](),
 		lookupPubKey: futures.NewStore[inet256.Addr, inet256.PublicKey](),
 	}
+	router.Reset(params.PrivateKey, params.Peers, n.getPublicKey, time.Now())
 	numWorkers := 1 + runtime.GOMAXPROCS(0)
 	for i := 0; i < numWorkers; i++ {
 		n.sg.Go(n.readLoop)
@@ -113,10 +117,10 @@ func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet2
 	if created {
 		defer n.findAddr.Delete(bs)
 	}
-	return retry.Retry1(ctx, func() (inet256.Addr, error) {
+	return retry.RetryRet1(ctx, func() (inet256.Addr, error) {
 		n.router.FindAddr(send, n.handleInfo, prefix, nbits)
 		return fut.Await(ctx)
-	}, retry.WithPulseTrain(retry.NewLinear(200*time.Millisecond)))
+	}, retry.WithBackoff(retry.NewConstantBackoff(200*time.Millisecond)))
 }
 
 func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
@@ -132,10 +136,10 @@ func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (ine
 	if created {
 		defer n.lookupPubKey.Delete(target)
 	}
-	return retry.Retry1(ctx, func() (inet256.PublicKey, error) {
+	return retry.RetryRet1(ctx, func() (inet256.PublicKey, error) {
 		n.router.LookupPublicKey(send, n.handleInfo, target)
 		return fut.Await(ctx)
-	}, retry.WithPulseTrain(retry.NewLinear(200*time.Millisecond)))
+	}, retry.WithBackoff(retry.NewConstantBackoff(200*time.Millisecond)))
 }
 
 func (n *Network) LocalAddr() inet256.Addr {
@@ -232,4 +236,15 @@ func (n *Network) heartbeatLoop(ctx context.Context, d time.Duration) error {
 			now = t.UTC()
 		}
 	}
+}
+
+func (n *Network) getPublicKey(x inet256.Addr) inet256.PublicKey {
+	ctx, cf := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cf()
+	pubKey, err := n.params.Swarm.LookupPublicKey(ctx, x)
+	if err != nil {
+		// TODO
+		panic(err)
+	}
+	return pubKey
 }

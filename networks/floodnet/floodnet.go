@@ -47,7 +47,7 @@ func NewRouter(log networks.Logger) *Router {
 	return &Router{log: log}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey nettmpl1.PublicKeyFunc, now time.Time) {
 	r.peers = peers
 	r.privateKey = privateKey
 	r.publicKey = r.privateKey.Public()
