@@ -22,7 +22,7 @@ type Message struct {
 	Hops int `json:"hops"`
 }
 
-func newMessage(pk p2p.PrivateKey, dst Addr, data []byte, hops int, mode uint8) Message {
+func newMessage(pk p2p.PrivateKey, dst inet256.Addr, data []byte, hops int, mode uint8) Message {
 	return Message{
 		Dst:     dst[:],
 		SrcKey:  inet256.MarshalPublicKey(pk.Public()),
@@ -42,7 +42,7 @@ func (m Message) GetSrc() (inet256.Addr, error) {
 }
 
 func (m Message) GetDst() inet256.Addr {
-	dst := Addr{}
+	dst := inet256.Addr{}
 	copy(dst[:], m.Dst)
 	return dst
 }
