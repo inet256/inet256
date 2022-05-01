@@ -14,7 +14,6 @@ import (
 	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/networks/floodnet"
-	"github.com/inet256/inet256/networks/multinet"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/celldisco"
@@ -35,10 +34,9 @@ type PeerSpec struct {
 }
 
 type NetworkSpec struct {
-	FloodNet  *struct{}              `yaml:"floodnet,omitempty"`
-	BeaconNet *struct{}              `yaml:"beaconnet,omitempty"`
-	OneHop    *struct{}              `yaml:"onehop,omitempty"`
-	Multi     map[string]NetworkSpec `yaml:"multi,omitempty"`
+	FloodNet  *struct{} `yaml:"floodnet,omitempty"`
+	BeaconNet *struct{} `yaml:"beaconnet,omitempty"`
+	OneHop    *struct{} `yaml:"onehop,omitempty"`
 }
 
 type TransportSpec struct {
@@ -276,32 +274,7 @@ func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
 		return floodnet.Factory, nil
 	case spec.OneHop != nil:
 		return mesh256.OneHopFactory, nil
-	case spec.Multi != nil:
-		netFacts := make(map[multinet.NetworkCode]networks.Factory)
-		for codeStr, spec := range spec.Multi {
-			code, err := codeFromString(codeStr)
-			if err != nil {
-				return nil, err
-			}
-			factory, err := networkFactoryFromSpec(spec)
-			if err != nil {
-				return nil, err
-			}
-			netFacts[code] = factory
-		}
-		return multinet.NewFactory(netFacts), nil
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}
-}
-
-func codeFromString(x string) (multinet.NetworkCode, error) {
-	if len(x) > 8 {
-		return [8]byte{}, errors.Errorf("network code %q is too long, must be <= 8 bytes", x)
-	}
-	b := []byte(x)
-	for len(b) < 8 {
-		b = append(b, 0x00)
-	}
-	return *(*[8]byte)(b), nil
 }
