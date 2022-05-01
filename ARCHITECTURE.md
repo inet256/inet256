@@ -20,12 +20,7 @@ An INET256 Node's stack looks like this, implemented as layered `Swarms`
 |-----------------------------------------------|
 |             Encryption Layer (QUIC)           |
 |-----------------------------------------------|
-| Network Selection                             |
-|-----------------------------------------------|
-| Routing Algorithms:                           |
-|                |                |             |
-|    Kad + SR    |    Network 2   |   Network 3 |
-|                |                |             |
+|              Routing Algorithms               |
 |-----------------------------------------------|
 |      Multiplexing & Packet Fragmentation      |
 |-----------------------------------------------|
