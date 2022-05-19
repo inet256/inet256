@@ -14,7 +14,7 @@ func SwarmFromNode(node inet256.Node) p2p.SecureSwarm[inet256.Addr] {
 
 type p2pNode struct {
 	inet256.Node
-	ExtraSwarmMethods
+	extraSwarmMethods
 }
 
 func (pn p2pNode) Tell(ctx context.Context, dst inet256.Addr, v p2p.IOVec) error {
@@ -35,13 +35,13 @@ func (pn p2pNode) LocalAddrs() []inet256.Addr {
 	return []inet256.Addr{pn.Node.LocalAddr()}
 }
 
-type ExtraSwarmMethods struct{}
+type extraSwarmMethods struct{}
 
-func (ExtraSwarmMethods) MaxIncomingSize() int {
+func (extraSwarmMethods) MaxIncomingSize() int {
 	return inet256.MaxMTU
 }
 
-func (ExtraSwarmMethods) ParseAddr(data []byte) (inet256.Addr, error) {
+func (extraSwarmMethods) ParseAddr(data []byte) (inet256.Addr, error) {
 	var addr inet256.Addr
 	if err := addr.UnmarshalText(data); err != nil {
 		return inet256.Addr{}, err
