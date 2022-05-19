@@ -88,17 +88,21 @@ func New(params mesh256.NetworkParams, router Router, hbPeriod time.Duration) *N
 }
 
 func (n *Network) Tell(ctx context.Context, dst inet256.Addr, data p2p.IOVec) error {
+	ctx, cf := context.WithTimeout(ctx, 3*time.Second)
+	defer cf()
 	return retry.Retry(ctx, func() (retErr error) {
 		ok := n.router.HandleAbove(dst, data, func(dst inet256.Addr, data p2p.IOVec) {
 			if err := n.params.Swarm.Tell(ctx, dst, data); err != nil {
-				n.log.Error(err)
 				retErr = err
 			}
 		})
-		if !ok {
-			return inet256.ErrAddrUnreachable{Addr: dst}
+		if ok {
+			return nil
 		}
-		return retErr
+		if retErr != nil {
+			return retErr
+		}
+		return inet256.ErrAddrUnreachable{Addr: dst}
 	})
 }
 
