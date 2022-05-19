@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/inet256/inet256 v0.0.4-0.20220519170505-edb8d1bf715b
-	github.com/xtaci/kcp-go v5.4.20+incompatible
+	github.com/xtaci/kcp-go/v5 v5.6.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )
 
@@ -37,8 +37,8 @@ require (
 	github.com/prometheus/procfs v0.0.0-20180725123919-05ee40e3a273 // indirect
 	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
-	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
-	github.com/templexxx/xor v0.0.0-20191217153810-f85b25db303b // indirect
+	github.com/templexxx/cpu v0.0.7 // indirect
+	github.com/templexxx/xorsimd v0.4.1 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/xtaci/lossyconn v0.0.0-20200209145036-adba10fffc37 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect

@@ -12,7 +12,7 @@ import (
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
-	kcp "github.com/xtaci/kcp-go"
+	kcp "github.com/xtaci/kcp-go/v5"
 	"golang.org/x/sync/errgroup"
 )
 
