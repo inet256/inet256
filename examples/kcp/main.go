@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"log"
+	"net"
 	"strconv"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -11,6 +12,18 @@ import (
 	kcp "github.com/xtaci/kcp-go"
 	"golang.org/x/sync/errgroup"
 )
+
+// ListenKCP uses node to listen for KCP connections.
+func ListenKCP(node inet256.Node) (*kcp.Listener, error) {
+	bc, _ := kcp.NewNoneBlockCrypt(nil)
+	return kcp.ServeConn(bc, 1, 0, inet256.NewPacketConn(node))
+}
+
+// DialKCP uses node to dial an outbonud KCP connection raddr.
+func DialKCP(node inet256.Node, raddr inet256.Addr) (net.Conn, error) {
+	bc, _ := kcp.NewNoneBlockCrypt(nil)
+	return kcp.NewConn2(raddr, bc, 1, 0, inet256.NewPacketConn(node))
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -37,8 +50,7 @@ func run() error {
 		return err
 	}
 	defer n2.Close()
-	bc, _ := kcp.NewNoneBlockCrypt(nil)
-	l, err := kcp.ServeConn(bc, 1, 0, inet256.NewPacketConn(n1))
+	l, err := ListenKCP(n1)
 	if err != nil {
 		return err
 	}
@@ -71,9 +83,8 @@ func run() error {
 	})
 	eg.Go(func() error {
 		log.Println("dialing", l.Addr())
-		c, err := kcp.NewConn2(l.Addr(), bc, 1, 0, inet256.NewPacketConn(n2))
+		c, err := DialKCP(n2, n1.LocalAddr())
 		if err != nil {
-			log.Println("error dialing", err)
 			return err
 		}
 		defer c.Close()
@@ -83,7 +94,7 @@ func run() error {
 		buf := make([]byte, 1024)
 		n, err := c.Read(buf)
 		if err != nil {
-			log.Println(err)
+			return err
 		}
 		log.Printf("dialer received from server: %q", buf[:n])
 		return nil
