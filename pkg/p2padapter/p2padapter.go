@@ -1,3 +1,4 @@
+// package p2padapter provides adapters for github.com/brendoncarroll/go-p2p
 package p2padapter
 
 import (
