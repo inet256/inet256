@@ -71,7 +71,7 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 		if err := s.dataSwarm.Receive(ctx, func(msg p2p.Message[T]) {
 			srcKey, err := s.dataSwarm.LookupPublicKey(ctx, msg.Src)
 			if err != nil {
-				logrus.Error("could not lookup public key, dropping message: ", err)
+				logrus.Warn("could not lookup public key, dropping message: ", err)
 				return
 			}
 			srcID := inet256.NewAddr(srcKey)

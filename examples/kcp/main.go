@@ -5,10 +5,13 @@ import (
 	"crypto/ed25519"
 	"log"
 	"net"
+	"os"
 	"strconv"
 
+	"github.com/inet256/inet256/client/go_client/inet256client"
+	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256mem"
+	"github.com/inet256/inet256/pkg/mesh256"
 	kcp "github.com/xtaci/kcp-go"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,16 +31,27 @@ func DialKCP(node inet256.Node, raddr inet256.Addr) (net.Conn, error) {
 func main() {
 	if err := run(); err != nil {
 		log.Println("ERROR:", err)
+		os.Exit(1)
 	}
+	log.Println("OK")
 }
 
 func run() error {
-	// srv := mesh256.NewServer(mesh256.Params{
-	// 	NewNetwork: beaconnet.Factory,
-	// 	PrivateKey: generateKey(),
-	// 	Peers:      mesh256.NewPeerStore(),
-	// })
-	srv := inet256mem.New()
+	useExternal := false // Set this to true to use an external INET256 service
+	var srv inet256.Service
+	if useExternal {
+		var err error
+		srv, err = inet256client.NewEnvClient()
+		if err != nil {
+			return err
+		}
+	} else {
+		srv = mesh256.NewServer(mesh256.Params{
+			NewNetwork: beaconnet.Factory,
+			Peers:      mesh256.NewPeerStore(),
+			PrivateKey: generateKey(),
+		})
+	}
 	// listener
 	ctx := context.Background()
 	n1, err := srv.Open(ctx, generateKey())
