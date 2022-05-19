@@ -5,25 +5,16 @@ import (
 	"math"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/p2padapter"
 	"golang.org/x/sync/errgroup"
-)
-
-const (
-	TransportMTU = networks.TransportMTU
-
-	MinMTU = inet256.MinMTU
-	MaxMTU = inet256.MaxMTU
 )
 
 type chainNetwork struct {
 	networks []Network
 	hub      *netutil.TellHub
 	sg       *netutil.ServiceGroup
-	p2padapter.ExtraSwarmMethods
+	extraSwarmMethods
 }
 
 func newChainNetwork(ns ...Network) Network {
@@ -141,7 +132,7 @@ type loopbackNetwork struct {
 	localAddr Addr
 	localKey  p2p.PublicKey
 	hub       *netutil.TellHub
-	p2padapter.ExtraSwarmMethods
+	extraSwarmMethods
 }
 
 func newLoopbackNetwork(localKey p2p.PublicKey) Network {

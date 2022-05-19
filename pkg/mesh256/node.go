@@ -8,10 +8,8 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/p2padapter"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -21,7 +19,7 @@ type Params struct {
 	p2p.PrivateKey
 	Swarms     map[string]multiswarm.DynSwarm
 	Peers      peers.Store[TransportAddr]
-	NewNetwork networks.Factory
+	NewNetwork NetworkFactory
 }
 
 type node struct {
@@ -40,10 +38,10 @@ func NewNode(params Params) Node {
 	}
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
-	fragSw := fragswarm.NewSecure[Addr](basePeerSwarm, networks.TransportMTU)
+	fragSw := fragswarm.NewSecure[Addr](basePeerSwarm, TransportMTU)
 	nw := params.NewNetwork(NetworkParams{
 		PrivateKey: params.PrivateKey,
-		Swarm:      p2padapter.INET256FromP2P(fragSw),
+		Swarm:      swarmFromP2P(fragSw),
 		Peers:      params.Peers,
 		Logger:     logrus.StandardLogger(),
 	})

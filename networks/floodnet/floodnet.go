@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mesh256"
 )
 
-func Factory(params networks.Params) networks.Network {
+func Factory(params mesh256.NetworkParams) mesh256.Network {
 	return New(params)
 }
 
@@ -23,7 +23,7 @@ type Network struct {
 	router *Router
 }
 
-func New(params networks.Params) *Network {
+func New(params mesh256.NetworkParams) *Network {
 	r := NewRouter(params.Logger)
 	nwk := neteng.New(params, r, 0)
 	return &Network{
@@ -36,18 +36,18 @@ type Router struct {
 	privateKey inet256.PrivateKey
 	publicKey  inet256.PublicKey
 	localID    inet256.ID
-	peers      networks.PeerSet
-	log        networks.Logger
+	peers      mesh256.PeerSet
+	log        mesh256.Logger
 
 	mu   sync.Mutex
 	keys map[inet256.Addr]inet256.PublicKey
 }
 
-func NewRouter(log networks.Logger) *Router {
+func NewRouter(log mesh256.Logger) *Router {
 	return &Router{log: log}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers mesh256.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
 	r.peers = peers
 	r.privateKey = privateKey
 	r.publicKey = r.privateKey.Public()

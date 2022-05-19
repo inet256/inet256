@@ -6,10 +6,8 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/p2padapter"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -32,11 +30,11 @@ type swarm[T p2p.Addr] struct {
 	lm        *linkMonitor[T]
 	dataSwarm p2p.SecureSwarm[T]
 	meters    meterSet
-	p2padapter.ExtraSwarmMethods
+	extraSwarmMethods
 }
 
-func NewSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) networks.Swarm {
-	return p2padapter.INET256FromP2P(newSwarm(x, peerStore))
+func NewSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) Swarm {
+	return newSwarm(x, peerStore)
 }
 
 func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm[T] {
@@ -99,6 +97,10 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 
 func (s *swarm[T]) PublicKey() p2p.PublicKey {
 	return s.inner.PublicKey()
+}
+
+func (s *swarm[T]) LocalAddr() inet256.Addr {
+	return s.localID
 }
 
 func (s *swarm[T]) LocalAddrs() []inet256.Addr {

@@ -1,5 +1,5 @@
 // package neteng provides a template for implementing Networks
-// Network implements a networks.Network in terms of a Router
+// Network implements a mesh256.Network in terms of a Router
 package neteng
 
 import (
@@ -9,10 +9,10 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/futures"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/retry"
 )
@@ -34,7 +34,7 @@ type PublicKeyFunc = func(inet256.Addr) inet256.PublicKey
 // If all references to a router are lost, resources MUST not leak.
 type Router interface {
 	// Reset is called to clear the state of the router
-	Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey PublicKeyFunc, now time.Time)
+	Reset(privateKey inet256.PrivateKey, peers mesh256.PeerSet, getPublicKey PublicKeyFunc, now time.Time)
 	// HandleAbove handles a message from the application
 	HandleAbove(to inet256.Addr, data p2p.IOVec, send SendFunc) bool
 	// HandleBelow handles a message from the network.
@@ -48,11 +48,11 @@ type Router interface {
 	LookupPublicKey(send SendFunc, info InfoFunc, target inet256.Addr)
 }
 
-var _ networks.Network = &Network{}
+var _ mesh256.Network = &Network{}
 
 type Network struct {
-	params    networks.Params
-	log       networks.Logger
+	params    mesh256.NetworkParams
+	log       mesh256.Logger
 	publicKey inet256.PublicKey
 	localID   inet256.Addr
 
@@ -63,7 +63,7 @@ type Network struct {
 	lookupPubKey *futures.Store[inet256.Addr, inet256.PublicKey]
 }
 
-func New(params networks.Params, router Router, hbPeriod time.Duration) *Network {
+func New(params mesh256.NetworkParams, router Router, hbPeriod time.Duration) *Network {
 	publicKey := params.PrivateKey.Public()
 	n := &Network{
 		params:    params,

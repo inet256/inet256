@@ -1,21 +1,11 @@
-package networks
+package mesh256
 
 import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
-)
-
-type (
-	Addr        = inet256.Addr
-	ReceiveFunc = inet256.ReceiveFunc
-	PublicKey   = inet256.PublicKey
-	PrivateKey  = inet256.PrivateKey
-
-	PeerSet = peers.Set
 )
 
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
@@ -29,11 +19,6 @@ type Swarm interface {
 	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int
 }
-
-const (
-	// TransportMTU is the guaranteed MTU presented to networks.
-	TransportMTU = (1 << 16) - 1
-)
 
 // Network is an instantiated network routing algorithm
 //
@@ -52,7 +37,7 @@ type Network interface {
 // Params are passed to a NetworkFactory to create a Network.
 // This type really defines the problem domain quite well. Essentially
 // it is a set of one-hop peers and a means to send messages to them.
-type Params struct {
+type NetworkParams struct {
 	PrivateKey PrivateKey
 	Swarm      Swarm
 	Peers      PeerSet
@@ -61,6 +46,6 @@ type Params struct {
 }
 
 // NetworkFactory is a constructor for a network
-type Factory func(Params) Network
+type NetworkFactory func(NetworkParams) Network
 
 type Logger = logrus.FieldLogger

@@ -7,7 +7,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/p2padapter"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,12 +14,12 @@ func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
 		return p2p.PeerID(inet256.NewAddr(pubKey))
 	}
-	insecure := p2padapter.P2PFromINET256(x)
+	insecure := p2pSwarmFromNetwork(x)
 	quicSw, err := quicswarm.New[inet256.Addr](insecure, privateKey, quicswarm.WithFingerprinter[inet256.Addr](fingerprinter))
 	if err != nil {
 		panic(err)
 	}
-	secnet := p2padapter.NetworkFromSwarm(quic2Swarm{Swarm: quicSw}, x.FindAddr, x.Bootstrap)
+	secnet := networkFromP2PSwarm(quic2Swarm{Swarm: quicSw}, x.FindAddr, x.Bootstrap)
 	return secnet
 }
 
