@@ -11,7 +11,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/autopeering"
@@ -266,14 +265,12 @@ func strPtr(x string) *string {
 	return &x
 }
 
-func networkFactoryFromSpec(spec NetworkSpec) (networks.Factory, error) {
+func networkFactoryFromSpec(spec NetworkSpec) (mesh256.NetworkFactory, error) {
 	switch {
 	case spec.BeaconNet != nil:
 		return beaconnet.Factory, nil
 	case spec.FloodNet != nil:
 		return floodnet.Factory, nil
-	case spec.OneHop != nil:
-		return mesh256.OneHopFactory, nil
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}

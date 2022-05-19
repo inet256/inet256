@@ -1,4 +1,4 @@
-package inet256test
+package mesh256test
 
 import (
 	"context"
@@ -10,20 +10,19 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 )
 
 type (
 	Addr           = inet256.Addr
 	Node           = inet256.Node
-	Network        = networks.Network
-	NetworkFactory = networks.Factory
+	Network        = mesh256.Network
+	NetworkFactory = mesh256.NetworkFactory
 )
 
 func TestNetwork(t *testing.T, nf NetworkFactory) {
@@ -69,30 +68,8 @@ func TestFindAddr(t testing.TB, src, dst Network) {
 
 func TestSendRecvAll(t testing.TB, nets []Network) {
 	randomPairs(len(nets), func(i, j int) {
-		TestSendRecvOne(t, net2node{nets[i]}, net2node{nets[j]})
+		inet256test.TestSendRecvOne(t, net2node{nets[i]}, net2node{nets[j]})
 	})
-}
-
-func TestSendRecvOne(t testing.TB, src, dst Node) {
-	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cf()
-
-	eg := errgroup.Group{}
-	var recieved inet256.Message
-	eg.Go(func() error {
-		if err := inet256.Receive(ctx, dst, &recieved); err != nil {
-			return err
-		}
-		return nil
-	})
-	sent := "test data"
-	eg.Go(func() error {
-		return src.Send(ctx, dst.LocalAddr(), []byte(sent))
-	})
-	require.NoError(t, eg.Wait())
-	require.Equal(t, sent, string(recieved.Payload))
-	// require.Equal(t, src.LocalAddr(), recieved.Src)
-	require.Equal(t, dst.LocalAddr(), recieved.Dst)
 }
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
@@ -100,7 +77,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	swarms := make([]*memswarm.Swarm, N)
 	peerStores := make([]peers.Store[memswarm.Addr], N)
 	keys := make([]p2p.PrivateKey, N)
-	netSwarms := make([]networks.Swarm, N)
+	netSwarms := make([]mesh256.Swarm, N)
 	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
 		keys[i] = p2ptest.NewTestKey(t, i)
@@ -120,7 +97,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	nets := make([]Network, N)
 	for i := 0; i < N; i++ {
 		logger := newTestLogger(t)
-		nets[i] = nf(networks.Params{
+		nets[i] = nf(mesh256.NetworkParams{
 			Peers:      peerStores[i],
 			PrivateKey: keys[i],
 			Swarm:      netSwarms[i],
@@ -172,7 +149,7 @@ func newTestLogger(t testing.TB) *logrus.Logger {
 }
 
 type net2node struct {
-	networks.Network
+	Network
 }
 
 func (x net2node) Send(ctx context.Context, dst Addr, data []byte) error {

@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/pkg/errors"
 )
 
 type Router struct {
-	log                        networks.Logger
+	log                        mesh256.Logger
 	privateKey                 inet256.PrivateKey
-	peers                      networks.PeerSet
+	peers                      mesh256.PeerSet
 	localID                    inet256.Addr
 	peerStateTTL, beaconPeriod time.Duration
 
@@ -27,7 +27,7 @@ type Router struct {
 	ourBeacon   *Beacon
 }
 
-func NewRouter(log networks.Logger) neteng.Router {
+func NewRouter(log mesh256.Logger) neteng.Router {
 	return &Router{
 		log:          log,
 		peerStateTTL: defaultPeerStateTTL,
@@ -37,7 +37,7 @@ func NewRouter(log networks.Logger) neteng.Router {
 	}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers mesh256.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.privateKey = privateKey

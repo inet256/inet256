@@ -6,10 +6,11 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"
+	"github.com/inet256/inet256/pkg/mesh256/mesh256test"
 )
 
 func TestNetwork(t *testing.T) {
-	inet256test.TestNetwork(t, Factory)
+	mesh256test.TestNetwork(t, Factory)
 }
 
 func TestServer(t *testing.T) {

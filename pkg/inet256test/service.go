@@ -2,11 +2,14 @@ package inet256test
 
 import (
 	"context"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
@@ -54,4 +57,36 @@ func testMultipleServers(t *testing.T, srvs ...inet256.Service) {
 	randomPairs(len(nodes), func(i, j int) {
 		TestSendRecvOne(t, nodes[i], nodes[j])
 	})
+}
+
+func TestSendRecvOne(t testing.TB, src, dst inet256.Node) {
+	ctx, cf := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cf()
+
+	eg := errgroup.Group{}
+	var recieved inet256.Message
+	eg.Go(func() error {
+		if err := inet256.Receive(ctx, dst, &recieved); err != nil {
+			return err
+		}
+		return nil
+	})
+	sent := "test data"
+	eg.Go(func() error {
+		return src.Send(ctx, dst.LocalAddr(), []byte(sent))
+	})
+	require.NoError(t, eg.Wait())
+	require.Equal(t, sent, string(recieved.Payload))
+	// require.Equal(t, src.LocalAddr(), recieved.Src)
+	require.Equal(t, dst.LocalAddr(), recieved.Dst)
+}
+
+func randomPairs(n int, fn func(i, j int)) {
+	for _, i := range rand.Perm(n) {
+		for _, j := range rand.Perm(n) {
+			if i != j {
+				fn(i, j)
+			}
+		}
+	}
 }

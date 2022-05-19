@@ -12,7 +12,7 @@ import (
 )
 
 func TestServerLoopback(t *testing.T) {
-	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
+	s := mesh256.NewTestServer(t, oneHopFactory)
 	mainNode := s.MainNode()
 	inet256test.TestSendRecvOne(t, mainNode, mainNode)
 
@@ -31,7 +31,7 @@ func TestServerLoopback(t *testing.T) {
 }
 
 func TestServerOneHop(t *testing.T) {
-	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
+	s := mesh256.NewTestServer(t, oneHopFactory)
 	main := s.MainNode()
 
 	const N = 5
@@ -53,7 +53,7 @@ func TestServerOneHop(t *testing.T) {
 
 func TestServerCreateDelete(t *testing.T) {
 	ctx := context.Background()
-	s := mesh256.NewTestServer(t, mesh256.OneHopFactory)
+	s := mesh256.NewTestServer(t, oneHopFactory)
 
 	const N = 100
 	for i := 0; i < N; i++ {
@@ -67,4 +67,19 @@ func TestServerCreateDelete(t *testing.T) {
 		err := s.Delete(ctx, pk)
 		require.NoError(t, err)
 	}
+}
+
+func oneHopFactory(params mesh256.NetworkParams) mesh256.Network {
+	findAddr := func(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
+		for _, id := range params.Peers.ListPeers() {
+			if inet256.HasPrefix(id[:], prefix, nbits) {
+				return inet256.Addr(id), nil
+			}
+		}
+		return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
+	}
+	waitReady := func(ctx context.Context) error {
+		return nil
+	}
+	return mesh256.NetworkFromSwarm(params.Swarm, findAddr, waitReady)
 }
