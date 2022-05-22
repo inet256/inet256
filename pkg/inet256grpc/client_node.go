@@ -2,17 +2,14 @@ package inet256grpc
 
 import (
 	"context"
-	mrand "math/rand"
-	"runtime"
-	"sync"
+	"errors"
+	sync "sync"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/serde"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -20,34 +17,69 @@ type node struct {
 	inetClient INET256Client
 	privKey    p2p.PrivateKey
 	localAddr  inet256.Addr
-	cf         context.CancelFunc
 
-	recvHub *netutil.TellHub
-	workers []*worker
+	eg            errgroup.Group
+	cf            context.CancelFunc
+	recvHub       *netutil.TellHub
+	mu            sync.RWMutex
+	connectClient INET256_ConnectClient
 }
 
 func newNode(inetClient INET256Client, privKey p2p.PrivateKey) (*node, error) {
 	ctx, cf := context.WithCancel(context.Background())
 	n := &node{
-		cf:         cf,
 		inetClient: inetClient,
 		privKey:    privKey,
 		localAddr:  inet256.NewAddr(privKey.Public()),
-		recvHub:    netutil.NewTellHub(),
-		workers:    make([]*worker, runtime.GOMAXPROCS(0)),
+
+		cf:      cf,
+		recvHub: netutil.NewTellHub(),
 	}
-	for i := range n.workers {
-		n.workers[i] = newWorker(n.connect, n.recvHub)
-	}
-	go n.runLoop(ctx)
-	if err := n.workers[0].bootstrap(ctx); err != nil {
+	_, err := n.connect(ctx)
+	if err != nil {
 		return nil, err
 	}
+	n.eg.Go(func() error {
+		return runForever(ctx, func() error {
+			defer func() {
+				n.mu.Lock()
+				defer n.mu.Unlock()
+				n.connectClient = nil
+			}()
+			cc, err := n.connect(ctx)
+			if err != nil {
+				return err
+			}
+			for {
+				msg, err := cc.Recv()
+				if err != nil {
+					return err
+				}
+				dg := msg.Datagram
+				if err := n.recvHub.Deliver(ctx, p2p.Message[inet256.Addr]{
+					Src:     inet256.AddrFromBytes(dg.Src),
+					Dst:     inet256.AddrFromBytes(dg.Dst),
+					Payload: dg.Payload,
+				}); err != nil {
+					return err
+				}
+			}
+		})
+	})
 	return n, nil
 }
 
 func (n *node) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
-	return n.pickWorker().tell(ctx, dst, data)
+	cc, err := n.connect(ctx)
+	if err != nil {
+		return err
+	}
+	return cc.Send(&ConnectMsg{
+		Datagram: &Datagram{
+			Dst:     dst[:],
+			Payload: data[:],
+		},
+	})
 }
 
 func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
@@ -62,7 +94,7 @@ func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
 
 func (n *node) Close() error {
 	n.cf()
-	return nil
+	return n.eg.Wait()
 }
 
 func (n *node) LocalAddr() inet256.Addr {
@@ -74,157 +106,73 @@ func (n *node) PublicKey() inet256.PublicKey {
 }
 
 func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
-	return n.getClient().FindAddr(ctx, prefix, nbits)
+	res, err := n.inetClient.FindAddr(ctx, &FindAddrReq{
+		PrivateKey: serde.MarshalPrivateKey(n.privKey),
+		Prefix:     prefix,
+		Nbits:      uint32(nbits),
+	})
+	if err != nil {
+		return inet256.Addr{}, err
+	}
+	if len(res.Addr) > 0 {
+		return inet256.AddrFromBytes(res.Addr), nil
+	}
+	return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
 func (n *node) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
-	return n.getClient().LookupPublicKey(ctx, target)
-}
-
-func (n *node) MTU(ctx context.Context, addr inet256.Addr) int {
-	return n.getClient().MTU(ctx, addr)
-}
-
-func (n *node) Bootstrap(ctx context.Context) error {
-	eg := errgroup.Group{}
-	for i := range n.workers {
-		w := n.workers[i]
-		eg.Go(func() error { return w.bootstrap(ctx) })
+	res, err := n.inetClient.LookupPublicKey(ctx, &LookupPublicKeyReq{
+		PrivateKey: serde.MarshalPrivateKey(n.privKey),
+		Target:     target[:],
+	})
+	if err != nil {
+		return inet256.Addr{}, err
 	}
-	return eg.Wait()
+	return inet256.ParsePublicKey(res.PublicKey)
+}
+
+func (n *node) MTU(ctx context.Context, target inet256.Addr) int {
+	res, err := n.inetClient.MTU(ctx, &MTUReq{
+		PrivateKey: serde.MarshalPrivateKey(n.privKey),
+		Target:     target[:],
+	})
+	if err != nil {
+		return inet256.MinMTU
+	}
+	return int(res.Mtu)
 }
 
 func (n *node) ListOneHop() []inet256.Addr {
 	return nil
 }
 
-func (n *node) getClient() *client {
-	return &client{inetClient: n.inetClient}
-}
-
-func (n *node) runLoop(ctx context.Context) {
-	eg := errgroup.Group{}
-	for _, w := range n.workers {
-		w := w
-		eg.Go(func() error {
-			return w.run(ctx)
-		})
-	}
-	if err := eg.Wait(); err != nil {
-		logrus.Error(err)
-	}
-}
-
 func (n *node) connect(ctx context.Context) (INET256_ConnectClient, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.connectClient != nil {
+		return n.connectClient, nil
+	}
 	cc, err := n.inetClient.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	privKeyBytes := serde.MarshalPrivateKey(n.privKey)
 	if err := cc.Send(&ConnectMsg{
-		ConnectInit: &ConnectInit{
+		Init: &ConnectInit{
 			PrivateKey: privKeyBytes,
 		},
 	}); err != nil {
 		return nil, err
 	}
+	msg, err := cc.Recv()
+	if err != nil {
+		return nil, err
+	}
+	if len(msg.Established) == 0 {
+		return nil, errors.New("connect not established")
+	}
+	n.connectClient = cc
 	return cc, nil
-}
-
-func (n *node) pickWorker() *worker {
-	l := len(n.workers)
-	offset := mrand.Intn(l)
-	for i := range n.workers {
-		i := (i + offset) % l
-		if n.workers[i].isReady() {
-			return n.workers[i]
-		}
-	}
-	return n.workers[0]
-}
-
-type worker struct {
-	getCC func(context.Context) (INET256_ConnectClient, error)
-	tells *netutil.TellHub
-
-	mu sync.RWMutex
-	cc INET256_ConnectClient
-}
-
-func newWorker(fn func(context.Context) (INET256_ConnectClient, error), tells *netutil.TellHub) *worker {
-	return &worker{
-		getCC: fn,
-		tells: tells,
-	}
-}
-
-func (w *worker) run(ctx context.Context) error {
-	return runForever(ctx, func() error {
-		cc, err := w.getCC(ctx)
-		if err != nil {
-			return err
-		}
-		w.setClient(cc)
-		for {
-			msg, err := cc.Recv()
-			if err != nil {
-				return err
-			}
-			dg := msg.Datagram
-			if err := w.tells.Deliver(ctx, p2p.Message[inet256.Addr]{
-				Src:     inet256.AddrFromBytes(dg.Src),
-				Dst:     inet256.AddrFromBytes(dg.Dst),
-				Payload: dg.Payload,
-			}); err != nil {
-				return err
-			}
-		}
-	})
-}
-
-func (w *worker) tell(ctx context.Context, dst inet256.Addr, data []byte) error {
-	cc := w.getClient()
-	if cc == nil {
-		return errors.Errorf("cannot send, no active connection to daemon")
-	}
-	return cc.Send(&ConnectMsg{
-		Datagram: &Datagram{
-			Dst:     dst[:],
-			Payload: data,
-		},
-	})
-}
-
-func (w *worker) setClient(x INET256_ConnectClient) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.cc = x
-}
-
-func (w *worker) getClient() INET256_ConnectClient {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return w.cc
-}
-
-func (w *worker) bootstrap(ctx context.Context) error {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		if w.isReady() {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		default:
-		}
-	}
-}
-
-func (w *worker) isReady() bool {
-	return w.getClient() != nil
 }
 
 func runForever(ctx context.Context, fn func() error) error {

@@ -135,16 +135,22 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	if err != nil {
 		return err
 	}
-	if msg.ConnectInit == nil {
+	if msg.Init == nil {
 		return errors.Errorf("first message must contain ConnectInit")
 	}
-	cinit := msg.ConnectInit
+	cinit := msg.Init
 	privKey, err := serde.ParsePrivateKey(cinit.PrivateKey)
 	if err != nil {
 		return err
 	}
 	node, err := s.s.Open(ctx, privKey)
 	if err != nil {
+		return err
+	}
+	localAddr := node.LocalAddr()
+	if err := srv.Send(&ConnectMsg{
+		Established: localAddr[:],
+	}); err != nil {
 		return err
 	}
 	defer func() {
@@ -162,7 +168,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 				}
 				return err
 			}
-			if msg.ConnectInit != nil {
+			if msg.Init != nil {
 				return errors.Errorf("cannot send ConnectInit after first message")
 			}
 			if msg.Datagram == nil {
@@ -170,7 +176,7 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 			}
 			dst := inet256.AddrFromBytes(msg.Datagram.Dst)
 			if err := func() error {
-				ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
+				ctx, cf := context.WithTimeout(ctx, 3*time.Second)
 				defer cf()
 				return node.Send(ctx, dst, msg.Datagram.Payload)
 			}(); err != nil {
