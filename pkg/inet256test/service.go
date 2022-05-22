@@ -23,6 +23,14 @@ func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 		sf(t, xs)
 		testMultipleServers(t, xs...)
 	})
+	t.Run("TestLoopback", func(t *testing.T) {
+		xs := make([]inet256.Service, 2)
+		sf(t, xs)
+		n1 := openNode(t, xs[0], 1)
+		n2 := openNode(t, xs[1], 2)
+		TestSendRecvOne(t, n1, n1)
+		TestSendRecvOne(t, n2, n2)
+	})
 }
 
 func testServerSend(t *testing.T, s inet256.Service) {
@@ -89,4 +97,15 @@ func randomPairs(n int, fn func(i, j int)) {
 			}
 		}
 	}
+}
+
+func openNode(t testing.TB, s inet256.Service, i int) inet256.Node {
+	ctx := context.Background()
+	pk := p2ptest.NewTestKey(t, i)
+	n, err := s.Open(ctx, pk)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		n.Close()
+	})
+	return n
 }
