@@ -29,7 +29,7 @@ func NewClient(endpoint string) (inet256.Service, error) {
 }
 
 func dial(endpoint string) (*grpc.ClientConn, error) {
-	return grpc.Dial(endpoint, grpc.WithInsecure())
+	return grpc.Dial(endpoint, grpc.WithInsecure(), grpc.WithBlock())
 }
 
 type client struct {
@@ -51,39 +51,6 @@ func (c *client) Delete(ctx context.Context, privKey p2p.PrivateKey) error {
 		PrivateKey: serde.MarshalPrivateKey(privKey),
 	})
 	return err
-}
-
-func (c *client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
-	peerInfo, err := c.inetClient.FindAddr(ctx, &FindAddrReq{
-		Prefix: prefix,
-		Nbits:  uint32(nbits),
-	})
-	if err != nil {
-		return inet256.Addr{}, err
-	}
-	ret := inet256.Addr{}
-	copy(ret[:], peerInfo.Addr)
-	return ret, nil
-}
-
-func (c *client) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
-	res, err := c.inetClient.LookupPublicKey(ctx, &LookupPublicKeyReq{
-		Target: target[:],
-	})
-	if err != nil {
-		return nil, err
-	}
-	return inet256.ParsePublicKey(res.PublicKey)
-}
-
-func (c *client) MTU(ctx context.Context, target inet256.Addr) int {
-	res, err := c.inetClient.MTU(ctx, &MTUReq{
-		Target: target[:],
-	})
-	if err != nil {
-		return -1
-	}
-	return int(res.Mtu)
 }
 
 func (c *client) MainAddr() (inet256.Addr, error) {

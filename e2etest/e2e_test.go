@@ -35,7 +35,6 @@ func Test2Node(t *testing.T) {
 	}
 	n1 := sides[0].newNode(t, p2ptest.NewTestKey(t, 101))
 	n2 := sides[1].newNode(t, p2ptest.NewTestKey(t, 102))
-
 	inet256test.TestSendRecvOne(t, n1, n2)
 	inet256test.TestSendRecvOne(t, n2, n1)
 }
@@ -156,7 +155,9 @@ func (s *side) startDaemon(t testing.TB) {
 	})
 	go func() {
 		defer close(done)
-		d.Run(ctx)
+		if err := d.Run(ctx); err != nil {
+			t.Log(err)
+		}
 	}()
 
 	s.d = d

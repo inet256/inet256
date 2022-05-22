@@ -31,8 +31,9 @@ message LookupPublicKeyRes {
 }
 
 message ConnectMsg {
-    ConnectInit ConnectInit = 1;
-    Datagram datagram = 2;
+    ConnectInit init = 1;
+    bytes established = 2;
+    Datagram datagram = 3;
 }
 
 message ConnectInit {

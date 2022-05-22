@@ -60,6 +60,12 @@ func (s *memService) findAddr(prefix []byte, nbits int) (inet256.Addr, error) {
 	return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
 }
 
+func (s *memService) getNode(x inet256.Addr) *memNode {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.nodes[x]
+}
+
 type memNode struct {
 	s         *memService
 	publicKey inet256.PublicKey
@@ -75,9 +81,7 @@ func newMemNode(s *memService, privKey inet256.PrivateKey) *memNode {
 }
 
 func (node *memNode) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
-	node.s.mu.RLock()
-	dstNode := node.s.nodes[dst]
-	node.s.mu.RUnlock()
+	dstNode := node.s.getNode(dst)
 	if dstNode != nil {
 		return dstNode.hub.Deliver(ctx, p2p.Message[inet256.Addr]{
 			Src:     node.LocalAddr(),
