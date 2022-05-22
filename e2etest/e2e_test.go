@@ -13,6 +13,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256test"
+	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/stretchr/testify/require"
 )
@@ -112,7 +113,7 @@ func (s *side) configPath() string {
 }
 
 func (s *side) transportAddrs() []string {
-	return []string{fmt.Sprintf("quic+udp://%v@127.0.0.1:%d", s.localAddr(), s.transportPort)}
+	return []string{fmt.Sprintf("%s://%v@127.0.0.1:%d", mesh256.SecureProtocolName("udp"), s.localAddr(), s.transportPort)}
 }
 
 func (s *side) localAddr() inet256.Addr {

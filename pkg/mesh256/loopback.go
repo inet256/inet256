@@ -107,16 +107,6 @@ func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
 	return min
 }
 
-// func (n chainNetwork) MaxIncomingSize() (ret int) {
-// 	for _, nw := range n.networks {
-// 		is := nw.MaxIncomingSize()
-// 		if is > ret {
-// 			ret = is
-// 		}
-// 	}
-// 	return ret
-// }
-
 func (n chainNetwork) Bootstrap(ctx context.Context) error {
 	eg := errgroup.Group{}
 	for _, n2 := range n.networks {

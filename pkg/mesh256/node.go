@@ -11,12 +11,11 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 type Params struct {
-	p2p.PrivateKey
+	PrivateKey p2p.PrivateKey
 	Swarms     map[string]multiswarm.DynSwarm
 	Peers      peers.Store[TransportAddr]
 	NewNetwork NetworkFactory
@@ -104,10 +103,6 @@ func (n *node) ListOneHop() []Addr {
 	return n.params.Peers.ListPeers()
 }
 
-func (n *node) Bootstrap(ctx context.Context) error {
-	return n.network.Bootstrap(ctx)
-}
-
 func (n *node) Close() (retErr error) {
 	var el netutil.ErrList
 	el.Add(n.network.Close())
@@ -119,31 +114,41 @@ func (n *node) Close() (retErr error) {
 // MakeSecureSwarms ensures that all the swarms in x are secure, or wraps them, to make them secure
 // then copies them to y.
 func makeSecureSwarms(x map[string]multiswarm.DynSwarm, privateKey p2p.PrivateKey) (map[string]multiswarm.DynSecureSwarm, error) {
+	y := make(map[string]multiswarm.DynSecureSwarm, len(x))
+	for k, s := range x {
+		k, sec := SecureDynSwarm(k, s, privateKey)
+		y[k] = sec
+	}
+	return y, nil
+}
+
+// SecureDynSwarm
+func SecureDynSwarm(protoName string, s multiswarm.DynSwarm, privateKey p2p.PrivateKey) (string, multiswarm.DynSecureSwarm) {
+	if sec, ok := s.(multiswarm.DynSecureSwarm); ok {
+		return protoName, sec
+	}
 	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
 		return p2p.PeerID(inet256.NewAddr(pubKey))
 	}
-	y := make(map[string]multiswarm.DynSecureSwarm, len(x))
-	for k, s := range x {
-		if sec, ok := s.(multiswarm.DynSecureSwarm); ok {
-			y[k] = sec
-		} else {
-			var err error
-			k = "quic+" + k
-			secSw, err := quicswarm.New[p2p.Addr](s, privateKey, quicswarm.WithFingerprinter[p2p.Addr](fingerprinter))
-			if err != nil {
-				return nil, errors.Wrapf(err, "while securing swarm %v", k)
-			}
-			y[k] = multiswarm.WrapSecureSwarm[quicswarm.Addr[p2p.Addr]](secSw)
-		}
+	secSw, err := quicswarm.New[p2p.Addr](s, privateKey, quicswarm.WithFingerprinter[p2p.Addr](fingerprinter))
+	if err != nil {
+		panic(err)
 	}
-	return y, nil
+	dynSecSw := multiswarm.WrapSecureSwarm[quicswarm.Addr[p2p.Addr]](secSw)
+	return SecureProtocolName(protoName), dynSecSw
+}
+
+// SecureProtocolName returns the name of the protocol after securing an insecure swarm
+// It will match what is returned by Server.TransportAddrs()
+func SecureProtocolName(x string) string {
+	return "quic+" + x
 }
 
 func NewAddrSchema(swarms map[string]multiswarm.DynSwarm) multiswarm.AddrSchema {
 	swarms2 := map[string]multiswarm.DynSwarm{}
 	for k, v := range swarms {
 		if _, ok := v.(multiswarm.DynSecureSwarm); !ok {
-			k = "quic+" + k
+			k = SecureProtocolName(k)
 			v = secureAddrParser{v}
 		}
 		swarms2[k] = v

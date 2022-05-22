@@ -76,10 +76,6 @@ type p2pSwarm struct {
 	extraSwarmMethods
 }
 
-func p2pSwarmFromSwarm(x Swarm) p2p.SecureSwarm[inet256.Addr] {
-	return p2pSwarm{Swarm: x}
-}
-
 func p2pSwarmFromNetwork(x Network) p2p.SecureSwarm[inet256.Addr] {
 	return p2pSwarm{Swarm: x}
 }

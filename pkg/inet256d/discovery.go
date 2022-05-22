@@ -35,7 +35,7 @@ func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.Pr
 }
 
 var broadcastTransports = map[string]struct{}{
-	"quic+udp": {},
+	mesh256.SecureProtocolName("udp"): {},
 }
 
 func adaptTransportAddrs(f func() ([]TransportAddr, error)) func() []TransportAddr {
