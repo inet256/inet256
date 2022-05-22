@@ -3,6 +3,7 @@ package inet256grpc
 import (
 	"context"
 	"errors"
+	"net"
 	sync "sync"
 	"time"
 
@@ -10,7 +11,10 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/serde"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type node struct {
@@ -21,7 +25,8 @@ type node struct {
 	eg            errgroup.Group
 	cf            context.CancelFunc
 	recvHub       *netutil.TellHub
-	mu            sync.RWMutex
+	mu            sync.Mutex
+	sendMu        sync.Mutex
 	connectClient INET256_ConnectClient
 }
 
@@ -74,6 +79,8 @@ func (n *node) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
 	if err != nil {
 		return err
 	}
+	n.sendMu.Lock()
+	defer n.sendMu.Unlock()
 	return cc.Send(&ConnectMsg{
 		Datagram: &Datagram{
 			Dst:     dst[:],
@@ -94,7 +101,9 @@ func (n *node) Receive(ctx context.Context, fn func(inet256.Message)) error {
 
 func (n *node) Close() error {
 	n.cf()
-	return n.eg.Wait()
+	n.recvHub.CloseWithError(net.ErrClosed)
+	n.eg.Wait()
+	return nil
 }
 
 func (n *node) LocalAddr() inet256.Addr {
@@ -112,7 +121,8 @@ func (n *node) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.
 		Nbits:      uint32(nbits),
 	})
 	if err != nil {
-		return inet256.Addr{}, err
+		logrus.Error(err)
+		return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
 	}
 	if len(res.Addr) > 0 {
 		return inet256.AddrFromBytes(res.Addr), nil
@@ -142,13 +152,11 @@ func (n *node) MTU(ctx context.Context, target inet256.Addr) int {
 	return int(res.Mtu)
 }
 
-func (n *node) ListOneHop() []inet256.Addr {
-	return nil
-}
-
 func (n *node) connect(ctx context.Context) (INET256_ConnectClient, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	n.sendMu.Lock()
+	defer n.sendMu.Unlock()
 	if n.connectClient != nil {
 		return n.connectClient, nil
 	}
@@ -178,7 +186,7 @@ func (n *node) connect(ctx context.Context) (INET256_ConnectClient, error) {
 func runForever(ctx context.Context, fn func() error) error {
 	for {
 		if err := fn(); err != nil {
-			if err == context.Canceled {
+			if errors.Is(err, context.Canceled) || status.Code(err) == codes.Canceled {
 				return err
 			}
 			time.Sleep(time.Second)

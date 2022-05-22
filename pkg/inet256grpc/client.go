@@ -29,7 +29,7 @@ func NewClient(endpoint string) (inet256.Service, error) {
 }
 
 func dial(endpoint string) (*grpc.ClientConn, error) {
-	return grpc.Dial(endpoint, grpc.WithInsecure())
+	return grpc.Dial(endpoint, grpc.WithInsecure(), grpc.WithBlock())
 }
 
 type client struct {

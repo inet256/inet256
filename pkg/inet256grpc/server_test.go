@@ -21,6 +21,7 @@ func TestGRPC(t *testing.T) {
 
 			l, err := net.Listen("tcp", "127.0.0.1:")
 			require.NoError(t, err)
+			t.Cleanup(func() { l.Close() })
 			go gs.Serve(l)
 			t.Cleanup(gs.Stop)
 			client, err := NewClient(l.Addr().String())
