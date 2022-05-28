@@ -1,19 +1,29 @@
 package inet256
 
 import (
-	"github.com/brendoncarroll/go-p2p"
+	"crypto"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"errors"
+	"fmt"
+
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"golang.org/x/crypto/sha3"
 )
 
 type (
-	PublicKey  = p2p.PublicKey
-	PrivateKey = p2p.PrivateKey
+	PublicKey  = crypto.PublicKey
+	PrivateKey = crypto.Signer
 )
+
+// AddrSize is the size of an address in bytes
+const AddrSize = 32
 
 // Addr is an address in an INET256 Network.
 // It uniquely identifies a Node.
-type Addr [32]byte
+type Addr [AddrSize]byte
 
 // ID is an alias for Addr
 type ID = Addr
@@ -46,28 +56,48 @@ func (a Addr) String() string {
 }
 
 func (a *Addr) UnmarshalText(x []byte) error {
-	return (*p2p.PeerID)(a).UnmarshalText(x)
+	n, err := base64.RawURLEncoding.Decode(a[:], x)
+	if err != nil {
+		return err
+	}
+	if n != AddrSize {
+		return errors.New("too short to be INET256 address")
+	}
+	return nil
 }
 
 func (a Addr) MarshalText() ([]byte, error) {
-	return (p2p.PeerID)(a).MarshalText()
+	return []byte(base64.RawURLEncoding.EncodeToString(a[:])), nil
 }
 
-// GetPeerID implements p2p.HasPeerID
-func (a Addr) GetPeerID() p2p.PeerID {
-	return p2p.PeerID(a)
-}
-
+// IsZero returns true if the address is the zero value for the Addr type
 func (a Addr) IsZero() bool {
 	return a == (Addr{})
 }
 
+// ParsePublicKey attempts to parse a PublicKey from data
 func ParsePublicKey(data []byte) (PublicKey, error) {
-	return p2p.ParsePublicKey(data)
+	pubKey, err := x509.ParsePKIXPublicKey(data)
+	if err != nil {
+		return nil, err
+	}
+	switch pubKey.(type) {
+	case *rsa.PublicKey, ed25519.PublicKey:
+	default:
+		return nil, fmt.Errorf("public keys of type %T are not supported by INET256", pubKey)
+	}
+	return pubKey, nil
 }
 
+// MarshalPublicKey marshals pubKey into data.
+// MarshalPublicKey panics if it can not marshal the public key.
+// All keys returned by ParsePublic key will successfully marshal, so a panic indicates a bug.
 func MarshalPublicKey(pubKey PublicKey) []byte {
-	return p2p.MarshalPublicKey(pubKey)
+	data, err := x509.MarshalPKIXPublicKey(pubKey)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func HasPrefix(x []byte, prefix []byte, nbits int) bool {
