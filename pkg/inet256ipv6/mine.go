@@ -92,7 +92,7 @@ func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, p2p.Pri
 }
 
 func leading0s(x []byte) int {
-	return kademlia.Leading0s(x)
+	return kademlia.LeadingZeros(x)
 }
 
 func allOnes() inet256.Addr {

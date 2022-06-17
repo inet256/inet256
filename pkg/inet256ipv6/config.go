@@ -13,7 +13,7 @@ func ParseWhitelist(x []byte) (AllowFunc, error) {
 	lines := bytes.Split(x, []byte("\n"))
 	allowed := make(map[inet256.Addr]struct{}, len(lines))
 	for i, line := range lines {
-		addr, err := inet256.ParseAddrB64(line)
+		addr, err := inet256.ParseAddrBase64(line)
 		if err != nil {
 			return nil, errors.Errorf("line %d: %q is not a valid INET256 address: %v", i, line, err)
 		}

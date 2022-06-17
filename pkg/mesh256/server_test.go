@@ -51,7 +51,7 @@ func TestServerOneHop(t *testing.T) {
 	}
 }
 
-func TestServerCreateDelete(t *testing.T) {
+func TestServerCreateDrop(t *testing.T) {
 	ctx := context.Background()
 	s := mesh256.NewTestServer(t, oneHopFactory)
 
@@ -64,7 +64,7 @@ func TestServerCreateDelete(t *testing.T) {
 
 	for i := 0; i < N; i++ {
 		pk := p2ptest.NewTestKey(t, i)
-		err := s.Delete(ctx, pk)
+		err := s.Drop(ctx, pk)
 		require.NoError(t, err)
 	}
 }

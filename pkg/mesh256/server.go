@@ -107,7 +107,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...in
 	return n, nil
 }
 
-func (s *Server) Delete(ctx context.Context, privateKey p2p.PrivateKey) error {
+func (s *Server) Drop(ctx context.Context, privateKey p2p.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()

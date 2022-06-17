@@ -39,7 +39,7 @@ func Test256To6(t *testing.T) {
 		addr := inet256.Addr{}
 		_, err := rand.Read(addr[:])
 		require.NoError(t, err)
-		lz := kademlia.Leading0s(addr[:])
+		lz := kademlia.LeadingZeros(addr[:])
 
 		ip := IPv6FromINET256(addr)
 		require.True(t, netPrefix.Contains(ip))

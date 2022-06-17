@@ -3,7 +3,6 @@ package inet256cmd
 import (
 	"bufio"
 	"context"
-	"encoding/base64"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/sirupsen/logrus"
@@ -61,9 +60,5 @@ func NewNetCatCmd(newNode NodeFactory) *cobra.Command {
 }
 
 func parseAddr(x string) (inet256.Addr, error) {
-	data, err := base64.RawURLEncoding.DecodeString(x)
-	if err != nil {
-		return inet256.Addr{}, err
-	}
-	return inet256.AddrFromBytes(data), nil
+	return inet256.ParseAddrBase64([]byte(x))
 }
