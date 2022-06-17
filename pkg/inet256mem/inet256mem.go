@@ -34,7 +34,7 @@ func (s *memService) Open(ctx context.Context, privKey inet256.PrivateKey, opts 
 	return node, nil
 }
 
-func (s *memService) Delete(ctx context.Context, privKey inet256.PrivateKey) error {
+func (s *memService) Drop(ctx context.Context, privKey inet256.PrivateKey) error {
 	id := inet256.NewAddr(privKey.Public())
 	s.delete(id)
 	return nil

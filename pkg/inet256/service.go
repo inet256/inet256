@@ -65,7 +65,7 @@ type Node interface {
 // This interface is compatible with the INET256 specification.
 type Service interface {
 	Open(ctx context.Context, privKey p2p.PrivateKey, opts ...NodeOption) (Node, error)
-	Delete(ctx context.Context, privKey p2p.PrivateKey) error
+	Drop(ctx context.Context, privKey p2p.PrivateKey) error
 }
 
 // NodeOption is the type of functions which configure a Node.

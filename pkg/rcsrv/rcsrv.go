@@ -38,7 +38,7 @@ func (s *Server) Open(ctx context.Context, pk inet256.PrivateKey, opts ...inet25
 	return rcNode{s: s, Node: node}, nil
 }
 
-func (s *Server) Delete(ctx context.Context, pk inet256.PrivateKey) error {
+func (s *Server) Drop(ctx context.Context, pk inet256.PrivateKey) error {
 	id := inet256.NewAddr(pk.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()

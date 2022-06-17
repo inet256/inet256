@@ -77,7 +77,7 @@ func (s quic2Swarm) MTU(ctx context.Context, target inet256.Addr) int {
 }
 
 func (s quic2Swarm) ParseAddr(x []byte) (ret inet256.Addr, _ error) {
-	return inet256.ParseAddrB64(x)
+	return inet256.ParseAddrBase64(x)
 }
 
 func (s quic2Swarm) makeAddr(addr inet256.Addr) quicswarm.Addr[inet256.Addr] {

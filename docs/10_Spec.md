@@ -65,7 +65,7 @@ No options have been standardized at the present, but they may include things li
 
 If the implemenation cannot create a node satisfying the configuration e.g. anonymous communication, it *must* return an error.
 
-### 2.1.2 `delete(privateKey)`
+### 2.1.2 `drop(privateKey)`
 Should remove the node corresponding to private key from the network.
 After disconnecting the privateKey must not be retained by the implementation.
 Any Nodes from previous calls to open must return errors for subsequent operations.

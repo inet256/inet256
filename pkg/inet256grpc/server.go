@@ -204,13 +204,13 @@ func (s *Server) Connect(srv INET256_ConnectServer) error {
 	return eg.Wait()
 }
 
-func (s *Server) Delete(ctx context.Context, req *DeleteReq) (*DeleteRes, error) {
+func (s *Server) Drop(ctx context.Context, req *DropReq) (*DropRes, error) {
 	privateKey, err := serde.ParsePrivateKey(req.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.s.Delete(ctx, privateKey); err != nil {
+	if err := s.s.Drop(ctx, privateKey); err != nil {
 		return nil, err
 	}
-	return &DeleteRes{}, nil
+	return &DropRes{}, nil
 }

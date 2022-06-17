@@ -2,8 +2,6 @@ package inet256cmd
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
 	"fmt"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -22,11 +20,9 @@ func NewPingCmd(newNode NodeFactory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			dst := inet256.Addr{}
-			if n, err := base64.RawURLEncoding.Decode(dst[:], []byte(args[0])); err != nil {
+			dst, err := inet256.ParseAddrBase64([]byte(args[0]))
+			if err != nil {
 				return err
-			} else if n != len(dst) {
-				return errors.New("arg not long enough to be address")
 			}
 			fmt.Println("pinging", dst, "...")
 			return node.Send(ctx, dst, []byte("ping"))

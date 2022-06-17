@@ -46,8 +46,8 @@ func (c *client) Open(ctx context.Context, privKey p2p.PrivateKey, opts ...inet2
 	return n, nil
 }
 
-func (c *client) Delete(ctx context.Context, privKey p2p.PrivateKey) error {
-	_, err := c.inetClient.Delete(ctx, &DeleteReq{
+func (c *client) Drop(ctx context.Context, privKey p2p.PrivateKey) error {
+	_, err := c.inetClient.Drop(ctx, &DropReq{
 		PrivateKey: serde.MarshalPrivateKey(privKey),
 	})
 	return err

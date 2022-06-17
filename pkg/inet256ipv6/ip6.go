@@ -73,7 +73,7 @@ func NewIP6AddrCmd() *cobra.Command {
 			x = inet256.NewAddr(privateKey.Public())
 		case len(args) == 1:
 			var err error
-			x, err = inet256.ParseAddrB64([]byte(args[0]))
+			x, err = inet256.ParseAddrBase64([]byte(args[0]))
 			if err != nil {
 				return err
 			}

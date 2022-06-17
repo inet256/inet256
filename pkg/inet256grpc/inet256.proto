@@ -68,11 +68,11 @@ message Status {
     repeated bytes running_nodes = 4;
 }
 
-message DeleteReq {
+message DropReq {
     bytes private_key = 1;
 }
 
-message DeleteRes {}
+message DropRes {}
 
 service INET256 {
     rpc GenerateKey(google.protobuf.Empty) returns (GenerateKeyRes) {}
@@ -84,8 +84,8 @@ service INET256 {
     // The first message must contain a private key. The corresponding public key will
     // be used to derive an address
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
-    // Delete disconnects all connected sessions for a given private key.
-    rpc Delete(DeleteReq) returns (DeleteRes) {}
+    // Drop disconnects all connected sessions for a given private key.
+    rpc Drop(DropReq) returns (DropRes) {}
 }
 
 service Admin {

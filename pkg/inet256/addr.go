@@ -8,8 +8,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/bits"
 
-	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -18,8 +18,13 @@ type (
 	PrivateKey = crypto.Signer
 )
 
-// AddrSize is the size of an address in bytes
-const AddrSize = 32
+const (
+	// AddrSize is the size of an address in bytes
+	AddrSize = 32
+	// Base64Alphabet is used when encoding IDs as base64 strings.
+	// It is a URL and filepath safe encoding, which maintains ordering.
+	Base64Alphabet = "-0123456789" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "_" + "abcdefghijklmnopqrstuvwxyz"
+)
 
 // Addr is an address in an INET256 Network.
 // It uniquely identifies a Node.
@@ -51,12 +56,19 @@ func (a Addr) Network() string {
 
 // String implements net.Addr.String
 func (a Addr) String() string {
+	return a.Base64String()
+}
+
+// Base64String returns the base64 encoding of the Addr as a string
+func (a Addr) Base64String() string {
 	data, _ := a.MarshalText()
 	return string(data)
 }
 
+var enc = base64.NewEncoding(Base64Alphabet).WithPadding(base64.NoPadding)
+
 func (a *Addr) UnmarshalText(x []byte) error {
-	n, err := base64.RawURLEncoding.Decode(a[:], x)
+	n, err := enc.Decode(a[:], x)
 	if err != nil {
 		return err
 	}
@@ -67,7 +79,7 @@ func (a *Addr) UnmarshalText(x []byte) error {
 }
 
 func (a Addr) MarshalText() ([]byte, error) {
-	return []byte(base64.RawURLEncoding.EncodeToString(a[:])), nil
+	return []byte(enc.EncodeToString(a[:])), nil
 }
 
 // IsZero returns true if the address is the zero value for the Addr type
@@ -101,11 +113,25 @@ func MarshalPublicKey(pubKey PublicKey) []byte {
 }
 
 func HasPrefix(x []byte, prefix []byte, nbits int) bool {
-	return kademlia.HasPrefix(x, prefix, nbits)
+	var total int
+	for i := range prefix {
+		if i >= len(x) {
+			break
+		}
+		lz := bits.LeadingZeros8(x[i] ^ prefix[i])
+		total += lz
+		if total >= nbits {
+			return true
+		}
+		if lz < 8 {
+			break
+		}
+	}
+	return false
 }
 
-// ParseAddrB64 attempts to parse a base64 encoded INET256 address from data
-func ParseAddrB64(data []byte) (Addr, error) {
+// ParseAddrBase64 attempts to parse a base64 encoded INET256 address from data
+func ParseAddrBase64(data []byte) (Addr, error) {
 	addr := Addr{}
 	err := addr.UnmarshalText(data)
 	return addr, err
