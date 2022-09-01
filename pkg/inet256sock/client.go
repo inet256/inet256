@@ -2,6 +2,7 @@ package inet256sock
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -38,9 +39,11 @@ func NewClient(uconn *net.UnixConn, localPubKey inet256.PublicKey) *Client {
 		tellHub:    *netutil.NewTellHub(),
 		findAddrs:  futures.NewStore[[16]byte, inet256.Addr](),
 		lookupPubs: futures.NewStore[[16]byte, inet256.PublicKey](),
+		mtus:       futures.NewStore[[16]byte, int](),
 	}
+	// TODO: need context for lifecycle management
 	c.eg.Go(func() error {
-		return nil
+		return c.readLoop(context.Background())
 	})
 	return c
 }
@@ -52,33 +55,65 @@ func (c *Client) readLoop(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		msg, err := AsMessage(buf[:n])
-		if err != nil {
-			return err
-		}
-		switch msg.GetType() {
-		case MT_Data:
-			c.tellHub.Deliver(ctx, p2p.Message[inet256.Addr]{
-				Src: msg.GetSrc(),
-				Dst: msg.GetDst(),
-			})
-		case MT_FindAddr:
+		if err := c.handleMessage(ctx, buf[:n]); err != nil {
+			continue
 		}
 	}
 }
 
+func (c *Client) handleMessage(ctx context.Context, x []byte) error {
+	msg, err := AsMessage(x)
+	if err != nil {
+		return err
+	}
+	mt := msg.GetType()
+	switch mt {
+	case MT_Data:
+		c.tellHub.Deliver(ctx, p2p.Message[inet256.Addr]{
+			Src:     msg.GetDataAddr(),
+			Dst:     c.localAddr,
+			Payload: msg.GetPayload(),
+		})
+	case MT_FindAddrRes:
+		if fut := c.findAddrs.Get(msg.GetRequestID()); fut != nil {
+			fut.Succeed(msg.GetFindAddrRes())
+		}
+	case MT_PublicKeyRes:
+		if fut := c.lookupPubs.Get(msg.GetRequestID()); fut != nil {
+			pub, err := msg.GetPublicKeyRes()
+			if err != nil {
+				return err
+			}
+			fut.Succeed(pub)
+		}
+	case MT_MTURes:
+		if fut := c.mtus.Get(msg.GetRequestID()); fut != nil {
+			fut.Succeed(msg.GetMTURes())
+		}
+	default:
+		return fmt.Errorf("not expecting type %v", mt)
+	}
+	return nil
+}
+
 func (c *Client) Receive(ctx context.Context, fn inet256.ReceiveFunc) error {
+	return c.tellHub.Receive(ctx, func(x p2p.Message[inet256.Addr]) {
+		fn(inet256.Message{
+			Src:     x.Src,
+			Dst:     x.Dst,
+			Payload: x.Payload,
+		})
+	})
 	return nil
 }
 
 func (c *Client) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
-	var msg Message
-	_, err := c.uconn.Write(msg)
+	_, err := c.uconn.Write(MakeDataMessage(nil, dst, data))
 	return err
 }
 
 func (c *Client) Close() error {
-	return nil
+	return c.eg.Wait()
 }
 
 func (c *Client) LocalAddr() inet256.Addr {
@@ -92,8 +127,7 @@ func (c *Client) PublicKey() inet256.PublicKey {
 func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
 	var msg Message
 
-	var reqID [16]byte
-	sha3.ShakeSum256(reqID[:], msg)
+	reqID := NewRequestID(msg)
 	fut, created := c.mtus.GetOrCreate(reqID)
 	if !created {
 		defer c.mtus.Delete(reqID)
@@ -111,8 +145,7 @@ func (c *Client) MTU(ctx context.Context, target inet256.Addr) int {
 func (c *Client) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
 	var msg Message
 
-	var reqID [16]byte
-	sha3.ShakeSum256(reqID[:], msg)
+	reqID := NewRequestID(msg)
 	fut, created := c.findAddrs.GetOrCreate(reqID)
 	if !created {
 		defer c.findAddrs.Delete(reqID)
