@@ -1,13 +1,12 @@
 package inet256sock
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 
 	"github.com/inet256/inet256/pkg/inet256"
-	"golang.org/x/sync/errgroup"
+	"golang.org/x/crypto/sha3"
 )
 
 func DialUnix(p string) (*net.UnixConn, error) {
@@ -26,74 +25,36 @@ func ListenUnix(p string) (*net.UnixConn, error) {
 	return net.ListenUnixgram("unix", addr)
 }
 
-// ServeNode reads and writes packets from a DGRAM unix conn, using the node to
-// send network data and answer requests.
-func ServeNode(ctx context.Context, node inet256.Node, pconn *net.UnixConn) error {
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		defer pconn.Close()
-		<-ctx.Done()
-		return ctx.Err()
-	})
-	eg.Go(func() error {
-		buf := make([]byte, MaxMsgLen)
-		for {
-			n, _, err := pconn.ReadFromUnix(buf)
-			if err != nil {
-				return err
-			}
-			msg, err := AsMessage(buf[:n])
-			if err != nil {
-				logrus.Warnf("leaving")
-				continue
-			}
-		}
-	})
-	eg.Go(func() error {
-		buf := make([]byte, 32+inet256.MaxMTU)
-		for {
-			var sendErr error
-			if err := node.Receive(ctx, func(msg inet256.Message) {
-				n := appendHeaders(buf[:0], &msg)
-				n += copy(buf[n:], msg.Payload)
-				_, err := pconn.Write(buf[:n])
-				if err != nil {
-					sendErr = err
-				}
-			}); err != nil {
-				return err
-			}
-			if sendErr != nil {
-				return sendErr
-			}
-		}
-	})
-	return eg.Wait()
-}
-
 type MessageType uint32
 
 const (
 	MT_Data = MessageType(iota)
 
-	MT_LookupPublicKey
-	MT_PublicKey
+	MT_PublicKeyReq
+	MT_PublicKeyRes
 
-	MT_FindAddr
-	MT_Addr
+	MT_FindAddrReq
+	MT_FindAddrRes
+
+	MT_MTUReq
+	MT_MTURes
 )
 
 const (
 	MaxMsgLen = 4 + inet256.MaxMTU
+	MinMsgLen = 4
+	ReqIDLen  = 16
 
-	MinMsgLen     = 4
-	MinMsgLenData = MinMsgLen + 32 + 32
+	MinMsgLenData = MinMsgLen + 32
 
-	MinMsgLenFindAddr = 7
-	MinMsgLenAddr     = MinMsgLen + 16 + 32
+	MinMsgLenFindAddr = MinMsgLen + 2
+	MinMsgLenAddr     = MinMsgLen + ReqIDLen + 32
 
-	MinMsgLenLookupPublicKey = 4 + 32
-	MinMsgLenPublicKey       = 4 + 16
+	MinMsgLenLookupPublicKey = MinMsgLen + 32
+	MinMsgLenPublicKey       = MinMsgLen + ReqIDLen
+
+	MinMsgLenGetMTU = MinMsgLen + 32
+	MinMsgLenMTU    = MinMsgLen + ReqIDLen + 4
 )
 
 type Message []byte
@@ -108,19 +69,19 @@ func AsMessage(x []byte) (Message, error) {
 		if len(x) < MinMsgLenData {
 			return nil, fmt.Errorf("too short to be Data message")
 		}
-	case MT_FindAddr:
+	case MT_FindAddrReq:
 		if len(x) < MinMsgLenFindAddr {
 			return nil, fmt.Errorf("too short to be FindAddr")
 		}
-	case MT_Addr:
+	case MT_FindAddrRes:
 		if len(x) < MinMsgLenAddr {
 			return nil, fmt.Errorf("too short")
 		}
-	case MT_LookupPublicKey:
+	case MT_PublicKeyReq:
 		if len(x) < MinMsgLenLookupPublicKey {
 			return nil, fmt.Errorf("too short")
 		}
-	case MT_PublicKey:
+	case MT_PublicKeyRes:
 		if len(x) < MinMsgLenPublicKey {
 			return nil, fmt.Errorf("too short")
 		}
@@ -134,32 +95,56 @@ func (m Message) GetType() MessageType {
 	return MessageType(binary.BigEndian.Uint32(m[:4]))
 }
 
-func (m Message) GetSrc() inet256.Addr {
+func (m Message) GetDataAddr() inet256.Addr {
 	return inet256.AddrFromBytes(m[4:])
 }
 
-func (m Message) GetDst() inet256.Addr {
-	return inet256.AddrFromBytes(m[4+32:])
-}
-
 func (m Message) GetPayload() []byte {
-	return m[4+32+32:]
+	return m[4+32:]
 }
 
 func (m Message) GetRequestID() (ret [16]byte) {
 	return *(*[16]byte)(m[4 : 4+16])
 }
 
-func (m Message) GetPublicKey() (inet256.PublicKey, error) {
+func (m Message) GetPublicKeyReq() inet256.Addr {
+	return inet256.AddrFromBytes(m[MinMsgLen:])
+}
+
+func (m Message) GetPublicKeyRes() (inet256.PublicKey, error) {
 	return inet256.ParsePublicKey(m[4+32:])
 }
 
-func (m Message) GetFindAddr() ([]byte, int) {
+func (m Message) GetFindAddrReq() ([]byte, int) {
 	numBits := binary.BigEndian.Uint16(m[4:6])
 	prefix := m[6:]
 	return prefix, int(numBits)
 }
 
-func (m Message) GetAddr() inet256.Addr {
+func (m Message) GetFindAddrRes() inet256.Addr {
 	return inet256.AddrFromBytes(m[4:])
+}
+
+func (m Message) GetMTUReq() inet256.Addr {
+	return inet256.AddrFromBytes(m[4:])
+}
+
+func (m Message) GetMTURes() int {
+	return int(binary.BigEndian.Uint32(m[4+16:]))
+}
+
+func MakeDataMessage(out []byte, addr inet256.Addr, payload []byte) Message {
+	out = appendUint32(out, uint32(MT_Data))
+	out = append(out, addr[:]...)
+	out = append(out, payload...)
+	return out
+}
+
+func NewRequestID(m Message) (ret [16]byte) {
+	sha3.ShakeSum256(ret[:], m[:])
+	return ret
+}
+
+func appendUint32(out []byte, x uint32) []byte {
+	return out
 }
