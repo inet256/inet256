@@ -12,11 +12,11 @@ A 256 bit address space for peer-to-peer hosts/applications.
 >
 > All you have to do to recieve messages is generate a private, public key pair and connect to the INET256 daemon
 
-The INET256 API and Address Spec: [Spec](./docs/10_Spec.md)
+The INET256 API and Address Spec: [Spec](./doc/10_Spec.md)
 
 The architecture of the reference implementation: [Architecture](./ARCHITECTURE.md)
 
-Documentation for the daemon's config file: [Daemon Config](./docs/22_Daemon_Config.md)
+Documentation for the daemon's config file: [Daemon Config](./doc/22_Daemon_Config.md)
 
 ## Features
 - Stable addresses derived from public keys
