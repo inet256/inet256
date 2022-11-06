@@ -61,13 +61,6 @@ message PeerStatus {
     map<string, int64> last_seen = 2;
 }
 
-message Status {
-    bytes local_addr = 1;
-    repeated string transport_addrs = 2;
-    repeated PeerStatus peer_status = 3;
-    repeated bytes running_nodes = 4;
-}
-
 message DropReq {
     bytes private_key = 1;
 }
@@ -86,8 +79,4 @@ service INET256 {
     rpc Connect(stream ConnectMsg) returns (stream ConnectMsg) {}
     // Drop disconnects all connected sessions for a given private key.
     rpc Drop(DropReq) returns (DropRes) {}
-}
-
-service Admin {
-    rpc GetStatus(google.protobuf.Empty) returns (Status) {}
 }

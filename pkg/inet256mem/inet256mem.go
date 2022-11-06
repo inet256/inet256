@@ -6,9 +6,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/netutil"
+
+	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/s/swarmutil"
 )
 
 type memService struct {
@@ -69,14 +70,14 @@ func (s *memService) getNode(x inet256.Addr) *memNode {
 type memNode struct {
 	s         *memService
 	publicKey inet256.PublicKey
-	hub       *netutil.TellHub
+	hub       *swarmutil.TellHub[inet256.Addr]
 }
 
 func newMemNode(s *memService, privKey inet256.PrivateKey) *memNode {
 	return &memNode{
 		s:         s,
 		publicKey: privKey.Public(),
-		hub:       netutil.NewTellHub(),
+		hub:       swarmutil.NewTellHub[inet256.Addr](),
 	}
 }
 

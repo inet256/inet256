@@ -3,10 +3,6 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 h1:xJ4a3vCFaGF/jqvzLMYoU8P317H5OQ+Via4RmuPwCS0=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
-github.com/brendoncarroll/go-p2p v0.0.0-20221106150429-6f7b7f0262bb h1:Ql7/NvK5nMrQX7taJQz2PNAXLXTh2WSDGjsenulwpJU=
-github.com/brendoncarroll/go-p2p v0.0.0-20221106150429-6f7b7f0262bb/go.mod h1:VoWlgc0bHMY0832b3CzzzdKIXTbTn01o3Dlgc8CK/lw=
-github.com/brendoncarroll/go-p2p v0.0.0-20221106152142-8cdf2e1f4709 h1:j+DGmCYbh4qP4hGBz2nOy6xsgDccH9CRgP/gCpK9sag=
-github.com/brendoncarroll/go-p2p v0.0.0-20221106152142-8cdf2e1f4709/go.mod h1:VoWlgc0bHMY0832b3CzzzdKIXTbTn01o3Dlgc8CK/lw=
 github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27 h1:kubxPOr8hmyca9m5AZ3zx8yZkvCwXhjSi3Chtj7bg2E=
 github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27/go.mod h1:VoWlgc0bHMY0832b3CzzzdKIXTbTn01o3Dlgc8CK/lw=
 github.com/brendoncarroll/go-state v0.0.0-20210627233638-99c825eb7040 h1:I46IjykpWXCBYWVWGX8wqX7YCGWoAEY48+aR3p9tpak=

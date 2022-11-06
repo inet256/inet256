@@ -9,7 +9,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/rcsrv"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
@@ -17,7 +16,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var _ INET256Server = &Server{}
@@ -26,7 +24,6 @@ type Server struct {
 	s inet256.Service
 
 	UnimplementedINET256Server
-	UnimplementedAdminServer
 }
 
 func NewServer(s inet256.Service) *Server {
@@ -102,30 +99,6 @@ func (s *Server) MTU(ctx context.Context, req *MTUReq) (*MTURes, error) {
 	mtu := node.MTU(ctx, target)
 	return &MTURes{
 		Mtu: int64(mtu),
-	}, nil
-}
-
-func (s *Server) GetStatus(ctx context.Context, _ *emptypb.Empty) (*Status, error) {
-	srv, ok := s.s.(*mesh256.Server)
-	if !ok {
-		return nil, errors.Errorf("server does not support GetStatus")
-	}
-	mainAddr, err := srv.MainAddr()
-	if err != nil {
-		return nil, err
-	}
-	stati, err := srv.PeerStatus()
-	if err != nil {
-		return nil, err
-	}
-	taddrs, err := srv.TransportAddrs()
-	if err != nil {
-		return nil, err
-	}
-	return &Status{
-		LocalAddr:      mainAddr[:],
-		PeerStatus:     peerStatusToProto(stati),
-		TransportAddrs: serde.MarshalAddrs(taddrs),
 	}, nil
 }
 

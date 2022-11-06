@@ -5,10 +5,12 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/client/go_client/inet256client"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256ipv6"
-	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256d"
+	"github.com/inet256/inet256/pkg/inet256ipv6"
 )
 
 func Execute() error {
@@ -16,8 +18,15 @@ func Execute() error {
 }
 
 func NewRootCmd() *cobra.Command {
-	newClient := func() (mesh256.Service, error) {
-		return inet256client.NewExtendedClient(defaultAPIAddr)
+	newClient := func() (inet256.Service, error) {
+		return inet256client.NewClient(defaultAPIAddr)
+	}
+	newAdminClient := func() (inet256d.AdminClient, error) {
+		gc, err := grpc.Dial(defaultAPIAddr)
+		if err != nil {
+			return nil, err
+		}
+		return inet256d.NewAdminClient(gc), nil
 	}
 	newNode := func(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, error) {
 		c, err := newClient()
@@ -30,7 +39,7 @@ func NewRootCmd() *cobra.Command {
 		Use:   "inet256",
 		Short: "inet256: A secure network with a 256 bit address space",
 	}
-	c.AddCommand(newStatusCmd(newClient))
+	c.AddCommand(newStatusCmd(newAdminClient))
 	c.AddCommand(newNetworksCmd())
 	c.AddCommand(newIslandCmd())
 	c.AddCommand(newDaemonCmd())
