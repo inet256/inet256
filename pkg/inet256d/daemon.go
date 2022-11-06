@@ -6,17 +6,18 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
 type TransportAddr = mesh256.TransportAddr
@@ -27,7 +28,7 @@ type Params struct {
 	DiscoveryServices   []discovery.Service
 	AutoPeeringServices []autopeering.Service
 	APIAddr             string
-	TransportAddrParser p2p.AddrParser[mesh256.TransportAddr]
+	TransportAddrParser p2p.AddrParser[TransportAddr]
 }
 
 type Daemon struct {

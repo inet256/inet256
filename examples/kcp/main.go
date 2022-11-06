@@ -9,9 +9,8 @@ import (
 	"strconv"
 
 	"github.com/inet256/inet256/client/go_client/inet256client"
-	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/mesh256"
+	"github.com/inet256/inet256/pkg/inet256mem"
 	kcp "github.com/xtaci/kcp-go/v5"
 	"golang.org/x/sync/errgroup"
 )
@@ -46,11 +45,7 @@ func run() error {
 			return err
 		}
 	} else {
-		srv = mesh256.NewServer(mesh256.Params{
-			NewNetwork: beaconnet.Factory,
-			Peers:      mesh256.NewPeerStore(),
-			PrivateKey: generateKey(),
-		})
+		srv = inet256mem.New()
 	}
 	// listener
 	ctx := context.Background()

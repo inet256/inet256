@@ -29,9 +29,12 @@ Documentation for the daemon's config file: [Daemon Config](./doc/22_Daemon_Conf
 - IPv6 Portal for IPv6 over INET256. Exposed as a TUN device. (requires `NET_ADMIN`).
 - Autopeering and transport address discovery help make peering easy.
 
-## Network Routing Protocols
-This project separates a modern communication API from the routing algorithm that powers it.
-The autoconfiguring, distributed routing algorithms of the sort required are under active research, and we don't want to couple INET256 to any one algorithm as the state of the art could change rapidly.
+## Mesh256
+The reference implementation of an INET256 Service, which lives in this repository, is called `mesh256`.
+It uses a distributed routing algorithm to allow nodes on the network to discover paths between one another.
+
+### Network Routing Protocols
+The autoconfiguring, distributed routing algorithms of the sort required are under active research, and we don't want to couple mesh256 to any one algorithm as the state of the art could change rapidly.
 
 Users are ultimately in control of which networks they participate in.
 Networks can be selected in the configuration file.
@@ -70,7 +73,7 @@ This project provides tools for using INET256 networks, some of which are not ye
 ## License
 Code in this repository is by default licensed under the GPL as defined in `LICENSE`.
 Some of the sub-directories contain their own `LICENSE` files for the LGPL, or MPL as defined therein.
-That license applies to the sub-tree.
+That license applies to the sub-directory.
 
 In summary: you should be able to import an INET256 client in a language of your choice and do whatever you want.
 But other than clients, the implementation is strongly copyleft.

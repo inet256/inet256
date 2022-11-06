@@ -6,6 +6,7 @@ clean:
 
 protobuf:
 	cd ./pkg/inet256grpc && ./build.sh
+	cd ./pkg/inet256d && ./build.sh
 	cd ./pkg/discovery/centraldisco/internal && ./build.sh
 
 install:

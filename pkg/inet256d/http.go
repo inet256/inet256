@@ -72,8 +72,7 @@ func (d *Daemon) makeGRPCServer(s *mesh256.Server) *grpc.Server {
 		Time:    1 * time.Second,
 		Timeout: 5 * time.Second,
 	}))
-	x := inet256grpc.NewServer(s)
-	inet256grpc.RegisterINET256Server(gs, x)
-	inet256grpc.RegisterAdminServer(gs, x)
+	inet256grpc.RegisterINET256Server(gs, inet256grpc.NewServer(s))
+	RegisterAdminServer(gs, Server{}) // TODO
 	return gs
 }

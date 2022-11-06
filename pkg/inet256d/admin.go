@@ -1,4 +1,4 @@
-package inet256grpc
+package inet256d
 
 import (
 	"time"
@@ -6,6 +6,10 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 )
+
+type Server struct {
+	UnimplementedAdminServer
+}
 
 func peerStatusFromProto(xs []*PeerStatus) []mesh256.PeerStatus {
 	ys := make([]mesh256.PeerStatus, len(xs))
