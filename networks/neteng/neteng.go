@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/futures"
 
 	"github.com/inet256/inet256/pkg/bitstr"
-	"github.com/inet256/inet256/pkg/futures"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/netutil"
@@ -119,11 +119,11 @@ func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet2
 	bs := bitstr.FromSource(bitstr.BytesMSB{Bytes: prefix, End: nbits})
 	fut, created := n.findAddr.GetOrCreate(bs)
 	if created {
-		defer n.findAddr.Delete(bs)
+		defer n.findAddr.Delete(bs, fut)
 	}
 	return retry.RetryRet1(ctx, func() (inet256.Addr, error) {
 		n.router.FindAddr(send, n.handleInfo, prefix, nbits)
-		return fut.Await(ctx)
+		return futures.Await[inet256.Addr](ctx, fut)
 	}, retry.WithBackoff(retry.NewConstantBackoff(200*time.Millisecond)))
 }
 
@@ -138,11 +138,11 @@ func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (ine
 	}
 	fut, created := n.lookupPubKey.GetOrCreate(target)
 	if created {
-		defer n.lookupPubKey.Delete(target)
+		defer n.lookupPubKey.Delete(target, fut)
 	}
 	return retry.RetryRet1(ctx, func() (inet256.PublicKey, error) {
 		n.router.LookupPublicKey(send, n.handleInfo, target)
-		return fut.Await(ctx)
+		return futures.Await[inet256.PublicKey](ctx, fut)
 	}, retry.WithBackoff(retry.NewConstantBackoff(200*time.Millisecond)))
 }
 
@@ -200,7 +200,7 @@ func (n *Network) handleInfo(target inet256.Addr, publicKey inet256.PublicKey) {
 // it returns true if the target fulfilled an active request.
 func (n *Network) handleAddr(target inet256.Addr) (ret bool) {
 	bs := bitstr.FromSource(bitstr.BytesMSB{Bytes: target[:], End: 256})
-	n.findAddr.ForEach(func(prefix bitstr.String, fut *futures.Future[inet256.Addr]) bool {
+	n.findAddr.ForEach(func(prefix bitstr.String, fut *futures.Promise[inet256.Addr]) bool {
 		if bitstr.HasPrefix(bs, prefix) {
 			if fut.Succeed(target) {
 				ret = true

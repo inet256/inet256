@@ -3,7 +3,7 @@ module github.com/inet256/inet256
 go 1.18
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20221106150429-6f7b7f0262bb
+	github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27
 	github.com/brendoncarroll/go-tai64 v0.0.0-20220527232055-eab29bd93d59
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
