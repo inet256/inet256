@@ -32,7 +32,7 @@ func (s quic2Swarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Add
 	for done := false; !done; {
 		if err := s.Swarm.Receive(ctx, func(msg p2p.Message[quicswarm.Addr[inet256.Addr]]) {
 			srcID := p2p.ExtractPeerID(msg.Src)
-			srcAddr := (msg.Src).Addr.(inet256.Addr)
+			srcAddr := msg.Src.Addr
 			// This is where the actual check for who can send as what address happens
 			if !bytes.Equal(srcID[:], srcAddr[:]) {
 				logrus.Warnf("incorrect id=%v for address=%v", srcID, srcAddr)
@@ -40,7 +40,7 @@ func (s quic2Swarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Add
 			}
 			th(p2p.Message[inet256.Addr]{
 				Src:     srcAddr,
-				Dst:     msg.Dst.Addr.(inet256.Addr),
+				Dst:     msg.Dst.Addr,
 				Payload: msg.Payload,
 			})
 			done = true
@@ -62,7 +62,7 @@ func (s quic2Swarm) LocalAddr() inet256.Addr {
 
 func (s quic2Swarm) LocalAddrs() (ys []inet256.Addr) {
 	for _, x := range s.Swarm.LocalAddrs() {
-		ys = append(ys, x.Addr.(inet256.Addr))
+		ys = append(ys, x.Addr)
 	}
 	return ys
 }
