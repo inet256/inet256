@@ -191,9 +191,8 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 		if strings.HasPrefix(endpoint, "http://") {
 			endpoint = strings.TrimPrefix(endpoint, "http://")
 			opts = append(opts, grpc.WithInsecure())
-		} else if strings.HasPrefix(endpoint, "https://") {
-			endpoint = strings.TrimPrefix(endpoint, "https://")
 		}
+		endpoint = strings.TrimPrefix(endpoint, "https://")
 		gc, err := grpc.Dial(endpoint, opts...)
 		if err != nil {
 			return nil, err

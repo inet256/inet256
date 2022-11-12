@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,7 +71,7 @@ func doRequest[Req, Res any](ctx context.Context, hc *http.Client, method, url s
 	if resp.StatusCode/100 != 2 {
 		return nil, fmt.Errorf("non-200 status %v", resp.Status)
 	}
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
