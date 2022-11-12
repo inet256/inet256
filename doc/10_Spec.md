@@ -51,7 +51,7 @@ For the purpose of connecting to a trusted peer, 2nd-pre-image resistance is the
 The INET256 API is an upwards facing (towards the application, not the network link layer) API specification.
 
 It is defined in terms of methods which can be implemented by libraries, RPCs, system calls, etc.
-The reference implementation uses gRPC.
+The reference implementation uses HTTP.
 
 ## 2.1 Service API
 Conceptually the service API allows the creation and desctruction of Nodes which represent entities which can send and receive messages.

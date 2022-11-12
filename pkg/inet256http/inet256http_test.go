@@ -35,7 +35,10 @@ func TestOpen(t *testing.T) {
 		defer l.Close()
 		endpoint := "http://" + l.Addr().String() + "/"
 		t.Log(endpoint)
-		c := NewClient(endpoint)
+		c, err := NewClient(endpoint)
+		if err != nil {
+			return err
+		}
 		node, err := c.Open(ctx, p2ptest.NewTestKey(t, 0))
 		if err != nil {
 			return err
@@ -65,5 +68,7 @@ func newTestService(t testing.TB, x inet256.Service) inet256.Service {
 			t.Log(err)
 		}
 	}()
-	return NewClient("http://" + l.Addr().String() + "/")
+	c, err := NewClient("http://" + l.Addr().String() + "/")
+	require.NoError(t, err)
+	return c
 }

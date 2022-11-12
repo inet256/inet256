@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi"
 	"github.com/inet256/inet256/pkg/inet256http"
@@ -15,7 +16,11 @@ import (
 
 // runHTTPServer starts a listener at endpoint, and serves an HTTP API server backed by srv.
 func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh256.Server, pgath prometheus.Gatherer) error {
-	l, err := net.Listen("tcp", endpoint)
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	l, err := net.Listen("tcp", u.Host)
 	if err != nil {
 		return err
 	}
@@ -35,8 +40,6 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 	hSrv := http.Server{
 		Handler:     mux,
 		BaseContext: func(l net.Listener) context.Context { return ctx },
-		ReadTimeout: 0,
-		IdleTimeout: 0,
 	}
 	go func() {
 		logrus.Println("API listening on: ", l.Addr())

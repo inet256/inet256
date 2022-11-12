@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -36,7 +35,11 @@ type Client struct {
 	dialer   net.Dialer
 }
 
-func NewClient(endpoint string, opts ...ClientOption) *Client {
+func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
+	_, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	c := &Client{
 		endpoint: endpoint,
 		dialer:   net.Dialer{},
@@ -44,7 +47,7 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 	for _, opt := range opts {
 		opt(c)
 	}
-	return c
+	return c, nil
 }
 
 func (c *Client) Open(ctx context.Context, privKey inet256.PrivateKey, opts ...inet256.NodeOption) (inet256.Node, error) {
@@ -81,13 +84,10 @@ func (c *Client) Open(ctx context.Context, privKey inet256.PrivateKey, opts ...i
 	}
 	if res.StatusCode != http.StatusOK {
 		conn.Close()
-		return nil, errors.New("inet256http: error opening node")
-	}
-	if br.Buffered() > 0 {
-		return nil, errors.New("data still in buffer")
+		return nil, fmt.Errorf("inet256http: error opening node %v", res.Status)
 	}
 	logctx.Debugf(ctx, "client opened node %v", id)
-	return newNodeClient(conn, pubKey), nil
+	return newNodeClient(br, conn, conn, pubKey), nil
 }
 
 func (c *Client) Drop(ctx context.Context, privKey inet256.PrivateKey) error {
@@ -139,26 +139,30 @@ func (c *Client) Ping(ctx context.Context) error {
 }
 
 func (c *Client) getURL() (*url.URL, error) {
-	return url.Parse(c.endpoint)
+	u, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 var _ inet256.Node = nodeClient{}
 
 type nodeClient struct {
-	rwc io.ReadWriteCloser
+	c io.Closer
 	*inet256ipc.NodeClient
 }
 
-func newNodeClient(rwc io.ReadWriteCloser, pubKey inet256.PublicKey) nodeClient {
-	fr := inet256ipc.NewStreamFramer(rwc)
+func newNodeClient(r io.Reader, w io.Writer, c io.Closer, pubKey inet256.PublicKey) nodeClient {
+	fr := inet256ipc.NewStreamFramer(r, w)
 	return nodeClient{
-		rwc:        rwc,
+		c:          c,
 		NodeClient: inet256ipc.NewNodeClient(fr, pubKey),
 	}
 }
 
 func (nc nodeClient) Close() error {
-	nc.rwc.Close()
+	nc.c.Close()
 	nc.NodeClient.Close()
 	return nil
 }

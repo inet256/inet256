@@ -25,10 +25,10 @@ func newTestNode(t testing.TB, x inet256.Node) inet256.Node {
 	c1, c2 := net.Pipe()
 	go func() {
 		log.Println("serving node")
-		ServeNode(ctx, x, NewStreamFramer(c1))
+		ServeNode(ctx, x, NewStreamFramer(c1, c1))
 		log.Println("done serving node")
 	}()
-	nc := NewNodeClient(NewStreamFramer(c2), x.PublicKey())
+	nc := NewNodeClient(NewStreamFramer(c2, c2), x.PublicKey())
 	t.Cleanup(func() {
 		log.Println("starting cleanup")
 		c1.Close()

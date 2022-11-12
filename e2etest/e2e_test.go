@@ -66,7 +66,7 @@ func newSide(t testing.TB, i int) *side {
 
 	config := inet256d.DefaultConfig()
 	config.PrivateKeyPath = "./private_key.pem"
-	config.APIEndpoint = "127.0.0.1:" + strconv.Itoa(apiPort)
+	config.APIEndpoint = "http://127.0.0.1:" + strconv.Itoa(apiPort)
 	config.Transports = []inet256d.TransportSpec{
 		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(transportPort)),
 	}

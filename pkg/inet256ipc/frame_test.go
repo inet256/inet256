@@ -9,12 +9,12 @@ import (
 
 func TestStreamFramer(t *testing.T) {
 	buf := &bytes.Buffer{}
-	w := NewStreamFramer(buf)
-	r := NewStreamFramer(buf)
+	w := NewStreamFramer(nil, buf)
+	r := NewStreamFramer(buf, nil)
 
 	// Write
 	fr := NewFrame()
-	for i := 0; i <= MaxFrameBodyLen; i++ {
+	for i := 0; i <= MaxFrameBodyLen/100; i += 100 {
 		fr.SetLen(i)
 		if err := w.WriteFrame(ctx, fr); err != nil {
 			require.NoError(t, err)
@@ -23,7 +23,7 @@ func TestStreamFramer(t *testing.T) {
 	require.Greater(t, buf.Len(), 0)
 	// Read
 	fr = NewFrame()
-	for i := 0; i <= MaxFrameBodyLen; i++ {
+	for i := 0; i <= MaxFrameBodyLen/100; i += 100 {
 		if err := r.ReadFrame(ctx, fr); err != nil {
 			require.NoError(t, err)
 		}

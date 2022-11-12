@@ -5,41 +5,57 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
+	"time"
 
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
 	"golang.org/x/sync/errgroup"
 )
 
+type serveNodeConfig struct {
+	KeepAliveInterval time.Duration
+	KeepAliveTimeout  time.Duration
+}
+
+type ServeNodeOption func(c *serveNodeConfig)
+
 // ServeNode reads and writes packets from a Framer, using the node to
 // send network data and answer requests.
 // If the context is cancelled ServeNode returns nil.
-func ServeNode(ctx context.Context, node inet256.Node, framer Framer) error {
-	eg := errgroup.Group{}
+func ServeNode(ctx context.Context, node inet256.Node, framer Framer, opts ...ServeNodeOption) error {
+	config := serveNodeConfig{
+		KeepAliveInterval: DefaultKeepAliveInterval,
+		KeepAliveTimeout:  DefaultKeepAliveTimeout,
+	}
+	ctx, cf := context.WithCancel(ctx)
+	defer cf()
+	eg, ctx := errgroup.WithContext(ctx)
 	pool := newFramePool()
+	var gotOne atomic.Bool
 	// read loop
 	eg.Go(func() error {
 		for {
 			fr := pool.Acquire()
 			if err := framer.ReadFrame(ctx, fr); err != nil {
-				if errors.Is(err, io.EOF) {
-					err = nil
-				}
 				return err
 			}
+			gotOne.Store(true)
 			// handle message
 			if err := func() error {
 				msg, err := AsMessage(fr.Body(), true)
 				if err != nil {
 					return err
 				}
-				if msg.IsTell() {
+				switch msg.GetType() {
+				case MT_Data:
 					dm := msg.DataMsg()
 					if err := node.Send(ctx, dm.Addr, dm.Payload); err != nil {
 						return err
 					}
 					pool.Release(fr)
-				} else {
+				case MT_KeepAlive:
+				default:
 					// spawn goroutine for request
 					eg.Go(func() error {
 						defer pool.Release(fr)
@@ -78,14 +94,50 @@ func ServeNode(ctx context.Context, node inet256.Node, framer Framer) error {
 			}
 		}
 	})
+	eg.Go(func() error {
+		ticker := time.NewTicker(config.KeepAliveInterval)
+		defer ticker.Stop()
+		for {
+			fr := pool.Acquire()
+			WriteKeepAlive(fr)
+			if err := framer.WriteFrame(ctx, fr); err != nil {
+				return err
+			}
+			pool.Release(fr)
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
+		}
+	})
+	eg.Go(func() error {
+		timer := time.NewTimer(config.KeepAliveTimeout)
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-timer.C:
+				if !gotOne.Load() {
+					return errors.New("inet256ipc: server missed keep alive from client")
+				}
+				gotOne.Store(false)
+				timer.Reset(config.KeepAliveTimeout)
+			}
+		}
+	})
 	err := eg.Wait()
 	if errors.Is(err, ctx.Err()) {
+		err = nil
+	}
+	if errors.Is(err, io.EOF) {
 		err = nil
 	}
 	return err
 }
 
-func handleAsk(ctx context.Context, node inet256.Node, msg Message, resFr Frame) error {
+func handleAsk(ctx context.Context, node inet256.Node, msg Message, resFr *Frame) error {
 	switch msg.GetType() {
 	case MT_MTU:
 		req, err := msg.MTUReq()
@@ -125,6 +177,7 @@ func handleAsk(ctx context.Context, node inet256.Node, msg Message, resFr Frame)
 				PublicKey: inet256.MarshalPublicKey(pubKey),
 			})
 		}
+	case MT_KeepAlive:
 	default:
 		return fmt.Errorf("unrecognized message type %v", msg.GetType())
 	}

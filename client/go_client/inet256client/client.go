@@ -21,7 +21,7 @@ type (
 
 // NewClient creates an INET256 service using the specified endpoint for the API.
 func NewClient(endpoint string) (inet256.Service, error) {
-	return inet256http.NewClient(endpoint), nil
+	return inet256http.NewClient(endpoint)
 }
 
 // NewEnvClient creates an INET256 service using the environment variables to find the API.

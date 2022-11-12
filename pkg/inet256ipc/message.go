@@ -18,6 +18,7 @@ const (
 	MT_PublicKey = MessageType('P'<<24 | 'U'<<16 | 'B'<<8 | 'K')
 	MT_FindAddr  = MessageType('F'<<24 | 'I'<<16 | 'N'<<8 | 'D')
 	MT_MTU       = MessageType('M'<<24 | 'T'<<16 | 'U'<<8 | '_')
+	MT_KeepAlive = MessageType('K'<<24 | 'E'<<16 | 'E'<<8 | 'P')
 )
 
 const (
@@ -33,7 +34,7 @@ type Message []byte
 
 func AsMessage(x []byte, isOutgoing bool) (Message, error) {
 	if len(x) < MinMessageLen {
-		return nil, fmt.Errorf("too short to be message")
+		return nil, fmt.Errorf("too short to be message len=%d", len(x))
 	}
 	m := Message(x)
 	switch m.GetType() {
@@ -45,6 +46,7 @@ func AsMessage(x []byte, isOutgoing bool) (Message, error) {
 		if len(x) < MinAskMsgLen {
 			return nil, fmt.Errorf("message type=%v does not contain request-id", m.GetType())
 		}
+	case MT_KeepAlive:
 	default:
 		return nil, fmt.Errorf("unrecognized type %v", m.GetType())
 	}
@@ -60,7 +62,12 @@ func (m Message) GetType() MessageType {
 }
 
 func (m Message) IsTell() bool {
-	return m.GetType() == MT_Data
+	switch m.GetType() {
+	case MT_Data, MT_KeepAlive:
+		return true
+	default:
+		return false
+	}
 }
 
 func (m Message) IsAsk() bool {
@@ -138,7 +145,7 @@ func (m Message) MTURes() (*MTURes, error) {
 }
 
 // WriteDataMessage places a message in the frame
-func WriteDataMessage(fr Frame, addr inet256.Addr, data []byte) {
+func WriteDataMessage(fr *Frame, addr inet256.Addr, data []byte) {
 	fr.SetLen(4 + 32 + len(data))
 	m := Message(fr.Body())
 	m.SetType(MT_Data)
@@ -146,7 +153,13 @@ func WriteDataMessage(fr Frame, addr inet256.Addr, data []byte) {
 	copyExact(m.DataPayload(), data)
 }
 
-func WriteAskMessage(fr Frame, reqID [16]byte, mtype MessageType, x any) {
+func WriteKeepAlive(fr *Frame) {
+	fr.SetLen(4)
+	m := Message(fr.Body())
+	m.SetType(MT_KeepAlive)
+}
+
+func WriteAskMessage(fr *Frame, reqID [16]byte, mtype MessageType, x any) {
 	data, err := json.Marshal(x)
 	if err != nil {
 		panic(err)
@@ -158,15 +171,15 @@ func WriteAskMessage(fr Frame, reqID [16]byte, mtype MessageType, x any) {
 	copyExact(m.AskBody(), data)
 }
 
-func WriteRequest(fr Frame, reqID [16]byte, mtype MessageType, x any) {
+func WriteRequest(fr *Frame, reqID [16]byte, mtype MessageType, x any) {
 	WriteAskMessage(fr, reqID, mtype, x)
 }
 
-func WriteSuccess[T any](fr Frame, reqID [16]byte, mtype MessageType, x T) {
+func WriteSuccess[T any](fr *Frame, reqID [16]byte, mtype MessageType, x T) {
 	WriteAskMessage(fr, reqID, mtype, Response[T]{Success: x})
 }
 
-func WriteError[T any](fr Frame, reqID [16]byte, mtype MessageType, err error) {
+func WriteError[T any](fr *Frame, reqID [16]byte, mtype MessageType, err error) {
 	WriteAskMessage(fr, reqID, mtype, Response[T]{Error: err.Error()})
 }
 

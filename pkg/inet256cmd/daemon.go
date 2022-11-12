@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const defaultAPIAddr = inet256d.DefaultAPIEndpoint
+const defaultAPIAddr = inet256d.DefaultAPIEndpoint + "/nodes/"
 
 func newDaemonCmd() *cobra.Command {
 	c := &cobra.Command{

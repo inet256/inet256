@@ -77,10 +77,11 @@ func (s *Server) handleOpen(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	defer conn.Close()
-	if bwr.Reader.Buffered() > 0 || bwr.Writer.Buffered() > 0 {
-		return errors.New("bufio.ReadWriter not empty")
+	if err := bwr.Writer.Flush(); err != nil {
+		return err
 	}
+	fr := inet256ipc.NewStreamFramer(bwr.Reader, conn)
 	logctx.Infof(ctx, "serving node %v", node.LocalAddr())
 	defer logctx.Infof(ctx, "done serving node %v", node.LocalAddr())
-	return inet256ipc.ServeNode(ctx, node, inet256ipc.NewStreamFramer(conn))
+	return inet256ipc.ServeNode(ctx, node, fr)
 }

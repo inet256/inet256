@@ -17,68 +17,77 @@ const (
 )
 
 // Frame is a length-prefixed frame suitable for transmitting messages over a stream.
-type Frame []byte
-
-func NewFrame() Frame {
-	return make([]byte, MaxFrameLen)
+type Frame struct {
+	x [MaxFrameLen]byte
 }
 
-func (fr Frame) SetLen(l int) {
+func NewFrame() *Frame {
+	return &Frame{}
+}
+
+func (fr *Frame) SetLen(l int) {
 	if l > MaxFrameLen {
 		panic(l)
 	}
-	binary.BigEndian.PutUint32(fr[:4], uint32(l))
+	binary.BigEndian.PutUint32(fr.x[:4], uint32(l))
 }
 
-func (fr Frame) Len() int {
-	return int(binary.BigEndian.Uint32(fr[:4]))
+func (fr *Frame) Len() int {
+	return int(binary.BigEndian.Uint32(fr.x[:4]))
 }
 
 // End is the end of the frame in the underlying slice
-func (fr Frame) End() int {
+func (fr *Frame) End() int {
 	end := 4 + fr.Len()
-	if end > len(fr) {
-		return len(fr)
+	if end > len(fr.x) {
+		return len(fr.x)
 	}
 	return end
 }
 
-func (fr Frame) Body() []byte {
-	return fr[4:fr.End()]
+func (fr *Frame) Body() []byte {
+	return fr.x[4:fr.End()]
 }
 
 // Payload is the part of the frame to be transmitted on the wire
-func (fr Frame) Payload() []byte {
-	return fr[:fr.End()]
+func (fr *Frame) Payload() []byte {
+	return fr.x[:fr.End()]
 }
 
 type Framer interface {
-	WriteFrame(ctx context.Context, fr Frame) error
-	ReadFrame(ctx context.Context, fr Frame) error
+	WriteFrame(ctx context.Context, fr *Frame) error
+	ReadFrame(ctx context.Context, fr *Frame) error
 }
 
 type StreamFramer struct {
-	rw  io.ReadWriter
-	br  *bufio.Reader
-	wmu sync.Mutex
 	rmu sync.Mutex
+	br  *bufio.Reader
+
+	wmu sync.Mutex
+	w   io.Writer
 }
 
-func NewStreamFramer(rw io.ReadWriter) *StreamFramer {
+func NewStreamFramer(r io.Reader, w io.Writer) *StreamFramer {
+	var br *bufio.Reader
+	if br2, ok := r.(*bufio.Reader); ok {
+		br = br2
+	} else {
+		br = bufio.NewReaderSize(r, MaxFrameLen)
+	}
 	return &StreamFramer{
-		rw: rw,
-		br: bufio.NewReaderSize(rw, MaxFrameLen),
+		w:  w,
+		br: br,
 	}
 }
 
-func (sf *StreamFramer) WriteFrame(ctx context.Context, fr Frame) error {
+func (sf *StreamFramer) WriteFrame(ctx context.Context, fr *Frame) error {
 	sf.wmu.Lock()
 	defer sf.wmu.Unlock()
-	_, err := sf.rw.Write(fr.Payload())
+	_, err := sf.w.Write(fr.Payload())
 	return err
 }
 
-func (sf *StreamFramer) ReadFrame(ctx context.Context, fr Frame) error {
+func (sf *StreamFramer) ReadFrame(ctx context.Context, fr *Frame) error {
 	sf.rmu.Lock()
 	defer sf.rmu.Unlock()
 	var lbuf [4]byte
@@ -110,11 +119,11 @@ func newFramePool() *framePool {
 	}
 }
 
-func (p *framePool) Acquire() Frame {
-	return p.pool.Get().(Frame)
+func (p *framePool) Acquire() *Frame {
+	return p.pool.Get().(*Frame)
 }
 
-func (p *framePool) Release(fr Frame) {
+func (p *framePool) Release(fr *Frame) {
 	fr.SetLen(0)
 	p.pool.Put(fr)
 }

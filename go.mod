@@ -1,6 +1,6 @@
 module github.com/inet256/inet256
 
-go 1.18
+go 1.19
 
 require (
 	github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27

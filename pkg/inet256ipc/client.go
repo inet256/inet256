@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/futures"
@@ -53,7 +54,29 @@ func NewNodeClient(fr Framer, localPubKey inet256.PublicKey) *NodeClient {
 			return c.readLoop(ctx)
 		})
 	}
+	c.eg.Go(func() error {
+		return c.keepAliveLoop(ctx)
+	})
 	return c
+}
+
+func (c *NodeClient) keepAliveLoop(ctx context.Context) error {
+	defer c.cf()
+	ticker := time.NewTicker(DefaultKeepAliveInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			fr := c.framePool.Acquire()
+			WriteKeepAlive(fr)
+			if err := c.framer.WriteFrame(ctx, fr); err != nil {
+				return err
+			}
+			c.framePool.Release(fr)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 func (c *NodeClient) readLoop(ctx context.Context) error {
@@ -112,6 +135,7 @@ func (c *NodeClient) handleMessage(ctx context.Context, x []byte) error {
 				fut.Succeed(res.MTU)
 			}
 		}
+	case MT_KeepAlive:
 	default:
 		return fmt.Errorf("not expecting type %v", mt)
 	}
