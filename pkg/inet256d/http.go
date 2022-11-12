@@ -2,6 +2,8 @@ package inet256d
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -41,6 +43,18 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 		Handler:     mux,
 		BaseContext: func(l net.Listener) context.Context { return ctx },
 	}
+	mux.HandleFunc("/admin/status", func(w http.ResponseWriter, r *http.Request) {
+		peers, _ := srv.PeerStatus()
+		transportAddrs, _ := srv.TransportAddrs()
+		mainAddr, _ := srv.MainAddr()
+		data, _ := json.Marshal(StatusRes{
+			MainAddr:       mainAddr,
+			TransportAddrs: mapSlice(transportAddrs, func(x TransportAddr) string { return fmt.Sprint(x) }),
+			Peers:          peers,
+		})
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
+	})
 	go func() {
 		logrus.Println("API listening on: ", l.Addr())
 		if err := hSrv.Serve(l); err != nil && err != http.ErrServerClosed {
@@ -49,4 +63,12 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 	}()
 	<-ctx.Done()
 	return hSrv.Shutdown(context.Background())
+}
+
+func mapSlice[X, Y any](xs []X, fn func(X) Y) (ret []Y) {
+	ret = make([]Y, len(xs))
+	for i := range xs {
+		ret[i] = fn(xs[i])
+	}
+	return ret
 }
