@@ -15,6 +15,10 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
+type clientConfig struct{}
+
+type NodeClientOption func(*clientConfig)
+
 var _ inet256.Node = &NodeClient{}
 
 type NodeClient struct {
@@ -33,7 +37,7 @@ type NodeClient struct {
 }
 
 // NewNodeClient returns a client which will read and write from rwc in the background
-func NewNodeClient(fr Framer, localPubKey inet256.PublicKey) *NodeClient {
+func NewNodeClient(fr Framer, localPubKey inet256.PublicKey, opts ...NodeClientOption) *NodeClient {
 	ctx := context.Background()
 	ctx, cf := context.WithCancel(ctx)
 	c := &NodeClient{
