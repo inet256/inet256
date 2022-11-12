@@ -56,7 +56,7 @@ This project provides tools for using INET256 networks, some of which are not ye
 
 - `pkg/mesh256` The reference implementation of an INET256 Service. 
 
-- `pkg/inet256d` The daemon that manages setting up transports, autopeering, discovery, the actual INET256 service, and the gRPC API.
+- `pkg/inet256d` The daemon that manages setting up transports, autopeering, discovery, the actual INET256 service, and the HTTP API.
 
 - `pkg/inet256ipv6` Logic for bridging INET256 to IPv6. Includes the IPv6 portal.
 

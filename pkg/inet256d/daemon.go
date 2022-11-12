@@ -2,20 +2,15 @@ package inet256d
 
 import (
 	"context"
-	"net"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256grpc"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 )
@@ -108,26 +103,6 @@ func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *mesh256.Server) er
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-func (d *Daemon) runGRPCServer(ctx context.Context, endpoint string, s *mesh256.Server) error {
-	l, err := net.Listen("tcp", endpoint)
-	if err != nil {
-		return err
-	}
-	defer l.Close()
-	d.log.Println("API listening on: ", l.Addr())
-	gs := grpc.NewServer(grpc.KeepaliveParams(keepalive.ServerParameters{
-		Time:    1 * time.Second,
-		Timeout: 5 * time.Second,
-	}))
-	srv := inet256grpc.NewServer(s)
-	inet256grpc.RegisterINET256Server(gs, srv)
-	go func() {
-		<-ctx.Done()
-		gs.Stop()
-	}()
-	return gs.Serve(l)
 }
 
 func copyPeers(dst, src peers.Store[mesh256.TransportAddr]) {

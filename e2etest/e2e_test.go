@@ -9,14 +9,18 @@ import (
 	"testing"
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
+	"github.com/stretchr/testify/require"
+
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
+	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/serde"
-	"github.com/stretchr/testify/require"
 )
+
+var ctx = context.Background()
 
 func Test2Node(t *testing.T) {
 	sides := make([]*side, 2)
@@ -33,6 +37,10 @@ func Test2Node(t *testing.T) {
 	}
 	for i := range sides {
 		sides[i].startDaemon(t)
+	}
+	for i := range sides {
+		c := sides[i].newClient(t).(*inet256http.Client)
+		require.NoError(t, c.Ping(ctx))
 	}
 	n1 := sides[0].newNode(t, p2ptest.NewTestKey(t, 101))
 	n2 := sides[1].newNode(t, p2ptest.NewTestKey(t, 102))
@@ -58,7 +66,7 @@ func newSide(t testing.TB, i int) *side {
 
 	config := inet256d.DefaultConfig()
 	config.PrivateKeyPath = "./private_key.pem"
-	config.APIEndpoint = "127.0.0.1:" + strconv.Itoa(apiPort)
+	config.APIEndpoint = "http://127.0.0.1:" + strconv.Itoa(apiPort)
 	config.Transports = []inet256d.TransportSpec{
 		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(transportPort)),
 	}
@@ -121,7 +129,7 @@ func (s *side) localAddr() inet256.Addr {
 }
 
 func (s *side) newClient(t testing.TB) inet256.Service {
-	client, err := inet256client.NewClient("127.0.0.1:" + strconv.Itoa(s.apiPort))
+	client, err := inet256client.NewClient("http://127.0.0.1:" + strconv.Itoa(s.apiPort) + "/nodes/")
 	require.NoError(t, err)
 	return client
 }
@@ -129,7 +137,7 @@ func (s *side) newClient(t testing.TB) inet256.Service {
 // newNode returns a node which is cleaned up at the end of the test
 func (s *side) newNode(t testing.TB, privateKey inet256.PrivateKey) inet256.Node {
 	client := s.newClient(t)
-	node, err := client.Open(context.Background(), privateKey)
+	node, err := client.Open(ctx, privateKey)
 	require.NoError(t, err)
 	t.Cleanup(func() { node.Close() })
 	return node
@@ -147,7 +155,7 @@ func (s *side) startDaemon(t testing.TB) {
 	d := inet256d.New(*params)
 
 	// run daemon, cancel then block until it exists during cleanup
-	ctx, cf := context.WithCancel(context.Background())
+	ctx, cf := context.WithCancel(ctx)
 	done := make(chan struct{})
 	t.Cleanup(func() {
 		cf()

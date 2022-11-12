@@ -25,7 +25,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const DefaultAPIEndpoint = "127.0.0.1:2560"
+const DefaultAPIEndpoint = "http://127.0.0.1:2560"
 
 type PeerSpec struct {
 	ID    inet256.Addr `yaml:"id"`
@@ -191,9 +191,8 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 		if strings.HasPrefix(endpoint, "http://") {
 			endpoint = strings.TrimPrefix(endpoint, "http://")
 			opts = append(opts, grpc.WithInsecure())
-		} else if strings.HasPrefix(endpoint, "https://") {
-			endpoint = strings.TrimPrefix(endpoint, "https://")
 		}
+		endpoint = strings.TrimPrefix(endpoint, "https://")
 		gc, err := grpc.Dial(endpoint, opts...)
 		if err != nil {
 			return nil, err

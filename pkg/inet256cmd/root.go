@@ -6,12 +6,13 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
 )
+
+const defaultAPIAddr = "http://127.0.0.1:2560"
 
 func Execute() error {
 	return NewRootCmd().Execute()
@@ -19,14 +20,10 @@ func Execute() error {
 
 func NewRootCmd() *cobra.Command {
 	newClient := func() (inet256.Service, error) {
-		return inet256client.NewClient(defaultAPIAddr)
+		return inet256client.NewEnvClient()
 	}
 	newAdminClient := func() (inet256d.AdminClient, error) {
-		gc, err := grpc.Dial(defaultAPIAddr)
-		if err != nil {
-			return nil, err
-		}
-		return inet256d.NewAdminClient(gc), nil
+		return inet256d.NewAdminClient(defaultAPIAddr + "/admin")
 	}
 	newNode := func(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, error) {
 		c, err := newClient()
