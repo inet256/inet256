@@ -7,12 +7,12 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256grpc"
+	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/inet256mem"
 	"github.com/inet256/inet256/pkg/p2padapter"
 )
 
-const DefaultAPIEndpoint = "127.0.0.1:2560"
+const DefaultAPIEndpoint = "http://127.0.0.1:2560/nodes/"
 
 type (
 	Addr = inet256.Addr
@@ -21,7 +21,7 @@ type (
 
 // NewClient creates an INET256 service using the specified endpoint for the API.
 func NewClient(endpoint string) (inet256.Service, error) {
-	return inet256grpc.NewClient(endpoint)
+	return inet256http.NewClient(endpoint), nil
 }
 
 // NewEnvClient creates an INET256 service using the environment variables to find the API.

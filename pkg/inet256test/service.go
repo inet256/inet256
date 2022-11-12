@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p/p2ptest"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
+
+var ctx = context.Background()
 
 func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 	t.Run("Send", func(t *testing.T) {
@@ -26,10 +29,39 @@ func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 	t.Run("TestLoopback", func(t *testing.T) {
 		xs := make([]inet256.Service, 2)
 		sf(t, xs)
-		n1 := openNode(t, xs[0], 1)
-		n2 := openNode(t, xs[1], 2)
+		n1 := OpenNode(t, xs[0], 1)
+		n2 := OpenNode(t, xs[1], 2)
 		TestSendRecvOne(t, n1, n1)
 		TestSendRecvOne(t, n2, n2)
+	})
+	t.Run("MTU", func(t *testing.T) {
+		xs := make([]inet256.Service, 2)
+		sf(t, xs)
+		n1 := OpenNode(t, xs[0], 1)
+		n2 := OpenNode(t, xs[1], 2)
+		ctx, cf := context.WithTimeout(ctx, time.Second)
+		defer cf()
+		mtu := n1.MTU(ctx, n2.LocalAddr())
+		require.GreaterOrEqual(t, mtu, inet256.MinMTU)
+	})
+	t.Run("FindAddr", func(t *testing.T) {
+		xs := make([]inet256.Service, 2)
+		sf(t, xs)
+		n1 := OpenNode(t, xs[0], 1)
+		n2 := OpenNode(t, xs[1], 2)
+		n2Addr := n2.LocalAddr()
+		addr, err := n1.FindAddr(ctx, n2Addr[:1], 7)
+		require.NoError(t, err)
+		require.Equal(t, addr, n2Addr)
+	})
+	t.Run("LookupPublicKey", func(t *testing.T) {
+		xs := make([]inet256.Service, 2)
+		sf(t, xs)
+		n1 := OpenNode(t, xs[0], 1)
+		n2 := OpenNode(t, xs[1], 2)
+		pubKey, err := n1.LookupPublicKey(ctx, n2.LocalAddr())
+		require.NoError(t, err)
+		require.Equal(t, inet256.MarshalPublicKey(n2.PublicKey()), inet256.MarshalPublicKey(pubKey))
 	})
 }
 
@@ -99,7 +131,7 @@ func randomPairs(n int, fn func(i, j int)) {
 	}
 }
 
-func openNode(t testing.TB, s inet256.Service, i int) inet256.Node {
+func OpenNode(t testing.TB, s inet256.Service, i int) inet256.Node {
 	ctx := context.Background()
 	pk := p2ptest.NewTestKey(t, i)
 	n, err := s.Open(ctx, pk)

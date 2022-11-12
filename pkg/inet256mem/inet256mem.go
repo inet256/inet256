@@ -122,7 +122,7 @@ func (node *memNode) FindAddr(ctx context.Context, prefix []byte, nbits int) (in
 
 func (node *memNode) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
 	node.s.mu.RLock()
-	defer node.s.mu.RLock()
+	defer node.s.mu.RUnlock()
 	if node, exists := node.s.nodes[target]; exists {
 		return node.publicKey, nil
 	}
