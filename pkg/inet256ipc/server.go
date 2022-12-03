@@ -174,7 +174,7 @@ func handleAsk(ctx context.Context, node inet256.Node, msg Message, resFr *Frame
 			WriteError[LookupPublicKeyRes](resFr, msg.GetRequestID(), MT_PublicKey, err)
 		} else {
 			WriteSuccess(resFr, msg.GetRequestID(), MT_PublicKey, LookupPublicKeyRes{
-				PublicKey: inet256.MarshalPublicKey(pubKey),
+				PublicKey: inet256.MarshalPublicKey(nil, pubKey),
 			})
 		}
 	case MT_KeepAlive:

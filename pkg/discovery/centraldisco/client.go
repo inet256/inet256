@@ -28,18 +28,18 @@ func NewClient(gc grpc.ClientConnInterface) *Client {
 	}
 }
 
-func (c *Client) Announce(ctx context.Context, privKey p2p.PrivateKey, endpoints []string, ttl time.Duration) error {
+func (c *Client) Announce(ctx context.Context, privKey inet256.PrivateKey, endpoints []string, ttl time.Duration) error {
 	ts := tai64.Now().TAI64().Marshal()
 	announceBytes, _ := proto.Marshal(&internal.Announce{
 		Endpoints:  endpoints,
 		Tai64:      ts[:],
 		TtlSeconds: int64(math.Ceil(ttl.Seconds())),
 	})
-	sig, err := p2p.Sign(nil, privKey, purposeAnnounce, announceBytes)
+	sig, err := p2p.Sign(nil, privKey.BuiltIn(), purposeAnnounce, announceBytes)
 	if err != nil {
 		return err
 	}
-	pubKeyBytes := inet256.MarshalPublicKey(privKey.Public())
+	pubKeyBytes := inet256.MarshalPublicKey(nil, privKey.Public())
 	_, err = c.client.Announce(ctx, &internal.AnnounceReq{
 		PublicKey: pubKeyBytes,
 		Announce:  announceBytes,
@@ -62,7 +62,7 @@ func (c *Client) Find(ctx context.Context, target inet256.Addr) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	if err := p2p.Verify(pubKey, purposeAnnounce, res.Announce, res.Sig); err != nil {
+	if err := p2p.Verify(pubKey.BuiltIn(), purposeAnnounce, res.Announce, res.Sig); err != nil {
 		return nil, err
 	}
 	var x internal.Announce

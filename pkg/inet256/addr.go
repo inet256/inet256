@@ -1,21 +1,11 @@
 package inet256
 
 import (
-	"crypto"
-	"crypto/ed25519"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"math/bits"
 
 	"golang.org/x/crypto/sha3"
-)
-
-type (
-	PublicKey  = crypto.PublicKey
-	PrivateKey = crypto.Signer
 )
 
 const (
@@ -39,7 +29,7 @@ type ID = Addr
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {
 	addr := Addr{}
-	sha3.ShakeSum256(addr[:], MarshalPublicKey(pubKey))
+	sha3.ShakeSum256(addr[:], MarshalPublicKey(nil, pubKey))
 	return addr
 }
 
@@ -88,31 +78,6 @@ func (a Addr) MarshalText() ([]byte, error) {
 // IsZero returns true if the address is the zero value for the Addr type
 func (a Addr) IsZero() bool {
 	return a == (Addr{})
-}
-
-// ParsePublicKey attempts to parse a PublicKey from data
-func ParsePublicKey(data []byte) (PublicKey, error) {
-	pubKey, err := x509.ParsePKIXPublicKey(data)
-	if err != nil {
-		return nil, err
-	}
-	switch pubKey.(type) {
-	case *rsa.PublicKey, ed25519.PublicKey:
-	default:
-		return nil, fmt.Errorf("public keys of type %T are not supported by INET256", pubKey)
-	}
-	return pubKey, nil
-}
-
-// MarshalPublicKey marshals pubKey into data.
-// MarshalPublicKey panics if it can not marshal the public key.
-// All keys returned by ParsePublic key will successfully marshal, so a panic indicates a bug.
-func MarshalPublicKey(pubKey PublicKey) []byte {
-	data, err := x509.MarshalPKIXPublicKey(pubKey)
-	if err != nil {
-		panic(err)
-	}
-	return data
 }
 
 func HasPrefix(x []byte, prefix []byte, nbits int) bool {

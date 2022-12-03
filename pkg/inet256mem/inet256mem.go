@@ -6,10 +6,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/inet256/inet256/pkg/inet256"
-
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 type memService struct {

@@ -61,7 +61,7 @@ func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 		n2 := OpenNode(t, xs[1], 2)
 		pubKey, err := n1.LookupPublicKey(ctx, n2.LocalAddr())
 		require.NoError(t, err)
-		require.Equal(t, inet256.MarshalPublicKey(n2.PublicKey()), inet256.MarshalPublicKey(pubKey))
+		require.Equal(t, inet256.MarshalPublicKey(nil, n2.PublicKey()), inet256.MarshalPublicKey(nil, pubKey))
 	})
 }
 
@@ -70,7 +70,7 @@ func testServerSend(t *testing.T, s inet256.Service) {
 	const N = 5
 	nodes := make([]inet256.Node, N)
 	for i := range nodes {
-		pk := p2ptest.NewTestKey(t, i)
+		pk := NewPrivateKey(t, i)
 		n, err := s.Open(ctx, pk)
 		require.NoError(t, err)
 		nodes[i] = n
@@ -87,7 +87,7 @@ func testMultipleServers(t *testing.T, srvs ...inet256.Service) {
 	nodes := make([]inet256.Node, len(srvs)*N)
 	for i, s := range srvs {
 		for j := 0; j < N; j++ {
-			pk := p2ptest.NewTestKey(t, i*N+j)
+			pk := NewPrivateKey(t, i*N+j)
 			n, err := s.Open(ctx, pk)
 			require.NoError(t, err)
 			nodes[i*N+j] = n
@@ -131,9 +131,17 @@ func randomPairs(n int, fn func(i, j int)) {
 	}
 }
 
+// NewPrivateKey creates an insecure, but deterministic, and easy to recreate private key suitable for tests.
+func NewPrivateKey(t testing.TB, i int) inet256.PrivateKey {
+	pk := p2ptest.NewTestKey(t, i)
+	pk2, err := inet256.PrivateKeyFromBuiltIn(pk)
+	require.NoError(t, err)
+	return pk2
+}
+
 func OpenNode(t testing.TB, s inet256.Service, i int) inet256.Node {
 	ctx := context.Background()
-	pk := p2ptest.NewTestKey(t, i)
+	pk := NewPrivateKey(t, i)
 	n, err := s.Open(ctx, pk)
 	require.NoError(t, err)
 	t.Cleanup(func() {

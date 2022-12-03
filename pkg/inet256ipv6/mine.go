@@ -2,12 +2,10 @@ package inet256ipv6
 
 import (
 	"context"
-	"crypto/ed25519"
 	"io"
 	"runtime"
 	"sync/atomic"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
@@ -28,12 +26,12 @@ const (
 // MineAddr repeatedly generates private-keys using entropy from r, derives INET256 addresses from them,
 // and checks how well they compress into the IPv6 mapping.
 // goal is the number of leading 0s to achieve in address before stopping.
-func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, p2p.PrivateKey, error) {
+func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, inet256.PrivateKey, error) {
 	N := runtime.GOMAXPROCS(0)
 	const checkEvery = 1000
 
 	addrs := make([]inet256.Addr, N)
-	privKeys := make([]ed25519.PrivateKey, N)
+	privKeys := make([]inet256.PrivateKey, N)
 	var count uint64
 
 	ctx, cf := context.WithCancel(ctx)
@@ -45,7 +43,7 @@ func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, p2p.Pri
 		eg.Go(func() error {
 			for {
 				for j := 0; j < checkEvery; j++ {
-					pubKey, privKey, err := ed25519.GenerateKey(r)
+					pubKey, privKey, err := inet256.GenerateKey(r)
 					if err != nil {
 						panic(err)
 					}

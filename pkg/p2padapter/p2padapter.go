@@ -36,6 +36,18 @@ func (pn p2pNode) LocalAddrs() []inet256.Addr {
 	return []inet256.Addr{pn.Node.LocalAddr()}
 }
 
+func (pn p2pNode) LookupPublicKey(ctx context.Context, x inet256.Addr) (p2p.PublicKey, error) {
+	pubKey, err := pn.Node.LookupPublicKey(ctx, x)
+	if err != nil {
+		return nil, err
+	}
+	return pubKey.BuiltIn(), nil
+}
+
+func (pn p2pNode) PublicKey() p2p.PublicKey {
+	return pn.Node.PublicKey().BuiltIn()
+}
+
 type extraSwarmMethods struct{}
 
 func (extraSwarmMethods) MaxIncomingSize() int {
