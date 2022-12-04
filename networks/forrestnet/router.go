@@ -4,37 +4,41 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/brendoncarroll/go-tai64"
-	"github.com/golang/protobuf/proto"
-	"github.com/inet256/inet256/networks"
-	"github.com/inet256/inet256/networks/nettmpl1"
+	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/linkmap"
-	"github.com/pkg/errors"
+	"github.com/inet256/inet256/pkg/mesh256"
 )
 
-var _ nettmpl1.Router = &Router{}
+var _ neteng.Router = &Router{}
 
 type Router struct {
-	log          networks.Logger
+	log          mesh256.Logger
 	privateKey   inet256.PrivateKey
 	publicKey    inet256.PublicKey
 	localID      inet256.ID
-	oneHop       networks.PeerSet
+	oneHop       mesh256.PeerSet
 	getPublicKey func(inet256.ID) inet256.PublicKey
 
 	linkMap   *linkmap.LinkMap
 	state     *ForrestState
 	infoStore *InfoStore
+	dhtNode   *kademlia.DHTNode
 }
 
-func NewRouter(log networks.Logger) *Router {
+func NewRouter(log mesh256.Logger) *Router {
 	return &Router{log: log}
 }
 
-func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, getPublicKey nettmpl1.PublicKeyFunc, now time.Time) {
+func (r *Router) Reset(privateKey inet256.PrivateKey, peers mesh256.PeerSet, getPublicKey neteng.PublicKeyFunc, now time.Time) {
 	r.oneHop = peers
 	r.privateKey = privateKey
+	r.publicKey = r.privateKey.Public()
 	r.localID = inet256.NewAddr(r.publicKey)
 	r.linkMap = linkmap.New(r.localID)
 	r.getPublicKey = getPublicKey
@@ -42,16 +46,22 @@ func (r *Router) Reset(privateKey inet256.PrivateKey, peers networks.PeerSet, ge
 	r.state = NewForrestState(privateKey)
 	r.linkMap = linkmap.New(r.localID)
 	r.infoStore = NewInfoStore(r.localID, 128)
+	r.dhtNode = kademlia.NewDHTNode(kademlia.DHTNodeParams{
+		LocalID:       p2p.PeerID(r.localID),
+		PeerCacheSize: 128,
+		DataCacheSize: 128,
+	})
 }
 
-func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send nettmpl1.SendFunc) bool {
+func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send neteng.SendFunc) bool {
 	return false
 }
 
-func (r *Router) HandleBelow(from inet256.Addr, data []byte, send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, info nettmpl1.InfoFunc) {
+func (r *Router) HandleBelow(from inet256.Addr, data []byte, send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc) {
 	msg, err := ParseMessage(data)
 	if err != nil {
 		r.log.Warn("error parsing message from ", from, err)
+		return
 	}
 	if err := func() error {
 		mtype := msg.GetType()
@@ -72,22 +82,22 @@ func (r *Router) HandleBelow(from inet256.Addr, data []byte, send nettmpl1.SendF
 	}
 }
 
-func (r *Router) Heartbeat(now time.Time, send nettmpl1.SendFunc) {
+func (r *Router) Heartbeat(now time.Time, send neteng.SendFunc) {
 	bcasts := r.state.Heartbeat(tai64.FromGoTime(now), r.listOutgoing(inet256.ID{}))
 	for _, b := range bcasts {
 		r.sendBeacon(send, getLeafAddr(b), b)
 	}
 }
 
-func (r *Router) FindAddr(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, prefix []byte, nbits int) {
+func (r *Router) FindAddr(send neteng.SendFunc, info neteng.InfoFunc, prefix []byte, nbits int) {
 
 }
 
-func (r *Router) LookupPublicKey(send nettmpl1.SendFunc, info nettmpl1.InfoFunc, target inet256.ID) {
+func (r *Router) LookupPublicKey(send neteng.SendFunc, info neteng.InfoFunc, target inet256.ID) {
 
 }
 
-func (r *Router) handleData(send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc, from inet256.Addr, msg Message) error {
+func (r *Router) handleData(send neteng.SendFunc, deliver neteng.DeliverFunc, from inet256.Addr, msg Message) error {
 	var rt RoutingTag
 	if err := proto.Unmarshal(msg.GetMetadata(), &rt); err != nil {
 		return err
@@ -105,7 +115,7 @@ func (r *Router) handleData(send nettmpl1.SendFunc, deliver nettmpl1.DeliverFunc
 	return nil
 }
 
-func (r *Router) handleBeacon(send nettmpl1.SendFunc, from inet256.Addr, msg Message) error {
+func (r *Router) handleBeacon(send neteng.SendFunc, from inet256.Addr, msg Message) error {
 	b, err := parseBeacon(msg.GetBody())
 	if err != nil {
 		return err
@@ -129,15 +139,15 @@ func (r *Router) handleBeacon(send nettmpl1.SendFunc, from inet256.Addr, msg Mes
 	return nil
 }
 
-func (r *Router) handleFindNodeReq(send nettmpl1.SendFunc, dst inet256.Addr, msg Message) error {
+func (r *Router) handleFindNodeReq(send neteng.SendFunc, dst inet256.Addr, msg Message) error {
 	return nil
 }
 
-func (r *Router) handleFindNodeRes(send nettmpl1.SendFunc, dst inet256.Addr, msg Message) error {
+func (r *Router) handleFindNodeRes(send neteng.SendFunc, dst inet256.Addr, msg Message) error {
 	return nil
 }
 
-func (r *Router) sendBeacon(send nettmpl1.SendFunc, dst inet256.Addr, b *Beacon) {
+func (r *Router) sendBeacon(send neteng.SendFunc, dst inet256.Addr, b *Beacon) {
 	data, err := proto.Marshal(b)
 	if err != nil {
 		panic(err)
@@ -145,7 +155,7 @@ func (r *Router) sendBeacon(send nettmpl1.SendFunc, dst inet256.Addr, b *Beacon)
 	send(dst, p2p.IOVec{data})
 }
 
-// func (r *Router) broadcastBeacon(send nettmpl1.SendFunc, exclude inet256.Addr, b *Beacon) {
+// func (r *Router) broadcastBeacon(send neteng.SendFunc, exclude inet256.Addr, b *Beacon) {
 // 	data, err := proto.Marshal(b)
 // 	if err != nil {
 // 		panic(err)

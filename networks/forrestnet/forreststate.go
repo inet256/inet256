@@ -18,7 +18,7 @@ func NewForrestState(privateKey inet256.PrivateKey, optimums ...inet256.Addr) *F
 	}
 }
 
-// Deliver is called with a Beacon, and a list of peers potentiall downstream from the beacon
+// Deliver is called with a Beacon, and a list of peers potential downstream from the beacon
 // Deliver returns a slice of new beacons to be sent out.
 // This will either be:
 // - an ammended version of b sent to all downstream peers

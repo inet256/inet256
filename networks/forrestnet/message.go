@@ -4,8 +4,9 @@ import (
 	"encoding/binary"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 const (

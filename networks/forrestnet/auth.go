@@ -6,16 +6,17 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 type Timestamp = tai64.TAI64N
 
 func VerifyBeacon(b *Beacon, leaf inet256.Addr) error {
 	root := inet256.NewAddrPKIX(b.RootKey)
-	parentPubKey, err := p2p.ParsePublicKey(b.RootKey)
+	parentPubKey, err := inet256.ParsePublicKey(b.RootKey)
 	if err != nil {
 		return err
 	}
@@ -38,7 +39,7 @@ func VerifyBeacon(b *Beacon, leaf inet256.Addr) error {
 		if err := VerifyLink(parentPubKey, root, timestamp, link); err != nil {
 			return err
 		}
-		pubKey, err := p2p.ParsePublicKey(link.PublicKey)
+		pubKey, err := inet256.ParsePublicKey(link.PublicKey)
 		if err != nil {
 			return err
 		}
@@ -47,17 +48,17 @@ func VerifyBeacon(b *Beacon, leaf inet256.Addr) error {
 	return nil
 }
 
-func VerifyLink(parentKey p2p.PublicKey, root inet256.Addr, timestamp Timestamp, link *Link) error {
-	pubKey, err := p2p.ParsePublicKey(link.PublicKey)
+func VerifyLink(parentKey inet256.PublicKey, root inet256.Addr, timestamp Timestamp, link *Link) error {
+	pubKey, err := inet256.ParsePublicKey(link.PublicKey)
 	if err != nil {
 		return err
 	}
 	id := inet256.NewAddr(pubKey)
 	data := prepareSigningData(root, timestamp, link.Branch, id)
-	return p2p.Verify(parentKey, beaconPurpose, data, link.Sig)
+	return p2p.Verify(parentKey.BuiltIn(), beaconPurpose, data, link.Sig)
 }
 
-func CreateBeacon(base *Beacon, privateKey p2p.PrivateKey, branch uint32, childKey p2p.PublicKey) (*Beacon, error) {
+func CreateBeacon(base *Beacon, privateKey inet256.PrivateKey, branch uint32, childKey inet256.PublicKey) (*Beacon, error) {
 	root := inet256.NewAddrPKIX(base.RootKey)
 	timestamp, err := tai64.ParseN(base.Timestamp)
 	if err != nil {
@@ -76,15 +77,15 @@ func CreateBeacon(base *Beacon, privateKey p2p.PrivateKey, branch uint32, childK
 	return b, nil
 }
 
-func CreateLink(privateKey inet256.PrivateKey, root inet256.Addr, timestamp Timestamp, branch uint32, childKey p2p.PublicKey) (*Link, error) {
+func CreateLink(privateKey inet256.PrivateKey, root inet256.Addr, timestamp Timestamp, branch uint32, childKey inet256.PublicKey) (*Link, error) {
 	childID := inet256.NewAddr(childKey)
 	data := prepareSigningData(root, timestamp, branch, childID)
-	sig, err := p2p.Sign(nil, privateKey, beaconPurpose, data)
+	sig, err := p2p.Sign(nil, privateKey.BuiltIn(), beaconPurpose, data)
 	if err != nil {
 		return nil, err
 	}
 	link := &Link{
-		PublicKey: p2p.MarshalPublicKey(childKey),
+		PublicKey: inet256.MarshalPublicKey(nil, childKey),
 		Branch:    branch,
 		Sig:       sig,
 	}
@@ -98,7 +99,7 @@ func CreateLocationClaim(privateKey inet256.PrivateKey, b *Beacon) *LocationClai
 		return nil
 	}
 	data, _ := proto.Marshal(b)
-	sig, err := p2p.Sign(nil, privateKey, locationClaimPurpose, data)
+	sig, err := p2p.Sign(nil, privateKey.BuiltIn(), locationClaimPurpose, data)
 	if err != nil {
 		panic(err)
 	}
@@ -114,7 +115,7 @@ func VerifyLocationClaim(pubKey inet256.PublicKey, lc *LocationClaim) error {
 	if err != nil {
 		panic(err)
 	}
-	return p2p.Verify(pubKey, locationClaimPurpose, data, lc.Sig)
+	return p2p.Verify(pubKey.BuiltIn(), locationClaimPurpose, data, lc.Sig)
 }
 
 func parseBeacon(x []byte) (*Beacon, error) {

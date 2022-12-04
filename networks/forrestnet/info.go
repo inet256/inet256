@@ -2,8 +2,10 @@ package forrestnet
 
 import (
 	"sync"
+	"time"
 
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
+
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -41,18 +43,20 @@ type Locator struct {
 type InfoStore struct {
 	mu    sync.RWMutex
 	cache *kademlia.Cache[*NodeInfo]
+	now   func() time.Time
 }
 
 func NewInfoStore(localID inet256.Addr, size int) *InfoStore {
 	return &InfoStore{
 		cache: kademlia.NewCache[*NodeInfo](localID[:], size, 1),
+		now:   time.Now,
 	}
 }
 
 func (s *InfoStore) Get(x inet256.Addr) *NodeInfo {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	ni, _ := s.cache.Get(x[:])
+	ni, _ := s.cache.Get(x[:], s.now())
 	return ni
 }
 
@@ -73,9 +77,10 @@ func (s *InfoStore) Put(treeRoot inet256.Addr, pubKey inet256.PublicKey, loc Loc
 }
 
 func (s *InfoStore) update(addr inet256.Addr, fn func(x *NodeInfo) *NodeInfo) {
-	x, _ := s.cache.Get(addr[:])
+	now := s.now()
+	x, _ := s.cache.Get(addr[:], now)
 	y := fn(x)
-	s.cache.Put(addr[:], y)
+	s.cache.Put(addr[:], y, now, now.Add(100*time.Second))
 }
 
 // Find returns the PeerInfo closest to x.

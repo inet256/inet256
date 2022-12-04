@@ -2,10 +2,11 @@ package forrestnet
 
 import (
 	"bytes"
-	sync "sync"
+	"sync"
 
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
 	"github.com/brendoncarroll/go-tai64"
+
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -102,7 +103,7 @@ func (ts *TreeState) Heartbeat(now Timestamp, peers []Peer) (beacons []*Beacon) 
 	tsBytes := now.Marshal()
 	base := &Beacon{
 		Optimum:   ts.optimalRoot[:],
-		RootKey:   inet256.MarshalPublicKey(ts.privateKey.Public()),
+		RootKey:   inet256.MarshalPublicKey(nil, ts.privateKey.Public()),
 		Timestamp: tsBytes[:],
 	}
 	for _, peer := range peers {
@@ -115,15 +116,10 @@ func (ts *TreeState) Heartbeat(now Timestamp, peers []Peer) (beacons []*Beacon) 
 	return beacons
 }
 
-// LocationClaim returns a location claim for the current position
-// in the tree.  If the local node is the root of the tree, then nil
-// is returned.
+// LocationClaim returns a location claim for the current position in the tree.
 func (ts *TreeState) LocationClaim() *LocationClaim {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	if ts.currentRoot == ts.localID {
-		return nil
-	}
 	return CreateLocationClaim(ts.privateKey, ts.beacon)
 }
 

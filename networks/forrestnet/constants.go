@@ -3,8 +3,8 @@ package forrestnet
 import (
 	"time"
 
-	"github.com/inet256/inet256/networks"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mesh256"
 )
 
 const (
@@ -17,6 +17,6 @@ var DefaultRoots = []inet256.Addr{
 	allOnes(),
 }
 
-func Factory(params networks.Params) networks.Network {
+func Factory(params mesh256.NetworkParams) mesh256.Network {
 	return New(params, DefaultRoots)
 }
