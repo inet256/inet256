@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
 	"log"
 	"net"
 	"os"
@@ -112,6 +111,6 @@ func run() error {
 }
 
 func generateKey() inet256.PrivateKey {
-	_, privKey, _ := ed25519.GenerateKey(nil)
+	_, privKey, _ := inet256.GenerateKey(nil)
 	return privKey
 }
