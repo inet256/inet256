@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/pkg/peers"
 )
 
 const expireAfter = 30 * time.Second
@@ -57,7 +58,12 @@ func (lm *linkMonitor[T]) recvLoop(ctx context.Context) error {
 			lm.log.Error("in linkMonitor.recvLoop: ", err)
 			continue
 		}
-		lm.Mark(inet256.NewAddr(pubKey), msg.Src, time.Now())
+		pubKey2, err := inet256.PublicKeyFromBuiltIn(pubKey)
+		if err != nil {
+			lm.log.Errorf("linkMonitor: converting public key %v", err)
+			continue
+		}
+		lm.Mark(inet256.NewAddr(pubKey2), msg.Src, time.Now())
 	}
 }
 

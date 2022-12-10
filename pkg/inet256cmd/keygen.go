@@ -1,11 +1,9 @@
 package inet256cmd
 
 import (
-	"crypto/ed25519"
 	"crypto/rand"
 	"io/ioutil"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
@@ -55,8 +53,8 @@ func NewAddrCmd() *cobra.Command {
 	return c
 }
 
-func generateKey() p2p.PrivateKey {
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
+func generateKey() inet256.PrivateKey {
+	_, priv, err := inet256.GenerateKey(rand.Reader)
 	if err != nil {
 		panic(err)
 	}

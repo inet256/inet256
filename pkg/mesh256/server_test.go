@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"
@@ -20,7 +19,7 @@ func TestServerLoopback(t *testing.T) {
 	ctx := context.Background()
 	nodes := make([]inet256.Node, N)
 	for i := range nodes {
-		pk := p2ptest.NewTestKey(t, i)
+		pk := inet256test.NewPrivateKey(t, i)
 		var err error
 		nodes[i], err = s.Open(ctx, pk)
 		require.NoError(t, err)
@@ -38,7 +37,7 @@ func TestServerOneHop(t *testing.T) {
 	ctx := context.Background()
 	nodes := make([]inet256.Node, N)
 	for i := range nodes {
-		pk := p2ptest.NewTestKey(t, i)
+		pk := inet256test.NewPrivateKey(t, i)
 		var err error
 		nodes[i], err = s.Open(ctx, pk)
 		require.NoError(t, err)
@@ -57,13 +56,13 @@ func TestServerCreateDrop(t *testing.T) {
 
 	const N = 100
 	for i := 0; i < N; i++ {
-		pk := p2ptest.NewTestKey(t, i)
+		pk := inet256test.NewPrivateKey(t, i)
 		_, err := s.Open(ctx, pk)
 		require.NoError(t, err)
 	}
 
 	for i := 0; i < N; i++ {
-		pk := p2ptest.NewTestKey(t, i)
+		pk := inet256test.NewPrivateKey(t, i)
 		err := s.Drop(ctx, pk)
 		require.NoError(t, err)
 	}
@@ -78,8 +77,5 @@ func oneHopFactory(params mesh256.NetworkParams) mesh256.Network {
 		}
 		return inet256.Addr{}, inet256.ErrNoAddrWithPrefix
 	}
-	waitReady := func(ctx context.Context) error {
-		return nil
-	}
-	return mesh256.NetworkFromSwarm(params.Swarm, findAddr, waitReady)
+	return mesh256.NetworkFromSwarm(params.Swarm, findAddr)
 }

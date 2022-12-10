@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+
+	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/inet256test"
 )
 
 func TestClientServer(t *testing.T) {
@@ -33,8 +34,8 @@ func TestClientServer(t *testing.T) {
 	require.NoError(t, err)
 	c1 := NewClient(gc)
 	c2 := NewClient(gc)
-	pk1 := p2ptest.NewTestKey(t, 0)
-	pk2 := p2ptest.NewTestKey(t, 1)
+	pk1 := inet256test.NewPrivateKey(t, 0)
+	pk2 := inet256test.NewPrivateKey(t, 1)
 
 	eg := errgroup.Group{}
 	eg.Go(func() error {

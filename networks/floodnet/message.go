@@ -1,7 +1,6 @@
 package floodnet
 
 import (
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -22,10 +21,10 @@ type Message struct {
 	Hops int `json:"hops"`
 }
 
-func newMessage(pk p2p.PrivateKey, dst inet256.Addr, data []byte, hops int, mode uint8) Message {
+func newMessage(pk inet256.PrivateKey, dst inet256.Addr, data []byte, hops int, mode uint8) Message {
 	return Message{
 		Dst:     dst[:],
-		SrcKey:  inet256.MarshalPublicKey(pk.Public()),
+		SrcKey:  inet256.MarshalPublicKey(nil, pk.Public()),
 		Payload: data,
 		Mode:    mode,
 

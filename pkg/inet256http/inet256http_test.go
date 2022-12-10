@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
@@ -39,7 +38,7 @@ func TestOpen(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		node, err := c.Open(ctx, p2ptest.NewTestKey(t, 0))
+		node, err := c.Open(ctx, inet256test.NewPrivateKey(t, 0))
 		if err != nil {
 			return err
 		}

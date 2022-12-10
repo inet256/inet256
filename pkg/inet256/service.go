@@ -2,8 +2,6 @@ package inet256
 
 import (
 	"context"
-
-	"github.com/brendoncarroll/go-p2p"
 )
 
 const (
@@ -64,8 +62,8 @@ type Node interface {
 //
 // This interface is compatible with the INET256 specification.
 type Service interface {
-	Open(ctx context.Context, privKey p2p.PrivateKey, opts ...NodeOption) (Node, error)
-	Drop(ctx context.Context, privKey p2p.PrivateKey) error
+	Open(ctx context.Context, privKey PrivateKey, opts ...NodeOption) (Node, error)
+	Drop(ctx context.Context, privKey PrivateKey) error
 }
 
 // NodeOption is the type of functions which configure a Node.

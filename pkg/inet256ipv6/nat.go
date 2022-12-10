@@ -2,7 +2,6 @@ package inet256ipv6
 
 import (
 	"context"
-	"crypto/ed25519"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	log "github.com/sirupsen/logrus"
@@ -29,7 +28,7 @@ func NewNATTable(srv inet256.Service) *NATTable {
 
 func (nt *NATTable) AddClient(ctx context.Context, ipv6 IPv6Addr) inet256.Addr {
 	inside := ipv6
-	_, priv, err := ed25519.GenerateKey(nil)
+	_, priv, err := inet256.GenerateKey(nil)
 	if err != nil {
 		panic(err)
 	}

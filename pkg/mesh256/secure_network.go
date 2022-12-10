@@ -11,15 +11,19 @@ import (
 )
 
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
-	fingerprinter := func(pubKey inet256.PublicKey) p2p.PeerID {
-		return p2p.PeerID(inet256.NewAddr(pubKey))
+	fingerprinter := func(pubKey p2p.PublicKey) p2p.PeerID {
+		pubKey2, err := inet256.PublicKeyFromBuiltIn(pubKey)
+		if err != nil {
+			panic(err)
+		}
+		return p2p.PeerID(inet256.NewAddr(pubKey2))
 	}
 	insecure := p2pSwarmFromNetwork(x)
-	quicSw, err := quicswarm.New[inet256.Addr](insecure, privateKey, quicswarm.WithFingerprinter[inet256.Addr](fingerprinter))
+	quicSw, err := quicswarm.New[inet256.Addr](insecure, privateKey.BuiltIn(), quicswarm.WithFingerprinter[inet256.Addr](fingerprinter))
 	if err != nil {
 		panic(err)
 	}
-	secnet := networkFromP2PSwarm(quic2Swarm{Swarm: quicSw}, x.FindAddr, x.Bootstrap)
+	secnet := newNetworkFromP2PSwarm(quic2Swarm{Swarm: quicSw}, x.FindAddr)
 	return secnet
 }
 
@@ -84,5 +88,78 @@ func (s quic2Swarm) makeAddr(addr inet256.Addr) quicswarm.Addr[inet256.Addr] {
 	return quicswarm.Addr[inet256.Addr]{
 		ID:   p2p.PeerID(addr),
 		Addr: addr,
+	}
+}
+
+// p2pSwarm converts a Swarm to a p2p.Swarm
+type p2pSwarm struct {
+	Swarm
+	extraSwarmMethods
+}
+
+func p2pSwarmFromNetwork(x Network) p2p.SecureSwarm[inet256.Addr] {
+	return p2pSwarm{Swarm: x}
+}
+
+func (s p2pSwarm) LocalAddrs() []inet256.Addr {
+	return []inet256.Addr{s.Swarm.LocalAddr()}
+}
+
+func (s p2pSwarm) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
+	pubKey, err := s.Swarm.LookupPublicKey(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+	return pubKey.BuiltIn(), nil
+}
+
+func (s p2pSwarm) PublicKey() p2p.PublicKey {
+	return s.Swarm.PublicKey().BuiltIn()
+}
+
+type extraSwarmMethods struct{}
+
+func (extraSwarmMethods) MaxIncomingSize() int {
+	return inet256.MaxMTU
+}
+
+func (extraSwarmMethods) ParseAddr(data []byte) (inet256.Addr, error) {
+	var addr inet256.Addr
+	if err := addr.UnmarshalText(data); err != nil {
+		return inet256.Addr{}, err
+	}
+	return addr, nil
+}
+
+type FindAddrFunc = func(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
+
+var _ Network = &networkFromSwarm{}
+
+// networkFromSwarm implements a Network from a Swarm
+type networkFromSwarm struct {
+	Swarm
+	findAddr FindAddrFunc
+}
+
+func newNetworkFromP2PSwarm(x p2p.SecureSwarm[inet256.Addr], findAddr FindAddrFunc) Network {
+	return &networkFromSwarm{
+		Swarm:    swarmWrapper{x},
+		findAddr: findAddr,
+	}
+}
+
+func (n *networkFromSwarm) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
+	return n.findAddr(ctx, prefix, nbits)
+}
+
+func (n *networkFromSwarm) MTU(ctx context.Context, target inet256.Addr) int {
+	return n.Swarm.MTU(ctx, target)
+}
+
+// NetworkFromSwarm creates a Network from a Swarm
+func NetworkFromSwarm(x Swarm, findAddr FindAddrFunc) Network {
+	return &networkFromSwarm{
+		Swarm:    x,
+		findAddr: findAddr,
 	}
 }

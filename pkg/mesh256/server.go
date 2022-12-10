@@ -31,6 +31,8 @@ type PeerStatus struct {
 	Downloaded uint64
 }
 
+type Params NodeParams
+
 type Server struct {
 	params Params
 
@@ -49,7 +51,7 @@ type Server struct {
 func NewServer(params Params) *Server {
 	memLogger := logrus.StandardLogger()
 	r := memswarm.NewRealm(memswarm.WithLogger(memLogger))
-	msw := r.NewSwarmWithKey(params.PrivateKey)
+	msw := r.NewSwarmWithKey(params.PrivateKey.BuiltIn())
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
 	}
@@ -64,7 +66,7 @@ func NewServer(params Params) *Server {
 		mainID:       inet256.NewAddr(params.PrivateKey.Public()),
 		mainMemPeers: memPeers,
 		mainMemSwarm: msw,
-		mainNode: NewNode(Params{
+		mainNode: NewNode(NodeParams{
 			PrivateKey: params.PrivateKey,
 			Swarms:     params.Swarms,
 			NewNetwork: params.NewNetwork,
@@ -76,7 +78,7 @@ func NewServer(params Params) *Server {
 	return s
 }
 
-func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...inet256.NodeOption) (Node, error) {
+func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts ...inet256.NodeOption) (Node, error) {
 	id := inet256.NewAddr(privateKey.Public())
 	if id == s.mainID {
 		return nil, errors.Errorf("clients cannot use main node's key")
@@ -86,7 +88,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...in
 	if _, exists := s.nodes[id]; exists {
 		return nil, errors.New("node is already open")
 	}
-	swarm := s.memrealm.NewSwarmWithKey(privateKey)
+	swarm := s.memrealm.NewSwarmWithKey(privateKey.BuiltIn())
 
 	ps := peers.NewStore[TransportAddr]()
 	ps.Add(s.mainID)
@@ -94,7 +96,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...in
 	s.mainMemPeers.Add(id)
 	s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
-	n := NewNode(Params{
+	n := NewNode(NodeParams{
 		NewNetwork: s.params.NewNetwork,
 		Peers:      ps,
 		PrivateKey: privateKey,
@@ -107,7 +109,7 @@ func (s *Server) Open(ctx context.Context, privateKey p2p.PrivateKey, opts ...in
 	return n, nil
 }
 
-func (s *Server) Drop(ctx context.Context, privateKey p2p.PrivateKey) error {
+func (s *Server) Drop(ctx context.Context, privateKey inet256.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -120,7 +122,7 @@ func (s *Server) Drop(ctx context.Context, privateKey p2p.PrivateKey) error {
 	return err
 }
 
-func (s *Server) LookupPublicKey(ctx context.Context, target Addr) (p2p.PublicKey, error) {
+func (s *Server) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
 	return s.mainNode.LookupPublicKey(ctx, target)
 }
 

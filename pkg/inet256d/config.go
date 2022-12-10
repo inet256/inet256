@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/inet256/inet256/networks/beaconnet"
@@ -160,7 +159,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	return params, nil
 }
 
-func makeTransport(spec TransportSpec, privKey p2p.PrivateKey) (multiswarm.DynSwarm, string, error) {
+func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.DynSwarm, string, error) {
 	switch {
 	case spec.UDP != nil:
 		s, err := udpswarm.New(string(*spec.UDP))
