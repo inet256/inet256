@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/stretchr/testify/require"
 
 	"github.com/inet256/inet256/client/go_client/inet256client"
@@ -42,8 +41,8 @@ func Test2Node(t *testing.T) {
 		c := sides[i].newClient(t).(*inet256http.Client)
 		require.NoError(t, c.Ping(ctx))
 	}
-	n1 := sides[0].newNode(t, p2ptest.NewTestKey(t, 101))
-	n2 := sides[1].newNode(t, p2ptest.NewTestKey(t, 102))
+	n1 := sides[0].newNode(t, inet256test.NewPrivateKey(t, 101))
+	n2 := sides[1].newNode(t, inet256test.NewPrivateKey(t, 102))
 	inet256test.TestSendRecvOne(t, n1, n2)
 	inet256test.TestSendRecvOne(t, n2, n1)
 }
@@ -60,7 +59,7 @@ type side struct {
 
 func newSide(t testing.TB, i int) *side {
 	dir := t.TempDir()
-	privateKey := p2ptest.NewTestKey(t, i)
+	privateKey := inet256test.NewPrivateKey(t, i)
 	apiPort := 25600 + i
 	transportPort := 32000 + i
 
@@ -76,7 +75,7 @@ func newSide(t testing.TB, i int) *side {
 	keyPath := filepath.Join(dir, "private_key.pem")
 	data, err := serde.MarshalPrivateKeyPEM(privateKey)
 	require.NoError(t, err)
-	err = ioutil.WriteFile(keyPath, data, 0o644)
+	err = os.WriteFile(keyPath, data, 0o644)
 	require.NoError(t, err)
 
 	return &side{
