@@ -78,17 +78,17 @@ type Beacon struct {
 	Sig       []byte `json:"sig"`
 }
 
-func newBeacon(privateKey p2p.PrivateKey, now time.Time) *Beacon {
+func newBeacon(privateKey inet256.PrivateKey, now time.Time) *Beacon {
 	now = now.UTC()
 	counter := uint64(now.UnixNano())
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], counter)
-	sig, err := p2p.Sign(nil, privateKey, sigPurpose, counterBytes[:])
+	sig, err := p2p.Sign(nil, privateKey.BuiltIn(), sigPurpose, counterBytes[:])
 	if err != nil {
 		panic(err)
 	}
 	return &Beacon{
-		PublicKey: p2p.MarshalPublicKey(privateKey.Public()),
+		PublicKey: inet256.MarshalPublicKey(nil, privateKey.Public()),
 		Counter:   counter,
 		Sig:       sig,
 	}
@@ -101,7 +101,7 @@ func verifyBeacon(b Beacon) (inet256.PublicKey, error) {
 	}
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], b.Counter)
-	if err := p2p.Verify(pubKey, sigPurpose, counterBytes[:], b.Sig); err != nil {
+	if err := p2p.Verify(pubKey.BuiltIn(), sigPurpose, counterBytes[:], b.Sig); err != nil {
 		return nil, err
 	}
 	return pubKey, nil

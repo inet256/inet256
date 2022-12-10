@@ -3,7 +3,6 @@ package inet256cmd
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/spf13/cobra"
 
@@ -25,7 +24,7 @@ func NewRootCmd() *cobra.Command {
 	newAdminClient := func() (inet256d.AdminClient, error) {
 		return inet256d.NewAdminClient(defaultAPIAddr + "/admin")
 	}
-	newNode := func(ctx context.Context, privateKey p2p.PrivateKey) (inet256.Node, error) {
+	newNode := func(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error) {
 		c, err := newClient()
 		if err != nil {
 			return nil, err

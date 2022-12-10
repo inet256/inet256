@@ -187,7 +187,7 @@ func (r *Router) handleData(send neteng.SendFunc, deliver neteng.DeliverFunc, pr
 	return nil
 }
 
-func (r *Router) updatePeerState(next inet256.Addr, pubKey p2p.PublicKey, counter uint64) (updated, created bool) {
+func (r *Router) updatePeerState(next inet256.Addr, pubKey inet256.PublicKey, counter uint64) (updated, created bool) {
 	peer := inet256.NewAddr(pubKey)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -250,7 +250,7 @@ func (r *Router) cleanupOnce(now time.Time) error {
 type peerState struct {
 	next      inet256.Addr
 	counter   uint64
-	publicKey p2p.PublicKey
+	publicKey inet256.PublicKey
 }
 
 func (ps peerState) String() string {
