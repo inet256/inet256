@@ -76,19 +76,19 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	N := len(adjList)
 	swarms := make([]*memswarm.Swarm, N)
 	peerStores := make([]peers.Store[memswarm.Addr], N)
-	keys := make([]p2p.PrivateKey, N)
+	keys := make([]inet256.PrivateKey, N)
 	netSwarms := make([]mesh256.Swarm, N)
 	r := memswarm.NewRealm()
 	for i := 0; i < N; i++ {
-		keys[i] = p2ptest.NewTestKey(t, i)
-		swarms[i] = r.NewSwarmWithKey(keys[i])
+		keys[i] = inet256test.NewPrivateKey(t, i)
+		swarms[i] = r.NewSwarmWithKey(keys[i].BuiltIn())
 		peerStores[i] = peers.NewStore[memswarm.Addr]()
 		netSwarms[i] = mesh256.NewSwarm[memswarm.Addr](swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {
 		for _, j := range adjList[i] {
-			peerID := inet256.NewAddr(swarms[j].PublicKey())
+			peerID := inet256.NewAddr(netSwarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
 			peerStores[i].Add(peerID)
 			peerStores[i].SetAddrs(peerID, []memswarm.Addr{addr})
@@ -104,7 +104,6 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 			Logger:     logger,
 		})
 	}
-	bootstrapNetworks(t, nets)
 	t.Log("successfully initialized", N, "networks")
 	t.Cleanup(func() {
 		for _, n := range nets {
@@ -112,20 +111,6 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 		}
 	})
 	return nets
-}
-
-func bootstrapNetworks(t testing.TB, nets []Network) {
-	ctx, cf := context.WithTimeout(context.Background(), time.Second*time.Duration(len(nets)))
-	defer cf()
-	for i := 0; i < len(nets); i++ {
-		err := nets[i].Bootstrap(ctx)
-		require.NoError(t, err)
-		select {
-		case <-ctx.Done():
-			require.NoError(t, ctx.Err(), "timeout waiting for bootstrap")
-		default:
-		}
-	}
 }
 
 func randomPairs(n int, fn func(i, j int)) {

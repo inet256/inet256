@@ -1,65 +1,23 @@
 # INET256 Architecture
 
-This document describes the architecture of the reference implementation.
+This document describes the architecture of the reference implementation of an INET256 service.
 Most of what is disussed here are implementation details, specific to this implementation.
-Also take a look at the API spec to see what is required vs incidental.
+Also take a look at the [API Spec](./doc/10_Spec.md) to see what is required vs incidental.
 
-INET256 is built around `Swarms` from the `go-p2p` library.
+## Mesh256
+The reference implementation is provided as a library called [`mesh256`](./pkg/mesh256/README.md).
+The library can be used to construct mesh networks on user-defined transports, with arbitrary routing algorithms.
+This makes it very easy to turn a distributed routing algorithm into an INET256 network.
+Or to run Mesh256 on top of a new transport.
 
-Networks (routing algorithms) are given a private key, a `Swarm` and a `PeerSet`.
-
-The `PeerSet` is just a list of peers that are accessible through the swarm.
-These are the one-hop peers.
-It is the job the Network to figure out how to route messages to more peers than just those in this set.
-
-## Stack
-An INET256 Node's stack looks like this, implemented as layered `Swarms`
-
-```
-                Application Data :-)
-|-----------------------------------------------|
-|             Encryption Layer (QUIC)           |
-|-----------------------------------------------|
-|              Routing Algorithms               |
-|-----------------------------------------------|
-|      Multiplexing & Packet Fragmentation      |
-|-----------------------------------------------|
-|             Encryption Layer (QUIC)           |
-|-----------------------------------------------|
-| Transports:                                   |
-|       UDP     |   ETHERNET    |  MEMORY       |
-|-----------------------------------------------|                   ...
-                        NODE 1                                      NODE 2
-                        |                                           |
-                        |___________________________________________|
-
-
-```
-
-The life of a message through the stack starting as application data:
-
-1. All traffic from client applications is encrypted immeditately, and only readable at its intended destination.
-2. The destination address is searched for on each network in parallel. The result is temporarily cached.
-3. Traffic is passed to the selected network which produces a message in its internal format and sends it where it should go.
-4. The message is passed through layers which multiplex traffic from the multiple network algorithms.
-This layer also ensures the MTU for one-hop traffic is a reasonable size.
-5. The data is encrypted before leaving the node.
-6. The data, now ciphertext, is sent out using one of the transport swarms.
-
-All data leaving the node is encrypted until the next hop.  All data traveling through a network is encrypted until it reaches it's destination.
-
-There is no fragmentation at the network layer, only at the one hop layer if the MTU is less than 2^16-1.
-If a message is fragmented, it is reassembled at the next hop, before the network algorithms see it.
-Application data is never fragmented, and then passed to the networks.
-
-## API
+## HTTP API
 The API presented to clients of INET256 is based on the `Node` type in `pkg/inet256/`
 
 Client implementations can be found in `client/`
 
-Clients connect to the daemon, and the daemon manages setting up a virtual node, which runs all the network protocols just like any other node.  However, the virtual node's only peer is the main node.
-
-Every process that connects to INET256 gets its own stable address, which cryptographically represents the process's identity.
+Clients connect to the daemon in `pkg/inet256d` over the HTTP API in `pkg/inet256http`.
+When a client connects, the daemon sets up a virtual node for the client.
+This is a new node in the network with a distinct address derived from the clients public key. Every process that connects to INET256 gets its own stable address, which cryptographically represents the process's identity.
 
 ## Helper Services
 There are services that run in the background to help with establishing connections to peers.

@@ -18,6 +18,8 @@ const (
 	channelData      = 1
 )
 
+// swarm implements Swarm, which is the interface passed to networks.
+//
 // swarm manages the mapping from transport addresses T to inet256.Addrs.
 // a peer can be reachable at many addresses in the transport swarm.
 // Some of the addresses may not even be in the PeerStore
@@ -33,16 +35,16 @@ type swarm[T p2p.Addr] struct {
 	extraSwarmMethods
 }
 
-func NewSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) Swarm {
-	return newSwarm(x, peerStore)
-}
-
 func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm[T] {
+	pubKey, err := inet256.PublicKeyFromBuiltIn(x.PublicKey())
+	if err != nil {
+		panic(err)
+	}
 	mux := p2pmux.NewUint16SecureMux[T](x)
 	return &swarm[T]{
 		peerStore: peerStore,
 		inner:     x,
-		localID:   inet256.NewAddr(x.PublicKey()),
+		localID:   inet256.NewAddr(pubKey),
 
 		mux:       mux,
 		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, logrus.StandardLogger()),
@@ -74,7 +76,12 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 				logrus.Warn("could not lookup public key, dropping message: ", err)
 				return
 			}
-			srcID := inet256.NewAddr(srcKey)
+			srcKey2, err := inet256.PublicKeyFromBuiltIn(srcKey)
+			if err != nil {
+				logrus.Warn(err)
+				return
+			}
+			srcID := inet256.NewAddr(srcKey2)
 			if !s.peerStore.Contains(srcID) {
 				logrus.Warnf("dropping message from unknown peer %v", srcID)
 				return
@@ -104,7 +111,7 @@ func (s *swarm[T]) LocalAddr() inet256.Addr {
 }
 
 func (s *swarm[T]) LocalAddrs() []inet256.Addr {
-	return []inet256.Addr{s.localID}
+	return []inet256.Addr{s.LocalAddr()}
 }
 
 func (s *swarm[T]) Close() error {

@@ -31,14 +31,18 @@ func TestPublicKeyMarshal(t *testing.T) {
 		testPublicKeyMarshal(t, func(r io.Reader) PublicKey {
 			pub, _, err := ed25519.GenerateKey(r)
 			require.NoError(t, err)
-			return pub
+			pub2, err := PublicKeyFromBuiltIn(pub)
+			require.NoError(t, err)
+			return pub2
 		})
 	})
 	t.Run("RSA", func(t *testing.T) {
 		testPublicKeyMarshal(t, func(r io.Reader) PublicKey {
 			priv, err := rsa.GenerateKey(r, 512)
 			require.NoError(t, err)
-			return priv.Public()
+			pub, err := PublicKeyFromBuiltIn(priv.Public())
+			require.NoError(t, err)
+			return pub
 		})
 	})
 }
@@ -48,7 +52,7 @@ func testPublicKeyMarshal(t *testing.T, genKey func(io.Reader) PublicKey) {
 	for i := 0; i < N; i++ {
 		rng := mrand.New(mrand.NewSource(int64(i)))
 		x := genKey(rng)
-		data := MarshalPublicKey(x)
+		data := MarshalPublicKey(nil, x)
 		// t.Log(hex.EncodeToString(data))
 		y, err := ParsePublicKey(data)
 		require.NoError(t, err)

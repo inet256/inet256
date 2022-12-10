@@ -14,9 +14,6 @@ type (
 	TransportAddr = multiswarm.Addr
 
 	PeerSet = peers.Set
-
-	PublicKey  = inet256.PublicKey
-	PrivateKey = inet256.PrivateKey
 )
 
 const (

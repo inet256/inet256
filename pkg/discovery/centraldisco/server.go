@@ -56,7 +56,7 @@ func (s *Server) Announce(ctx context.Context, req *internal.AnnounceReq) (*inte
 	if err != nil {
 		return nil, err
 	}
-	if err := p2p.Verify(pubKey, purposeAnnounce, req.Announce, req.Sig); err != nil {
+	if err := p2p.Verify(pubKey.BuiltIn(), purposeAnnounce, req.Announce, req.Sig); err != nil {
 		return nil, err
 	}
 	var x internal.Announce

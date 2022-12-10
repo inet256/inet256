@@ -14,7 +14,7 @@ A 256 bit address space for peer-to-peer hosts/applications.
 
 The INET256 API and Address Spec: [Spec](./doc/10_Spec.md)
 
-The architecture of the reference implementation: [Architecture](./ARCHITECTURE.md)
+The architecture of the reference implementation: [Mesh256](./pkg/mesh256/README.md)
 
 Documentation for the daemon's config file: [Daemon Config](./doc/22_Daemon_Config.md)
 
