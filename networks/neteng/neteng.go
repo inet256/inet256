@@ -150,7 +150,7 @@ func (n *Network) LocalAddr() inet256.Addr {
 }
 
 func (n *Network) MTU(ctx context.Context, target inet256.Addr) int {
-	return inet256.MinMTU
+	return inet256.MaxMTU
 }
 
 func (n *Network) PublicKey() inet256.PublicKey {

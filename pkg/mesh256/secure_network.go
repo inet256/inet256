@@ -5,8 +5,9 @@ import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/brendoncarroll/go-p2p/s/p2pkeswarm"
 	"github.com/brendoncarroll/stdctx/logctx"
+
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -19,22 +20,19 @@ func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
 		return p2p.PeerID(inet256.NewAddr(pubKey2))
 	}
 	insecure := p2pSwarmFromNetwork(x)
-	quicSw, err := quicswarm.New[inet256.Addr](insecure, privateKey.BuiltIn(), quicswarm.WithFingerprinter[inet256.Addr](fingerprinter))
-	if err != nil {
-		panic(err)
-	}
-	secnet := newNetworkFromP2PSwarm(quic2Swarm{Swarm: quicSw}, x.FindAddr)
+	quicSw := p2pkeswarm.New[inet256.Addr](insecure, privateKey.BuiltIn(), p2pkeswarm.WithFingerprinter[inet256.Addr](fingerprinter))
+	secnet := newNetworkFromP2PSwarm(identitySwarm{Swarm: quicSw}, x.FindAddr)
 	return secnet
 }
 
-// quic2Swarm turns quicswarm.Addr[inet256.Addr] into inet256.Addr
-type quic2Swarm struct {
-	*quicswarm.Swarm[inet256.Addr]
+// identitySwarm turns p2pke.Addr[inet256.Addr] into inet256.Addr
+type identitySwarm struct {
+	*p2pkeswarm.Swarm[inet256.Addr]
 }
 
-func (s quic2Swarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr])) error {
+func (s identitySwarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr])) error {
 	for done := false; !done; {
-		if err := s.Swarm.Receive(ctx, func(msg p2p.Message[quicswarm.Addr[inet256.Addr]]) {
+		if err := s.Swarm.Receive(ctx, func(msg p2p.Message[p2pkeswarm.Addr[inet256.Addr]]) {
 			srcID := p2p.ExtractPeerID(msg.Src)
 			srcAddr := msg.Src.Addr
 			// This is where the actual check for who can send as what address happens
@@ -55,37 +53,37 @@ func (s quic2Swarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Add
 	return nil
 }
 
-func (s quic2Swarm) Tell(ctx context.Context, x inet256.Addr, data p2p.IOVec) error {
+func (s identitySwarm) Tell(ctx context.Context, x inet256.Addr, data p2p.IOVec) error {
 	dst := s.makeAddr(x)
 	return s.Swarm.Tell(ctx, dst, data)
 }
 
-func (s quic2Swarm) LocalAddr() inet256.Addr {
+func (s identitySwarm) LocalAddr() inet256.Addr {
 	return s.LocalAddrs()[0]
 }
 
-func (s quic2Swarm) LocalAddrs() (ys []inet256.Addr) {
+func (s identitySwarm) LocalAddrs() (ys []inet256.Addr) {
 	for _, x := range s.Swarm.LocalAddrs() {
 		ys = append(ys, x.Addr)
 	}
 	return ys
 }
 
-func (s quic2Swarm) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
+func (s identitySwarm) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
 	x := s.makeAddr(target)
 	return s.Swarm.LookupPublicKey(ctx, x)
 }
 
-func (s quic2Swarm) MTU(ctx context.Context, target inet256.Addr) int {
+func (s identitySwarm) MTU(ctx context.Context, target inet256.Addr) int {
 	return s.Swarm.MTU(ctx, s.makeAddr(target))
 }
 
-func (s quic2Swarm) ParseAddr(x []byte) (ret inet256.Addr, _ error) {
+func (s identitySwarm) ParseAddr(x []byte) (ret inet256.Addr, _ error) {
 	return inet256.ParseAddrBase64(x)
 }
 
-func (s quic2Swarm) makeAddr(addr inet256.Addr) quicswarm.Addr[inet256.Addr] {
-	return quicswarm.Addr[inet256.Addr]{
+func (s identitySwarm) makeAddr(addr inet256.Addr) p2pkeswarm.Addr[inet256.Addr] {
+	return p2pkeswarm.Addr[inet256.Addr]{
 		ID:   p2p.PeerID(addr),
 		Addr: addr,
 	}

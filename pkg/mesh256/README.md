@@ -20,16 +20,17 @@ An mesh256 Node's stack looks like this, implemented as layered `Swarms`
 ```
                 Application Data :-)
 |-----------------------------------------------|
-|             Encryption Layer (QUIC)           |
+|             Encryption Layer (P2PKE)          |
 |-----------------------------------------------|
-|              Routing Algorithms               |
+|           Network Routing Algorithm           |
 |-----------------------------------------------|
-|      Multiplexing & Packet Fragmentation      |
+|        Packet Fragmentation & Assembly        |
 |-----------------------------------------------|
-|             Encryption Layer (QUIC)           |
+|                 Multihoming                   |
 |-----------------------------------------------|
 | Transports:                                   |
-|       UDP     |   ETHERNET    |  MEMORY       |
+|     (QUIC)   |    (QUIC)      |               |
+|      UDP     |    ETHERNET    |  MEMORY       |
 |-----------------------------------------------|                   ...
                         NODE 1                                      NODE 2
                         |                                           |
@@ -41,12 +42,11 @@ An mesh256 Node's stack looks like this, implemented as layered `Swarms`
 The life of a message through the stack starting as application data:
 
 1. All traffic from client applications is encrypted immeditately, and only readable at its intended destination.
-2. The destination address is searched for on each network in parallel. The result is temporarily cached.
-3. Traffic is passed to the selected network which produces a message in its internal format and sends it where it should go.
-4. The message is passed through layers which multiplex traffic from the multiple network algorithms.
-This layer also ensures the MTU for one-hop traffic is a reasonable size.
-5. The data is encrypted before leaving the node.
-6. The data, now ciphertext, is sent out using one of the transport swarms.
+2. The applicaiton ciphertext is passed to the network routing algorithm, which creates a network message.
+3. The network message may need to be broken up and reassembled if it is larger than the transport MTU.
+4. The best transport for a peer is selected.
+5. The network message is encrypted if it has to leave the process.
+6. The network message ciphertext, is sent out using one of the transport swarms.
 
 All data leaving the node is encrypted until the next hop.  All data traveling through a network is encrypted until it reaches it's destination.
 

@@ -153,17 +153,6 @@ func (n chainNetwork) MTU(ctx context.Context, x Addr) int {
 	return min
 }
 
-// func (n chainNetwork) Bootstrap(ctx context.Context) error {
-// 	eg := errgroup.Group{}
-// 	for _, n2 := range n.networks {
-// 		n2 := n2
-// 		eg.Go(func() error {
-// 			return n2.Bootstrap(ctx)
-// 		})
-// 	}
-// 	return eg.Wait()
-// }
-
 type loopbackNetwork struct {
 	localAddr Addr
 	localKey  inet256.PublicKey
