@@ -1,8 +1,6 @@
 package inet256cmd
 
 import (
-	"context"
-
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -34,7 +32,7 @@ func newDaemonCmd() *cobra.Command {
 			return err
 		}
 		d := inet256d.New(*params)
-		return d.Run(context.Background())
+		return d.Run(ctx)
 	}
 	return c
 }

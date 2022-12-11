@@ -1,7 +1,6 @@
 package inet256cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -14,7 +13,6 @@ func NewPingCmd(newNode NodeFactory) *cobra.Command {
 		Short: "ping an inet256 node",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
 			privKey := generateKey()
 			node, err := newNode(ctx, privKey)
 			if err != nil {

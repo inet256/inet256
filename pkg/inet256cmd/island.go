@@ -1,8 +1,6 @@
 package inet256cmd
 
 import (
-	"context"
-
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/mesh256"
@@ -23,7 +21,7 @@ func newIslandCmd() *cobra.Command {
 					Peers:      mesh256.NewPeerStore(),
 				},
 			})
-			return d.Run(context.Background())
+			return d.Run(ctx)
 		},
 	}
 }

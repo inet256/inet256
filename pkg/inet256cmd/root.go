@@ -2,7 +2,6 @@ package inet256cmd
 
 import (
 	"context"
-	"os"
 
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
@@ -18,7 +17,7 @@ const defaultAPIAddr = "http://127.0.0.1:2560"
 
 var ctx = func() context.Context {
 	ctx := context.Background()
-	l := slog.New(slog.NewTextHandler(os.Stderr))
+	l := slog.Default()
 	ctx = logctx.NewContext(ctx, &l)
 	return ctx
 }()

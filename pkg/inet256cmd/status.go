@@ -1,7 +1,6 @@
 package inet256cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -14,7 +13,6 @@ func newStatusCmd(newClient func() (inet256d.AdminClient, error)) *cobra.Command
 		Use:   "status",
 		Short: "prints status of the main node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
 			client, err := newClient()
 			if err != nil {
 				return err

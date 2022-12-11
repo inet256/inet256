@@ -2,7 +2,6 @@ package inet256cmd
 
 import (
 	"bufio"
-	"context"
 
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -20,7 +19,6 @@ func NewNetCatCmd(newNode NodeFactory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ctx := context.Background()
 			in := cmd.InOrStdin()
 			out := cmd.OutOrStdout()
 			pk := generateKey()
