@@ -5,9 +5,10 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/stdctx/logctx"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -29,8 +30,6 @@ type Params struct {
 	// Finding
 	AddressBook AddressBook
 	AddrParser  p2p.AddrParser[TransportAddr]
-
-	Logger *logrus.Logger
 }
 
 type Service interface {
@@ -38,12 +37,12 @@ type Service interface {
 }
 
 func RunForever(ctx context.Context, srv Service, params Params) {
-	params.Logger.Info("starting discovery service")
+	logctx.Infoln(ctx, "starting discovery service")
 	retry.Retry(ctx, func() error {
 		return srv.Run(ctx, params)
 	}, retry.WithPredicate(func(err error) bool {
-		params.Logger.WithError(err).Error()
+		logctx.Errorln(ctx, "error in discovery service", err)
 		return true
 	}))
-	params.Logger.Info("stopped discovery service")
+	logctx.Infoln(ctx, "stopped discovery service")
 }

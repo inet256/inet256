@@ -3,9 +3,10 @@ package inet256cmd
 import (
 	"context"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/sirupsen/logrus"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 func NewEchoCmd(newNode NodeFactory) *cobra.Command {
@@ -20,19 +21,18 @@ func NewEchoCmd(newNode NodeFactory) *cobra.Command {
 				return err
 			}
 			defer node.Close()
-			logrus.Info(node.LocalAddr())
+			logctx.Infoln(ctx, node.LocalAddr())
 			var msg inet256.Message
 			for {
 				if err := inet256.Receive(ctx, node, &msg); err != nil {
 					return err
 				}
 				if err := node.Send(ctx, msg.Src, msg.Payload); err != nil {
-					logrus.Error(err)
+					logctx.Errorln(ctx, err)
 					continue
 				}
-				logrus.Infof("echoed %d bytes from %v", len(msg.Payload), msg.Src)
+				logctx.Infof(ctx, "echoed %d bytes from %v", len(msg.Payload), msg.Src)
 			}
 		},
 	}
-
 }

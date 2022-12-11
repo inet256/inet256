@@ -3,6 +3,8 @@ package beaconnet
 import (
 	"time"
 
+	"github.com/brendoncarroll/stdctx/logctx"
+
 	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/mesh256"
 )
@@ -22,7 +24,7 @@ func Factory(params mesh256.NetworkParams) mesh256.Network {
 }
 
 func New(params mesh256.NetworkParams) *Network {
-	router := NewRouter(params.Logger)
+	router := NewRouter(logctx.FromContext(params.Background))
 	nw := neteng.New(params, router, time.Second)
 	return &Network{
 		Network: nw,

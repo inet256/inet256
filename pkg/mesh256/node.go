@@ -2,16 +2,18 @@ package mesh256
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 // NodeParams configure a Node
@@ -43,7 +45,7 @@ func NewNode(params NodeParams) Node {
 		PrivateKey: params.PrivateKey,
 		Swarm:      swarmFromP2P(fragSw),
 		Peers:      params.Peers,
-		Logger:     logrus.StandardLogger(),
+		Background: logctx.NewContext(context.Background(), slog.New(slog.NewTextHandler(os.Stderr))),
 	})
 	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),

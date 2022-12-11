@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -22,7 +21,7 @@ import (
 func TestClientServer(t *testing.T) {
 	ctx := context.Background()
 	// server
-	s := NewServer(logrus.StandardLogger(), addrParser)
+	s := NewServer(addrParser)
 	l, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 	defer l.Close()

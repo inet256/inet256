@@ -9,6 +9,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/futures"
+	"github.com/brendoncarroll/stdctx/logctx"
 
 	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -52,7 +53,6 @@ var _ mesh256.Network = &Network{}
 
 type Network struct {
 	params    mesh256.NetworkParams
-	log       mesh256.Logger
 	publicKey inet256.PublicKey
 	localID   inet256.Addr
 
@@ -67,7 +67,6 @@ func New(params mesh256.NetworkParams, router Router, hbPeriod time.Duration) *N
 	publicKey := params.PrivateKey.Public()
 	n := &Network{
 		params:    params,
-		log:       params.Logger,
 		publicKey: publicKey,
 		localID:   inet256.NewAddr(publicKey),
 
@@ -113,7 +112,7 @@ func (n *Network) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr]
 func (n *Network) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
 	send := func(dst inet256.Addr, data p2p.IOVec) {
 		if err := n.params.Swarm.Tell(ctx, dst, data); err != nil {
-			n.log.Warn(err)
+			logctx.Warnln(ctx, err)
 		}
 	}
 	bs := bitstr.FromSource(bitstr.BytesMSB{Bytes: prefix, End: nbits})
@@ -133,7 +132,7 @@ func (n *Network) LookupPublicKey(ctx context.Context, target inet256.Addr) (ine
 	}
 	send := func(dst inet256.Addr, data p2p.IOVec) {
 		if err := n.params.Swarm.Tell(ctx, dst, data); err != nil {
-			n.log.Warn(err)
+			logctx.Warnln(ctx, err)
 		}
 	}
 	fut, created := n.lookupPubKey.GetOrCreate(target)
@@ -170,7 +169,7 @@ func (n *Network) Close() error {
 func (n *Network) readLoop(ctx context.Context) error {
 	send := func(dst inet256.Addr, data p2p.IOVec) {
 		if err := n.params.Swarm.Tell(ctx, dst, data); err != nil {
-			n.log.Warn(err)
+			logctx.Warnln(ctx, err)
 		}
 	}
 	deliver := func(src inet256.Addr, data []byte) {
@@ -179,7 +178,7 @@ func (n *Network) readLoop(ctx context.Context) error {
 			Dst:     n.localID,
 			Payload: data,
 		}); err != nil {
-			n.log.Warn(err)
+			logctx.Warnln(ctx, err)
 		}
 	}
 	var msg p2p.Message[inet256.Addr]
@@ -226,7 +225,7 @@ func (n *Network) heartbeatLoop(ctx context.Context, d time.Duration) error {
 	}
 	send := func(dst inet256.Addr, data p2p.IOVec) {
 		if err := n.params.Swarm.Tell(ctx, dst, data); err != nil {
-			n.log.Warn(err)
+			logctx.Warnln(ctx, err)
 		}
 	}
 	tick := time.NewTicker(d)

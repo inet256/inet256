@@ -7,7 +7,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/sirupsen/logrus"
 )
 
 // Network is an instantiated network routing algorithm
@@ -23,8 +22,6 @@ type Network interface {
 	PublicKey() inet256.PublicKey
 
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
-
-	//Bootstrap(ctx context.Context) error
 }
 
 // Swarm is similar to a p2p.Swarm, but uses inet256.Addrs instead of p2p.Addrs
@@ -51,14 +48,13 @@ type NetworkParams struct {
 	Swarm Swarm
 	// Peers is the set of peers to communicate with.
 	Peers PeerSet
-
-	Logger Logger
+	// Background is the context that should be used for background operations.
+	// It enables instrumentation through the stdctx/logctx package.
+	Background context.Context
 }
 
 // NetworkFactory is a constructor for a network
 type NetworkFactory func(NetworkParams) Network
-
-type Logger = logrus.FieldLogger
 
 type chainNetwork struct {
 	networks []Network

@@ -10,18 +10,18 @@ import (
 
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
+	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+	"gopkg.in/yaml.v3"
+
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/celldisco"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/serde"
-	"github.com/pkg/errors"
-	"google.golang.org/grpc"
-	"gopkg.in/yaml.v3"
 )
 
 const DefaultAPIEndpoint = "http://127.0.0.1:2560"
@@ -176,8 +176,6 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 
 func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
-	case spec.Cell != nil:
-		return celldisco.New(spec.Cell.Token)
 	case spec.Local != nil:
 		return nil, errors.New("local discovery not yet supported")
 	case spec.Central != nil:

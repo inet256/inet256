@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 )
 
 type ServiceGroup struct {
-	Logger *logrus.Logger
+	Background context.Context
 
 	setupOnce sync.Once
 	ctx       context.Context
@@ -25,24 +25,25 @@ type ServiceGroup struct {
 // If fn ever returns an error other than ctx.Err(), it will be logged.
 // The service will be restarted, unless the group has been stopped.
 func (sg *ServiceGroup) Go(fn func(context.Context) error) {
+	bgCtx := sg.Background
+	if bgCtx == nil {
+		bgCtx = context.Background()
+	}
 	sg.setupOnce.Do(func() {
-		sg.ctx, sg.cf = context.WithCancel(context.Background())
+		sg.ctx, sg.cf = context.WithCancel(bgCtx)
 	})
 	sg.eg.Go(func() error {
+		ctx := sg.ctx
 		for {
 			err := fn(sg.ctx)
 			if errors.Is(err, sg.ctx.Err()) {
 				return nil
 			}
 			if isContextDone(sg.ctx) {
-				if sg.Logger != nil {
-					sg.Logger.Errorf("while stopping service group: %v", err)
-				}
+				logctx.Errorf(ctx, "while stopping service group: %v", err)
 				return nil
 			}
-			if sg.Logger != nil {
-				sg.Logger.Errorf("service crashed with %v. restarting...", err)
-			}
+			logctx.Errorf(ctx, "service crashed with %v. restarting...", err)
 			time.Sleep(time.Second)
 		}
 	})

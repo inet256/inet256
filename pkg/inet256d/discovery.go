@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
 const defaultPollingPeriod = 30 * time.Second
@@ -24,7 +24,6 @@ func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.Pr
 			GetLocalAddrs: localAddrs,
 			AddressBook:   ps[i],
 			AddrParser:    addrParser,
-			Logger:        logrus.StandardLogger(),
 		}
 		eg.Go(func() error {
 			discovery.RunForever(ctx, disc, params)

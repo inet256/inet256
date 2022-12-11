@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/brendoncarroll/go-p2p/p/kademlia"
-	"github.com/sirupsen/logrus"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -68,7 +68,7 @@ func MineAddr(ctx context.Context, r io.Reader, goal int) (inet256.Addr, inet256
 		})
 	}
 	err := eg.Wait()
-	logrus.Infof("searched %d addresses", count)
+	logctx.Infof(ctx, "searched %d addresses", count)
 	// find the addr with the most leading 0s, which also meets the goal.
 	maxLz := -1
 	maxI := len(addrs)

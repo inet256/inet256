@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 	"golang.zx2c4.com/wireguard/tun"
+
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 const (
@@ -31,11 +32,9 @@ func AllowAll(inet256.Addr) bool {
 type PortalParams struct {
 	Node      inet256.Node
 	AllowFunc AllowFunc
-	Logger    *logrus.Logger
 }
 
 func RunPortal(ctx context.Context, params PortalParams) error {
-	log := params.Logger
 	af := params.AllowFunc
 	if af == nil {
 		af = AllowAll
@@ -46,7 +45,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 	}
 	defer func() {
 		if err := dev.Close(); err != nil {
-			logrus.Error("error closing: ", err)
+			logctx.Errorln(ctx, "error closing: ", err)
 		}
 	}()
 	devName, err := dev.Name()
@@ -55,15 +54,14 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 	}
 	localAddr := params.Node.LocalAddr()
 	localIPv6 := IPv6FromINET256(localAddr)
-	log.Infof("Created TUN %s", devName)
-	log.Infof("Local INET256: %v", localAddr)
-	log.Infof("Local IPv6: %v", localIPv6)
+	logctx.Infof(ctx, "Created TUN %s", devName)
+	logctx.Infof(ctx, "Local INET256: %v", localAddr)
+	logctx.Infof(ctx, "Local IPv6: %v", localIPv6)
 
-	if err := configureInterface(devName, localIPv6); err != nil {
+	if err := configureInterface(ctx, devName, localIPv6); err != nil {
 		return err
 	}
 	p := portal{
-		log:  log,
 		af:   af,
 		node: params.Node,
 		dev:  dev,
@@ -72,8 +70,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 }
 
 type portal struct {
-	log *logrus.Logger
-	af  AllowFunc
+	af AllowFunc
 
 	node  inet256.Node
 	dev   tun.Device
@@ -94,11 +91,11 @@ func (p *portal) run(ctx context.Context) error {
 			case e := <-p.dev.Events():
 				switch e {
 				case tun.EventUp:
-					p.log.Info("device up")
+					logctx.Infoln(ctx, "device up")
 				case tun.EventDown:
-					p.log.Info("device down")
+					logctx.Infoln(ctx, "device down")
 				case tun.EventMTUUpdate:
-					p.log.Info("mtu update")
+					logctx.Infoln(ctx, "mtu update")
 				}
 			case <-ctx.Done():
 				return ctx.Err()
@@ -141,7 +138,7 @@ func (p *portal) outboundLoop(ctx context.Context) error {
 		}
 		data := buf[tunOffset:n]
 		if err := p.handleOutbound(ctx, data); err != nil {
-			p.log.Warn("outbound: dropping packet: ", err)
+			logctx.Warnln(ctx, "outbound: dropping packet: ", err)
 		}
 	}
 }
@@ -178,7 +175,7 @@ func (p *portal) inboundLoop(ctx context.Context) error {
 			return err
 		}
 		if !p.af(msg.Src) {
-			p.log.Warn("inbound: ignoring INET256 message from: ", msg.Src)
+			logctx.Warnln(ctx, "inbound: ignoring INET256 message from: ", msg.Src)
 			continue
 		}
 		if err := p.handleInbound(msg.Src, msg.Payload); err != nil {
@@ -212,22 +209,22 @@ func (p *portal) getEntry(key netip.Addr) *cacheEntry {
 	return v.(*cacheEntry)
 }
 
-func configureInterface(iface string, ipAddr netip.Addr) error {
+func configureInterface(ctx context.Context, iface string, ipAddr netip.Addr) error {
 	switch runtime.GOOS {
 	case "darwin":
-		return ifconfigCmd(iface, "inet6", ipAddr.String(), "prefixlen", strconv.Itoa(netPrefix.Bits()))
+		return ifconfigCmd(ctx, iface, "inet6", ipAddr.String(), "prefixlen", strconv.Itoa(netPrefix.Bits()))
 	default:
 		return errors.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 }
 
-func ifconfigCmd(args ...string) error {
-	cmd := exec.Command("ifconfig", args...)
+func ifconfigCmd(ctx context.Context, args ...string) error {
+	cmd := exec.CommandContext(ctx, "ifconfig", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
 	}
-	logrus.Info("ifconfig output:", string(output))
+	logctx.Infoln(ctx, "ifconfig output:", string(output))
 	return nil
 }
 

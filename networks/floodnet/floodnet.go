@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/stdctx/logctx"
+	"golang.org/x/exp/slog"
+
 	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
@@ -24,7 +27,7 @@ type Network struct {
 }
 
 func New(params mesh256.NetworkParams) *Network {
-	r := NewRouter(params.Logger)
+	r := NewRouter(logctx.FromContext(params.Background))
 	nwk := neteng.New(params, r, 0)
 	return &Network{
 		Network: nwk,
@@ -37,13 +40,13 @@ type Router struct {
 	publicKey  inet256.PublicKey
 	localID    inet256.ID
 	peers      mesh256.PeerSet
-	log        mesh256.Logger
+	log        slog.Logger
 
 	mu   sync.Mutex
 	keys map[inet256.Addr]inet256.PublicKey
 }
 
-func NewRouter(log mesh256.Logger) *Router {
+func NewRouter(log slog.Logger) *Router {
 	return &Router{log: log}
 }
 

@@ -2,15 +2,19 @@ package mesh256
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
+	"github.com/brendoncarroll/stdctx/logctx"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -47,7 +51,7 @@ func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm
 		localID:   inet256.NewAddr(pubKey),
 
 		mux:       mux,
-		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, logrus.StandardLogger()),
+		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, slog.New(slog.NewTextHandler(os.Stderr))),
 		dataSwarm: mux.Open(channelData),
 	}
 }
@@ -56,7 +60,7 @@ func (s *swarm[T]) Tell(ctx context.Context, dst inet256.Addr, v p2p.IOVec) erro
 	if !s.peerStore.Contains(dst) {
 		return errors.Errorf("tell to unrecognized peer %v", dst)
 	}
-	addr, err := s.selectAddr(dst)
+	addr, err := s.selectAddr(ctx, dst)
 	if err != nil {
 		return err
 	}
@@ -73,12 +77,12 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 		if err := s.dataSwarm.Receive(ctx, func(msg p2p.Message[T]) {
 			srcKey, err := s.dataSwarm.LookupPublicKey(ctx, msg.Src)
 			if err != nil {
-				logrus.Warn("could not lookup public key, dropping message: ", err)
+				logctx.Warnln(ctx, "could not lookup public key, dropping message: ", err)
 				return
 			}
 			srcKey2, err := inet256.PublicKeyFromBuiltIn(srcKey)
 			if err != nil {
-				logrus.Warn(err)
+				logctx.Warnln(ctx, err)
 				return
 			}
 			srcID := inet256.NewAddr(srcKey2)
@@ -123,7 +127,7 @@ func (s *swarm[T]) Close() error {
 }
 
 func (s *swarm[T]) MTU(ctx context.Context, target inet256.Addr) int {
-	addr, err := s.selectAddr(target)
+	addr, err := s.selectAddr(ctx, target)
 	if err != nil {
 		// TODO: figure out what to do here
 		return 512
@@ -139,7 +143,7 @@ func (s *swarm[T]) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2
 	if !s.peerStore.Contains(target) {
 		return nil, p2p.ErrPublicKeyNotFound
 	}
-	addr, err := s.selectAddr(target)
+	addr, err := s.selectAddr(ctx, target)
 	if err != nil {
 		if inet256.IsErrUnreachable(err) {
 			err = inet256.ErrPublicKeyNotFound
@@ -149,8 +153,8 @@ func (s *swarm[T]) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2
 	return s.dataSwarm.LookupPublicKey(ctx, *addr)
 }
 
-func (s *swarm[T]) selectAddr(x inet256.Addr) (*T, error) {
-	return s.lm.PickAddr(x)
+func (s *swarm[T]) selectAddr(ctx context.Context, x inet256.Addr) (*T, error) {
+	return s.lm.PickAddr(ctx, x)
 }
 
 func (s *swarm[T]) LastSeen(id inet256.Addr) map[string]time.Time {
