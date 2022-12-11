@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/inet256/inet256/networks/beaconnet"
-	"github.com/inet256/inet256/networks/floodnet"
 	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
@@ -32,7 +31,6 @@ type PeerSpec struct {
 }
 
 type NetworkSpec struct {
-	FloodNet  *struct{} `yaml:"floodnet,omitempty"`
 	BeaconNet *struct{} `yaml:"beaconnet,omitempty"`
 	OneHop    *struct{} `yaml:"onehop,omitempty"`
 }
@@ -265,8 +263,6 @@ func networkFactoryFromSpec(spec NetworkSpec) (mesh256.NetworkFactory, error) {
 	switch {
 	case spec.BeaconNet != nil:
 		return beaconnet.Factory, nil
-	case spec.FloodNet != nil:
-		return floodnet.Factory, nil
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}

@@ -3,7 +3,7 @@ package inet256cmd
 import (
 	"context"
 
-	"github.com/inet256/inet256/networks/floodnet"
+	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
@@ -18,7 +18,7 @@ func newIslandCmd() *cobra.Command {
 			d := inet256d.New(inet256d.Params{
 				APIAddr: defaultAPIAddr,
 				MainNodeParams: mesh256.Params{
-					NewNetwork: floodnet.Factory,
+					NewNetwork: beaconnet.Factory,
 					PrivateKey: privateKey,
 					Peers:      mesh256.NewPeerStore(),
 				},
