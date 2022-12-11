@@ -5,10 +5,10 @@ import (
 	"os"
 
 	"github.com/brendoncarroll/stdctx/logctx"
-	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slog"
 
+	"github.com/inet256/inet256/client/go_client/inet256client"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
