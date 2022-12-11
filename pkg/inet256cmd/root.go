@@ -2,16 +2,26 @@ package inet256cmd
 
 import (
 	"context"
+	"os"
+
+	"github.com/brendoncarroll/stdctx/logctx"
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slog"
 
 	"github.com/inet256/inet256/client/go_client/inet256client"
-	"github.com/spf13/cobra"
-
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/inet256ipv6"
 )
 
 const defaultAPIAddr = "http://127.0.0.1:2560"
+
+var ctx = func() context.Context {
+	ctx := context.Background()
+	l := slog.New(slog.NewTextHandler(os.Stderr))
+	ctx = logctx.NewContext(ctx, &l)
+	return ctx
+}()
 
 func Execute() error {
 	return NewRootCmd().Execute()

@@ -3,12 +3,11 @@ package inet256ipv6
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +33,7 @@ func NewIP6PortalCmd(newNode func(context.Context, inet256.PrivateKey) (inet256.
 		}
 		allowFunc := AllowAll
 		if *whitelistPath != "" {
-			data, err := ioutil.ReadFile(*whitelistPath)
+			data, err := os.ReadFile(*whitelistPath)
 			if err != nil {
 				return err
 			}
@@ -46,7 +45,6 @@ func NewIP6PortalCmd(newNode func(context.Context, inet256.PrivateKey) (inet256.
 		return RunPortal(ctx, PortalParams{
 			AllowFunc: allowFunc,
 			Node:      n,
-			Logger:    logrus.New(),
 		})
 	}
 	return c
@@ -88,7 +86,7 @@ func NewIP6AddrCmd() *cobra.Command {
 }
 
 func loadPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
-	data, err := ioutil.ReadFile(p)
+	data, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}

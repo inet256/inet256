@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/brendoncarroll/stdctx/logctx"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/serde"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 )
 
 type FindFunc = func(ctx context.Context, x inet256.Addr) ([]string, error)
@@ -32,7 +33,7 @@ func (s *PollingDiscovery) Run(ctx context.Context, params Params) error {
 }
 
 func (s *PollingDiscovery) findLoop(ctx context.Context, params Params) error {
-	return s.poll(ctx, params.Logger, func() error {
+	return s.poll(ctx, func() error {
 		for _, target := range params.AddressBook.ListPeers() {
 			addrStrs, err := s.Find(ctx, target)
 			if err != nil {
@@ -49,12 +50,12 @@ func (s *PollingDiscovery) findLoop(ctx context.Context, params Params) error {
 }
 
 func (s *PollingDiscovery) announceLoop(ctx context.Context, params Params) error {
-	return s.poll(ctx, params.Logger, func() error {
+	return s.poll(ctx, func() error {
 		return s.Announce(ctx, params.PrivateKey, serde.MarshalAddrs(params.GetLocalAddrs()), s.Period*3/2)
 	})
 }
 
-func (s *PollingDiscovery) poll(ctx context.Context, log *logrus.Logger, fn func() error) error {
+func (s *PollingDiscovery) poll(ctx context.Context, fn func() error) error {
 	ticker := time.NewTicker(s.Period)
 	defer ticker.Stop()
 	for {
@@ -64,7 +65,7 @@ func (s *PollingDiscovery) poll(ctx context.Context, log *logrus.Logger, fn func
 				return ctx.Err()
 			default:
 			}
-			log.Error("while polling", err)
+			logctx.Errorln(ctx, "while polling", err)
 		}
 		select {
 		case <-ctx.Done():

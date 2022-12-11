@@ -6,14 +6,12 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/sirupsen/logrus"
 )
 
 type TellFunc = func(ctx context.Context, dst inet256.Addr, m p2p.IOVec) error
 
 // SendQueue queues messages, and sends them in the background.
 type SendQueue struct {
-	log  *logrus.Logger
 	todo chan inet256.Message
 	send TellFunc
 	sg   ServiceGroup
@@ -22,7 +20,6 @@ type SendQueue struct {
 
 func NewSendQueue(depth int, send TellFunc) SendQueue {
 	sq := SendQueue{
-		log:  logrus.StandardLogger(),
 		todo: make(chan inet256.Message, depth),
 		send: send,
 		done: make(chan struct{}),

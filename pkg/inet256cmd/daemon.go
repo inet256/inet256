@@ -3,11 +3,12 @@ package inet256cmd
 import (
 	"context"
 
-	"github.com/inet256/inet256/pkg/inet256d"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/inet256/inet256/pkg/inet256d"
 )
 
 func newDaemonCmd() *cobra.Command {
@@ -27,7 +28,7 @@ func newDaemonCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		log.Infof("using config from path: %v", *configPath)
+		logctx.Infof(ctx, "using config from path: %v", *configPath)
 		params, err := inet256d.MakeParams(*configPath, *config)
 		if err != nil {
 			return err

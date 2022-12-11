@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"context"
 
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -29,7 +29,7 @@ func NewNetCatCmd(newNode NodeFactory) *cobra.Command {
 				return err
 			}
 			defer node.Close()
-			logrus.Info(node.LocalAddr())
+			logctx.Infoln(ctx, node.LocalAddr())
 			eg := errgroup.Group{}
 			eg.Go(func() error {
 				var msg inet256.Message
@@ -38,7 +38,7 @@ func NewNetCatCmd(newNode NodeFactory) *cobra.Command {
 						return err
 					}
 					if msg.Src != remote {
-						logrus.Warnf("discarding message from %v", msg.Src)
+						logctx.Warnf(ctx, "discarding message from %v", msg.Src)
 						continue
 					}
 					out.Write(msg.Payload)

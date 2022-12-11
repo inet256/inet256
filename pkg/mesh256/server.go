@@ -2,6 +2,7 @@ package mesh256
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slog"
 )
 
 const nameMemSwarm = "memory"
@@ -45,12 +46,11 @@ type Server struct {
 	mu    sync.Mutex
 	nodes map[inet256.Addr]*node
 
-	log *logrus.Logger
+	log slog.Logger
 }
 
 func NewServer(params Params) *Server {
-	memLogger := logrus.StandardLogger()
-	r := memswarm.NewRealm(memswarm.WithLogger(memLogger))
+	r := memswarm.NewRealm()
 	msw := r.NewSwarmWithKey(params.PrivateKey.BuiltIn())
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
@@ -73,7 +73,7 @@ func NewServer(params Params) *Server {
 			Peers:      peers.ChainStore[TransportAddr]{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]*node),
-		log:   logrus.StandardLogger(),
+		log:   slog.New(slog.NewTextHandler(os.Stderr)),
 	}
 	return s
 }
@@ -105,7 +105,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 		},
 	})
 	s.nodes[id] = n.(*node)
-	s.log.WithFields(logrus.Fields{"addr": id}).Infof("created node")
+	s.log.With(slog.Any("addr", id)).Info("created node")
 	return n, nil
 }
 

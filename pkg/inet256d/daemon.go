@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/inet256/inet256/pkg/autopeering"
@@ -28,7 +28,6 @@ type Params struct {
 
 type Daemon struct {
 	params Params
-	log    *logrus.Logger
 
 	setupDone chan struct{}
 	s         *mesh256.Server
@@ -37,11 +36,12 @@ type Daemon struct {
 func New(p Params) *Daemon {
 	return &Daemon{
 		params:    p,
-		log:       logrus.New(),
 		setupDone: make(chan struct{}),
 	}
 }
 
+// Run runs the daemon.
+// Logs are written to the slog.Logger in the context.
 func (d *Daemon) Run(ctx context.Context) error {
 	promReg := prometheus.NewRegistry()
 	promReg.Register(prometheus.NewGoCollector())
@@ -74,12 +74,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	s := mesh256.NewServer(nodeParams)
 	defer func() {
 		if err := s.Close(); err != nil {
-			d.log.Error(err)
+			logctx.Errorln(ctx, "closing service", err)
 		}
 	}()
 	d.s = s
 	close(d.setupDone)
-	d.log.Println("LOCAL ID: ", s.LocalAddr())
+	logctx.Infoln(ctx, "LOCAL ID: ", s.LocalAddr())
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {

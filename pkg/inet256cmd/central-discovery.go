@@ -3,11 +3,12 @@ package inet256cmd
 import (
 	"net"
 
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco"
-	"github.com/sirupsen/logrus"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+
+	"github.com/inet256/inet256/pkg/discovery"
+	"github.com/inet256/inet256/pkg/discovery/centraldisco"
 )
 
 func newCentralDiscoveryCmd() *cobra.Command {
@@ -17,8 +18,7 @@ func newCentralDiscoveryCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			laddr := args[0]
-			logger := logrus.StandardLogger()
-			s := centraldisco.NewServer(logger, func([]byte) (discovery.TransportAddr, error) {
+			s := centraldisco.NewServer(func([]byte) (discovery.TransportAddr, error) {
 				return discovery.TransportAddr{}, nil
 			})
 			gs := grpc.NewServer()
@@ -28,7 +28,7 @@ func newCentralDiscoveryCmd() *cobra.Command {
 				return err
 			}
 			defer l.Close()
-			logger.Infof("serving on %s...", l.Addr().String())
+			logctx.Infof(ctx, "serving on %s...", l.Addr().String())
 			return gs.Serve(l)
 		},
 	}

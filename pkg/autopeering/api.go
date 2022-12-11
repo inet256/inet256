@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/stdctx/logctx"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/sirupsen/logrus"
 )
 
 type TransportAddr = multiswarm.Addr
@@ -37,13 +38,13 @@ func RunForever(ctx context.Context, srv Service, params Params) {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
-		logrus.Info("starting autopeering service")
+		logctx.Infoln(ctx, "starting autopeering service")
 		if err := srv.Run(ctx, params); err != nil {
 			if err == context.Canceled {
-				logrus.Infof("stopping autopeering service")
+				logctx.Infoln(ctx, "stopping autopeering service")
 				return
 			}
-			logrus.Errorf("error in autopeering service %v", err)
+			logctx.Errorf(ctx, "error in autopeering service %v", err)
 		}
 		select {
 		case <-ctx.Done():

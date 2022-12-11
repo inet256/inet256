@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/go-chi/chi"
-	"github.com/inet256/inet256/pkg/inet256http"
-	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
+
+	"github.com/inet256/inet256/pkg/inet256http"
+	"github.com/inet256/inet256/pkg/mesh256"
 )
 
 // runHTTPServer starts a listener at endpoint, and serves an HTTP API server backed by srv.
@@ -56,9 +57,9 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 		w.Write(data)
 	})
 	go func() {
-		logrus.Println("API listening on: ", l.Addr())
+		logctx.Infoln(ctx, "API listening on: ", l.Addr())
 		if err := hSrv.Serve(l); err != nil && err != http.ErrServerClosed {
-			logrus.Errorf("error serving http: %v", err)
+			logctx.Infof(ctx, "error serving http: %v", err)
 		}
 	}()
 	<-ctx.Done()

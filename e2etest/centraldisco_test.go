@@ -11,14 +11,13 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
 func TestCentralDiscovery(t *testing.T) {
 	// setup discovery server
-	discoSrv := centraldisco.NewServer(logrus.StandardLogger(), func([]byte) (discovery.TransportAddr, error) {
+	discoSrv := centraldisco.NewServer(func([]byte) (discovery.TransportAddr, error) {
 		return discovery.TransportAddr{}, nil
 	})
 	centralAddr := runGRPCServer(t, func(gs *grpc.Server) {

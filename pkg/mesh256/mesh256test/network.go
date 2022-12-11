@@ -3,19 +3,18 @@ package mesh256test
 import (
 	"context"
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/stretchr/testify/require"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 )
 
 type (
@@ -96,12 +95,11 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 	}
 	nets := make([]Network, N)
 	for i := 0; i < N; i++ {
-		logger := newTestLogger(t)
 		nets[i] = nf(mesh256.NetworkParams{
 			Peers:      peerStores[i],
 			PrivateKey: keys[i],
 			Swarm:      netSwarms[i],
-			Logger:     logger,
+			Background: context.Background(),
 		})
 	}
 	t.Log("successfully initialized", N, "networks")
@@ -121,16 +119,6 @@ func randomPairs(n int, fn func(i, j int)) {
 			}
 		}
 	}
-}
-
-func newTestLogger(t testing.TB) *logrus.Logger {
-	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
-	logger.SetOutput(os.Stderr)
-	logger.SetFormatter(&logrus.TextFormatter{
-		ForceColors: true,
-	})
-	return logger
 }
 
 type net2node struct {

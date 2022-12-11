@@ -9,13 +9,13 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/golang/protobuf/proto"
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/inet256/inet256/pkg/discovery"
+	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
+	"github.com/inet256/inet256/pkg/inet256"
 )
 
 type peerState struct {
@@ -28,7 +28,6 @@ type peerState struct {
 }
 
 type Server struct {
-	log    *logrus.Logger
 	parser discovery.AddrParser
 
 	mu sync.RWMutex
@@ -43,9 +42,8 @@ func RunServer(l net.Listener, s *Server) error {
 	return gs.Serve(l)
 }
 
-func NewServer(log *logrus.Logger, parser discovery.AddrParser) *Server {
+func NewServer(parser discovery.AddrParser) *Server {
 	return &Server{
-		log:    log,
 		parser: parser,
 		m:      make(map[inet256.Addr]*peerState),
 	}
