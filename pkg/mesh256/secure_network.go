@@ -6,8 +6,8 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/sirupsen/logrus"
 )
 
 func newSecureNetwork(privateKey inet256.PrivateKey, x Network) Network {
@@ -39,7 +39,7 @@ func (s quic2Swarm) Receive(ctx context.Context, th func(p2p.Message[inet256.Add
 			srcAddr := msg.Src.Addr
 			// This is where the actual check for who can send as what address happens
 			if !bytes.Equal(srcID[:], srcAddr[:]) {
-				logrus.Warnf("incorrect id=%v for address=%v", srcID, srcAddr)
+				logctx.Warnf(ctx, "incorrect id=%v for address=%v", srcID, srcAddr)
 				return
 			}
 			th(p2p.Message[inet256.Addr]{

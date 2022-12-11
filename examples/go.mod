@@ -9,7 +9,7 @@ require (
 )
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20221106152522-e250e2942e27 // indirect
+	github.com/brendoncarroll/go-p2p v0.0.0-20221210232948-b2db99167995 // indirect
 	github.com/brendoncarroll/stdctx v0.0.0-20221023182057-986b9c600f6c // indirect
 	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
 	github.com/klauspost/reedsolomon v1.9.16 // indirect
@@ -18,10 +18,10 @@ require (
 	github.com/templexxx/xorsimd v0.4.1 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/xtaci/lossyconn v0.0.0-20200209145036-adba10fffc37 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/exp v0.0.0-20221023144134-a1e5550cf13e // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/exp v0.0.0-20221106115401-f9659909a136 // indirect
+	golang.org/x/net v0.1.0 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
 
 replace github.com/inet256/inet256 => ../

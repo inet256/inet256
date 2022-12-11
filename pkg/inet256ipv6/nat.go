@@ -3,8 +3,8 @@ package inet256ipv6
 import (
 	"context"
 
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/inet256"
-	log "github.com/sirupsen/logrus"
 )
 
 type IPv6Addr = [16]byte
@@ -45,13 +45,13 @@ func (nt *NATTable) AddClient(ctx context.Context, ipv6 IPv6Addr) inet256.Addr {
 	return outside
 }
 
-func (nt *NATTable) DeleteClient(ip6 IPv6Addr) {
+func (nt *NATTable) DeleteClient(ctx context.Context, ip6 IPv6Addr) {
 	addr, exists := nt.outbound[ip6]
 	if !exists {
 		return
 	}
 	if err := nt.vnodes[addr].Close(); err != nil {
-		log.Error(err)
+		logctx.Errorln(ctx, err)
 	}
 	delete(nt.outbound, ip6)
 	delete(nt.inbound, addr)

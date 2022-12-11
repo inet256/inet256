@@ -9,7 +9,6 @@ import (
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/slog"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -87,7 +86,7 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 			}
 			srcID := inet256.NewAddr(srcKey2)
 			if !s.peerStore.Contains(srcID) {
-				logrus.Warnf("dropping message from unknown peer %v", srcID)
+				logctx.Warnf(ctx, "dropping message from unknown peer %v", srcID)
 				return
 			}
 			s.lm.Mark(srcID, msg.Src, time.Now())
