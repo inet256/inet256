@@ -16,7 +16,7 @@ import (
 )
 
 type Router struct {
-	log                        slog.Logger
+	log                        *slog.Logger
 	privateKey                 inet256.PrivateKey
 	peers                      mesh256.PeerSet
 	localID                    inet256.Addr
@@ -29,8 +29,9 @@ type Router struct {
 	ourBeacon   *Beacon
 }
 
-func NewRouter(log slog.Logger) neteng.Router {
+func NewRouter(log *slog.Logger) neteng.Router {
 	return &Router{
+		log:          log,
 		peerStateTTL: defaultPeerStateTTL,
 		beaconPeriod: defaultBeaconPeriod,
 

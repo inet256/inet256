@@ -32,7 +32,7 @@ type linkMonitor[T p2p.Addr] struct {
 	addrs     map[string]T
 }
 
-func newLinkMonitor[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T], log slog.Logger) *linkMonitor[T] {
+func newLinkMonitor[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T], log *slog.Logger) *linkMonitor[T] {
 	lm := &linkMonitor[T]{
 		x:           x,
 		peerStore:   peerStore,

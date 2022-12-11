@@ -2,7 +2,6 @@ package mesh256
 
 import (
 	"context"
-	"io"
 	"os"
 	"sync"
 	"time"
@@ -51,8 +50,7 @@ type Server struct {
 }
 
 func NewServer(params Params) *Server {
-	memLogger := slog.New(slog.NewTextHandler(io.Discard))
-	r := memswarm.NewRealm(memswarm.WithLogger(memLogger))
+	r := memswarm.NewRealm()
 	msw := r.NewSwarmWithKey(params.PrivateKey.BuiltIn())
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)

@@ -40,13 +40,13 @@ type Router struct {
 	publicKey  inet256.PublicKey
 	localID    inet256.ID
 	peers      mesh256.PeerSet
-	log        slog.Logger
+	log        *slog.Logger
 
 	mu   sync.Mutex
 	keys map[inet256.Addr]inet256.PublicKey
 }
 
-func NewRouter(log slog.Logger) *Router {
+func NewRouter(log *slog.Logger) *Router {
 	return &Router{log: log}
 }
 

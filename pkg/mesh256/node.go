@@ -41,11 +41,12 @@ func NewNode(params NodeParams) Node {
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
 	fragSw := fragswarm.NewSecure[Addr](basePeerSwarm, TransportMTU)
+	log := slog.New(slog.NewTextHandler(os.Stderr))
 	nw := params.NewNetwork(NetworkParams{
 		PrivateKey: params.PrivateKey,
 		Swarm:      swarmFromP2P(fragSw),
 		Peers:      params.Peers,
-		Background: logctx.NewContext(context.Background(), slog.New(slog.NewTextHandler(os.Stderr))),
+		Background: logctx.NewContext(context.Background(), &log),
 	})
 	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),

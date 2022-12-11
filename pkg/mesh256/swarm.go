@@ -44,13 +44,14 @@ func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm
 		panic(err)
 	}
 	mux := p2pmux.NewUint16SecureMux[T](x)
+	log := slog.New(slog.NewTextHandler(os.Stderr))
 	return &swarm[T]{
 		peerStore: peerStore,
 		inner:     x,
 		localID:   inet256.NewAddr(pubKey),
 
 		mux:       mux,
-		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, slog.New(slog.NewTextHandler(os.Stderr))),
+		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, &log),
 		dataSwarm: mux.Open(channelData),
 	}
 }
