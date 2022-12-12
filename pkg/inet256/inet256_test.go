@@ -72,8 +72,8 @@ func TestSignVerify(t *testing.T) {
 			t.Parallel()
 			data := []byte("test data")
 			purpose := "test purpose"
-			sig := Sign(nil, purpose, privKey, data)
-			ok := Verify(purpose, privKey.Public(), data, sig)
+			sig := Sign(nil, privKey, purpose, data)
+			ok := Verify(privKey.Public(), purpose, data, sig)
 			require.True(t, ok)
 		})
 	}

@@ -160,7 +160,7 @@ func GenerateKey(rng io.Reader) (PublicKey, PrivateKey, error) {
 
 // Sign appends a signature to out and returns it.
 // Sign implements the INET256 Signature Scheme.
-func Sign(out []byte, purpose string, privateKey PrivateKey, msg []byte) []byte {
+func Sign(out []byte, privateKey PrivateKey, purpose string, msg []byte) []byte {
 	input := prehash(purpose, msg)
 	switch priv := privateKey.(type) {
 	case *Ed25519PrivateKey:
@@ -181,7 +181,7 @@ func Sign(out []byte, purpose string, privateKey PrivateKey, msg []byte) []byte 
 // Verify checks that sig is a valid signature for msg, produces by publicKey.
 // Verify returns true for a correct signature and false otherwise.
 // Verify implements the INET256 Signature Scheme
-func Verify(purpose string, publicKey PublicKey, msg, sig []byte) bool {
+func Verify(publicKey PublicKey, purpose string, msg, sig []byte) bool {
 	input := prehash(purpose, msg)
 	switch pub := publicKey.(type) {
 	case *Ed25519PublicKey:
