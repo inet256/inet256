@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/pkg/errors"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -84,10 +83,7 @@ func newBeacon(privateKey inet256.PrivateKey, now time.Time) *Beacon {
 	counter := uint64(now.UnixNano())
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], counter)
-	sig, err := p2p.Sign(nil, privateKey.BuiltIn(), sigPurpose, counterBytes[:])
-	if err != nil {
-		panic(err)
-	}
+	sig := inet256.Sign(nil, privateKey, sigPurpose, counterBytes[:])
 	return &Beacon{
 		PublicKey: inet256.MarshalPublicKey(nil, privateKey.Public()),
 		Counter:   counter,
@@ -102,8 +98,8 @@ func verifyBeacon(b Beacon) (inet256.PublicKey, error) {
 	}
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], b.Counter)
-	if err := p2p.Verify(pubKey.BuiltIn(), sigPurpose, counterBytes[:], b.Sig); err != nil {
-		return nil, err
+	if !inet256.Verify(pubKey, sigPurpose, counterBytes[:], b.Sig) {
+		return nil, errors.New("verifyBeacon: invalid signature")
 	}
 	return pubKey, nil
 }

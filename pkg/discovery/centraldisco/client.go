@@ -2,10 +2,10 @@ package centraldisco
 
 import (
 	"context"
+	"errors"
 	"math"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -35,12 +35,9 @@ func (c *Client) Announce(ctx context.Context, privKey inet256.PrivateKey, endpo
 		Tai64:      ts[:],
 		TtlSeconds: int64(math.Ceil(ttl.Seconds())),
 	})
-	sig, err := p2p.Sign(nil, privKey.BuiltIn(), purposeAnnounce, announceBytes)
-	if err != nil {
-		return err
-	}
+	sig := inet256.Sign(nil, privKey, purposeAnnounce, announceBytes)
 	pubKeyBytes := inet256.MarshalPublicKey(nil, privKey.Public())
-	_, err = c.client.Announce(ctx, &internal.AnnounceReq{
+	_, err := c.client.Announce(ctx, &internal.AnnounceReq{
 		PublicKey: pubKeyBytes,
 		Announce:  announceBytes,
 		Sig:       sig,
@@ -62,8 +59,8 @@ func (c *Client) Find(ctx context.Context, target inet256.Addr) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	if err := p2p.Verify(pubKey.BuiltIn(), purposeAnnounce, res.Announce, res.Sig); err != nil {
-		return nil, err
+	if !inet256.Verify(pubKey, purposeAnnounce, res.Announce, res.Sig) {
+		return nil, errors.New("find: invalid signature for announce")
 	}
 	var x internal.Announce
 	if err := proto.Unmarshal(res.Announce, &x); err != nil {

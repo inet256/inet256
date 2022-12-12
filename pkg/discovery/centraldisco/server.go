@@ -2,11 +2,11 @@ package centraldisco
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -54,8 +54,8 @@ func (s *Server) Announce(ctx context.Context, req *internal.AnnounceReq) (*inte
 	if err != nil {
 		return nil, err
 	}
-	if err := p2p.Verify(pubKey.BuiltIn(), purposeAnnounce, req.Announce, req.Sig); err != nil {
-		return nil, err
+	if !inet256.Verify(pubKey, purposeAnnounce, req.Announce, req.Sig) {
+		return nil, errors.New("announce: invalid signature")
 	}
 	var x internal.Announce
 	if err := proto.Unmarshal(req.Announce, &x); err != nil {

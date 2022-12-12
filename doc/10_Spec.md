@@ -4,7 +4,7 @@ INET256 is a standardized networking API, and cryptographic address scheme.
 
 - It *does not* prescribe protocols, wire formats, or routing algorithms.
 - It *does* define an address scheme.
-- It *does* define an upward facing API.
+- It *does* define API methods.
 
 This document serves primarily to document the spec.  More reasoning can be found in the [proposal](./00_Proposal.md)
 
@@ -132,3 +132,27 @@ This will be implementation dependent.
 It is very likely that traffic anonymous to non-anonymous and vice versa will be the norm.
 
 Further revisions of this spec may formalize anonymity guarantees as `NodeOptions`.
+
+## 5 Signatures
+In INET256 each node has its own private signing key, managed by the client application which created the node.
+INET256 implementations use this key to represent the node on the network and for authenticating the application traffic end-to-end.
+Additionally, applications may use this key for their own purposes.
+
+In order to facillitate all this signing with the same key, all signature production and verification using the key must be done using a signature scheme which does not produce colliding signatures across purposes.
+
+The **INET256 Signature Scheme** solves this problem.
+
+**TLDR**
+```
+sig = Sign( private_key, CSHAKE256( "", purpose, input ) )
+```
+
+CSHAKE is customized with a purpose string i.e. if the purpose was `mypurpose` the parameters to CSHAKE would be `N=""` and `C=mypurpose`.
+The input to CSHAKE is the bytes of the message to be signed.
+Signatures are performed on 512 bits of output from CSHAKE.
+The signature algorithm used is set by the public key.
+Each type of public key in INET256 has exactly one signing algorithm associated with it and that algorithm accepts no additional parameters.
+
+INET256 implementatations must perform all signing operations with a purpose beginning with `inet256/`.
+Applications are free to use any purpose, so long as it does not begin with `inet256/`.
+INET256 implementations *must* refuse to perform signing operations which use a purpose reserved for implementations.
