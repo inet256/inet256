@@ -5,8 +5,18 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
+
+	"golang.org/x/crypto/sha3"
+)
+
+const (
+	// MaxPublicKeySize is the maximum size of a serialized PublicKey in bytes
+	MaxPublicKeySize = 1 << 15
+	// MaxSignatureSize is the maximum size of a signature in bytes
+	MaxSignatureSize = 1 << 15
 )
 
 // PublicKey is a signing key used to prove identity within INET256.
@@ -23,6 +33,9 @@ func PublicKeyFromBuiltIn(x crypto.PublicKey) (PublicKey, error) {
 	case ed25519.PublicKey:
 		return (*Ed25519PublicKey)(x), nil
 	case *rsa.PublicKey:
+		if x.N.BitLen() < 1024 {
+			return nil, errors.New("rsa keys must be >= 1024 bits for use in INET256")
+		}
 		return (*RSAPublicKey)(x), nil
 	default:
 		return nil, fmt.Errorf("public keys of type %T are not supported by INET256", x)
@@ -84,6 +97,9 @@ func PrivateKeyFromBuiltIn(x crypto.Signer) (PrivateKey, error) {
 	case ed25519.PrivateKey:
 		return (*Ed25519PrivateKey)(x), nil
 	case *rsa.PrivateKey:
+		if x.N.BitLen() < 1024 {
+			return nil, errors.New("rsa keys must be >= 1024 bits for use in INET256")
+		}
 		return (*RSAPrivateKey)(x), nil
 	default:
 		return nil, fmt.Errorf("private keys of type %T are not supported by INET256", x)
@@ -140,4 +156,47 @@ func GenerateKey(rng io.Reader) (PublicKey, PrivateKey, error) {
 		return nil, nil, err
 	}
 	return pub2, priv2, nil
+}
+
+// Sign appends a signature to out and returns it.
+// Sign implements the INET256 Signature Scheme.
+func Sign(out []byte, purpose string, privateKey PrivateKey, msg []byte) []byte {
+	input := prehash(purpose, msg)
+	switch priv := privateKey.(type) {
+	case *Ed25519PrivateKey:
+		sig := ed25519.Sign(priv[:], input[:])
+		out = append(out, sig...)
+	case *RSAPrivateKey:
+		sig, err := rsa.SignPKCS1v15(nil, (*rsa.PrivateKey)(priv), crypto.Hash(0), input[:])
+		if err != nil {
+			panic(err)
+		}
+		out = append(out, sig...)
+	default:
+		panic(privateKey)
+	}
+	return out
+}
+
+// Verify checks that sig is a valid signature for msg, produces by publicKey.
+// Verify returns true for a correct signature and false otherwise.
+// Verify implements the INET256 Signature Scheme
+func Verify(purpose string, publicKey PublicKey, msg, sig []byte) bool {
+	input := prehash(purpose, msg)
+	switch pub := publicKey.(type) {
+	case *Ed25519PublicKey:
+		return ed25519.Verify(pub[:], input[:], sig)
+	case *RSAPublicKey:
+		err := rsa.VerifyPKCS1v15((*rsa.PublicKey)(pub), crypto.Hash(0), input[:], sig)
+		return err == nil
+	default:
+		panic(publicKey)
+	}
+}
+
+func prehash(purpose string, data []byte) (ret [64]byte) {
+	h := sha3.NewCShake256(nil, []byte(purpose))
+	h.Write(data)
+	h.Read(ret[:])
+	return ret
 }

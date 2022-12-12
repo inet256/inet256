@@ -14,9 +14,6 @@ const (
 	// Base64Alphabet is used when encoding IDs as base64 strings.
 	// It is a URL and filepath safe encoding, which maintains ordering.
 	Base64Alphabet = "-0123456789" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "_" + "abcdefghijklmnopqrstuvwxyz"
-
-	// MaxPublicKeySize is the maximum size of a serialized PublicKey in bytes
-	MaxPublicKeySize = 1 << 15
 )
 
 // Addr is an address in an INET256 Network.
