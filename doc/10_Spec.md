@@ -147,8 +147,9 @@ The **INET256 Signature Scheme** solves this problem.
 sig = Sign( private_key, CSHAKE256( "", purpose, input ) )
 ```
 
-Signatures are performed on 512 bits of output from CSHAKE.
 CSHAKE is customized with a purpose string i.e. if the purpose was `mypurpose` the parameters to CSHAKE would be `N=""` and `C=mypurpose`.
+The input to CSHAKE is the bytes of the message to be signed.
+Signatures are performed on 512 bits of output from CSHAKE.
 The signature algorithm used is set by the public key.
 Each type of public key in INET256 has exactly one signing algorithm associated with it and that algorithm accepts no additional parameters.
 
