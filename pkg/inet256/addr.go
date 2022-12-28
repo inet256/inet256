@@ -25,8 +25,12 @@ type ID = Addr
 
 // NewAddr creates a new Addr from a PublicKey
 func NewAddr(pubKey PublicKey) Addr {
+	return NewAddrPKIX(MarshalPublicKey(nil, pubKey))
+}
+
+func NewAddrPKIX(x []byte) Addr {
 	addr := Addr{}
-	sha3.ShakeSum256(addr[:], MarshalPublicKey(nil, pubKey))
+	sha3.ShakeSum256(addr[:], x)
 	return addr
 }
 
