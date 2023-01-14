@@ -2,22 +2,22 @@ package mesh256
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"github.com/brendoncarroll/stdctx"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
-	"golang.org/x/exp/slog"
 )
 
 // NodeParams configure a Node
 type NodeParams struct {
+	Background context.Context
 	PrivateKey inet256.PrivateKey
 	Swarms     map[string]multiswarm.DynSwarm
 	Peers      peers.Store[TransportAddr]
@@ -41,12 +41,11 @@ func NewNode(params NodeParams) Node {
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
 	basePeerSwarm := newSwarm(transportSwarm, params.Peers)
 	fragSw := fragswarm.NewSecure[Addr](basePeerSwarm, TransportMTU)
-	log := slog.New(slog.NewTextHandler(os.Stderr))
 	nw := params.NewNetwork(NetworkParams{
 		PrivateKey: params.PrivateKey,
 		Swarm:      swarmFromP2P(fragSw),
 		Peers:      params.Peers,
-		Background: logctx.NewContext(context.Background(), &log),
+		Background: stdctx.Child(params.Background, "network"),
 	})
 	network := newChainNetwork(
 		newLoopbackNetwork(params.PrivateKey.Public()),

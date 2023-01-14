@@ -3,9 +3,9 @@ module github.com/inet256/inet256
 go 1.19
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20221211203701-b9a6f1dff5e4
-	github.com/brendoncarroll/go-tai64 v0.0.0-20220527232055-eab29bd93d59
-	github.com/brendoncarroll/stdctx v0.0.0-20221211194708-f99cd22d6db2
+	github.com/brendoncarroll/go-p2p v0.0.0-20230114174419-421faa07abf4
+	github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4
+	github.com/brendoncarroll/stdctx v0.0.0-20230114173309-0ff5de5eda5a
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/pkg/errors v0.9.1
@@ -13,7 +13,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.8.1
 	golang.org/x/crypto v0.1.0
-	golang.org/x/exp v0.0.0-20221106115401-f9659909a136
+	golang.org/x/exp v0.0.0-20230113213754-f9f960f08ad4
 	golang.org/x/net v0.1.0
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.zx2c4.com/wireguard v0.0.20201118

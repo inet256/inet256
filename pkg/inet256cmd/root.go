@@ -17,8 +17,7 @@ const defaultAPIAddr = "http://127.0.0.1:2560"
 
 var ctx = func() context.Context {
 	ctx := context.Background()
-	l := slog.Default()
-	ctx = logctx.NewContext(ctx, &l)
+	ctx = logctx.NewContext(ctx, slog.Default())
 	return ctx
 }()
 

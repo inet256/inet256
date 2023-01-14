@@ -47,6 +47,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	promReg.Register(prometheus.NewGoCollector())
 
 	nodeParams := d.params.MainNodeParams
+	nodeParams.Background = ctx
 	localID := inet256.NewAddr(nodeParams.PrivateKey.Public())
 
 	// discovery

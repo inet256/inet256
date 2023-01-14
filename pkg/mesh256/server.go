@@ -2,17 +2,19 @@ package mesh256
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
+	"github.com/brendoncarroll/stdctx"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
+
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 )
 
 const nameMemSwarm = "memory"
@@ -45,8 +47,6 @@ type Server struct {
 
 	mu    sync.Mutex
 	nodes map[inet256.Addr]*node
-
-	log slog.Logger
 }
 
 func NewServer(params Params) *Server {
@@ -67,13 +67,13 @@ func NewServer(params Params) *Server {
 		mainMemPeers: memPeers,
 		mainMemSwarm: msw,
 		mainNode: NewNode(NodeParams{
+			Background: stdctx.Child(params.Background, "main"),
 			PrivateKey: params.PrivateKey,
 			Swarms:     params.Swarms,
 			NewNetwork: params.NewNetwork,
 			Peers:      peers.ChainStore[TransportAddr]{memPeers, params.Peers},
 		}),
 		nodes: make(map[inet256.Addr]*node),
-		log:   slog.New(slog.NewTextHandler(os.Stderr)),
 	}
 	return s
 }
@@ -97,6 +97,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
 	n := NewNode(NodeParams{
+		Background: stdctx.Child(s.params.Background, id.Base64String()),
 		NewNetwork: s.params.NewNetwork,
 		Peers:      ps,
 		PrivateKey: privateKey,
@@ -105,7 +106,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 		},
 	})
 	s.nodes[id] = n.(*node)
-	s.log.With(slog.Any("addr", id)).Info("created node")
+	logctx.Info(ctx, "created node", slog.Any("addr", id))
 	return n, nil
 }
 

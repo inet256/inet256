@@ -1,6 +1,7 @@
 package mesh256
 
 import (
+	"context"
 	"math"
 	"testing"
 
@@ -13,9 +14,13 @@ import (
 )
 
 func NewTestServer(t testing.TB, nf NetworkFactory) *Server {
+	ctx := context.Background()
+	ctx, cf := context.WithCancel(ctx)
+	t.Cleanup(cf)
 	pk := inet256test.NewPrivateKey(t, math.MaxInt32)
 	ps := peers.NewStore[TransportAddr]()
 	s := NewServer(Params{
+		Background: ctx,
 		NewNetwork: nf,
 		Peers:      ps,
 		PrivateKey: pk,
@@ -27,6 +32,9 @@ func NewTestServer(t testing.TB, nf NetworkFactory) *Server {
 }
 
 func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
+	ctx := context.Background()
+	ctx, cf := context.WithCancel(ctx)
+	t.Cleanup(cf)
 	r := memswarm.NewRealm()
 	stores := make([]peers.Store[TransportAddr], len(xs))
 	srvs := make([]*Server, len(xs))
@@ -34,6 +42,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 		pk := inet256test.NewPrivateKey(t, math.MaxInt32+i)
 		stores[i] = peers.NewStore[TransportAddr]()
 		srvs[i] = NewServer(Params{
+			Background: ctx,
 			Swarms: map[string]multiswarm.DynSwarm{
 				"external": multiswarm.WrapSecureSwarm[memswarm.Addr](r.NewSwarmWithKey(pk.BuiltIn())),
 			},

@@ -51,7 +51,7 @@ func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm
 		localID:   inet256.NewAddr(pubKey),
 
 		mux:       mux,
-		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, &log),
+		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, log),
 		dataSwarm: mux.Open(channelData),
 	}
 }
