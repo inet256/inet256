@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
+	"github.com/inet256/inet256/pkg/mesh256/multihoming"
 	"github.com/inet256/inet256/pkg/peers"
 )
 
@@ -73,6 +75,22 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 	for i := range xs {
 		xs[i] = srvs[i]
 	}
+}
+
+func NewTestSwarm[A p2p.Addr](t testing.TB, x p2p.SecureSwarm[A, x509.PublicKey], peers peers.Store[A]) Swarm {
+	sw := multihoming.New(multihoming.Params[A, x509.PublicKey, inet256.Addr]{
+		Background: context.Background(),
+		Inner:      x,
+		Peers:      peers,
+		GroupBy: func(pub x509.PublicKey) (inet256.Addr, error) {
+			pub2, err := PublicKeyFromX509(pub)
+			if err != nil {
+				return inet256.Addr{}, err
+			}
+			return inet256.NewAddr(pub2), nil
+		},
+	})
+	return swarm{sw}
 }
 
 func getMainAddr(x *Server) inet256.Addr {

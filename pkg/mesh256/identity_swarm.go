@@ -89,3 +89,17 @@ func (s identitySwarm) makeAddr(addr inet256.Addr) p2pkeswarm.Addr[inet256.Addr]
 		Addr: addr,
 	}
 }
+
+var x509Registry = x509.DefaultRegistry()
+
+func convertINET256PrivateKey(x inet256.PrivateKey) x509.PrivateKey {
+	switch x := x.(type) {
+	case *inet256.Ed25519PrivateKey:
+		return x509.PrivateKey{
+			Algorithm: x509.Algo_Ed25519,
+			Data:      x.Seed(),
+		}
+	default:
+		return x509.PrivateKey{}
+	}
+}

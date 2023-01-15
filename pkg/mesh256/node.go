@@ -40,6 +40,7 @@ type node struct {
 	topSwarm p2p.SecureSwarm[inet256.Addr, x509.PublicKey]
 }
 
+// NewNode returns a new INET256 Node
 func NewNode(params NodeParams) Node {
 	secureSwarms, err := makeSecureSwarms(params.Swarms, params.PrivateKey)
 	if err != nil {

@@ -83,7 +83,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 		keys[i] = inet256test.NewPrivateKey(t, i)
 		swarms[i] = r.NewSwarmWithKey(mesh256.PublicKeyFromINET256(keys[i].Public()))
 		peerStores[i] = peers.NewStore[memswarm.Addr]()
-		netSwarms[i] = mesh256.NewSwarm[memswarm.Addr](swarms[i], peerStores[i])
+		netSwarms[i] = mesh256.NewTestSwarm[memswarm.Addr](t, swarms[i], peerStores[i])
 	}
 
 	for i := range adjList {
