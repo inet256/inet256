@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/stdctx"
@@ -23,7 +23,7 @@ type Service interface {
 	inet256.Service
 
 	MainAddr() (Addr, error)
-	TransportAddrs() ([]p2p.Addr, error)
+	TransportAddrs() ([]TransportAddr, error)
 	PeerStatus() ([]PeerStatus, error)
 }
 
@@ -39,10 +39,10 @@ type Params NodeParams
 type Server struct {
 	params Params
 
-	memrealm     *memswarm.Realm
+	memrealm     *memswarm.Realm[x509.PublicKey]
 	mainID       inet256.Addr
 	mainMemPeers peers.Store[multiswarm.Addr]
-	mainMemSwarm *memswarm.Swarm
+	mainMemSwarm *memswarm.Swarm[x509.PublicKey]
 	mainNode     Node
 
 	mu    sync.Mutex
@@ -50,12 +50,12 @@ type Server struct {
 }
 
 func NewServer(params Params) *Server {
-	r := memswarm.NewRealm()
-	msw := r.NewSwarmWithKey(params.PrivateKey.BuiltIn())
+	r := memswarm.NewRealm[x509.PublicKey]()
+	msw := r.NewSwarmWithKey(PublicKeyFromINET256(params.PrivateKey.Public()))
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
 	}
-	params.Swarms[nameMemSwarm] = multiswarm.WrapSecureSwarm[memswarm.Addr](msw)
+	params.Swarms[nameMemSwarm] = multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](msw)
 
 	memPeers := peers.NewStore[TransportAddr]()
 
@@ -88,7 +88,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	if _, exists := s.nodes[id]; exists {
 		return nil, errors.New("node is already open")
 	}
-	swarm := s.memrealm.NewSwarmWithKey(privateKey.BuiltIn())
+	swarm := s.memrealm.NewSwarmWithKey(PublicKeyFromINET256(privateKey.Public()))
 
 	ps := peers.NewStore[TransportAddr]()
 	ps.Add(s.mainID)
@@ -102,7 +102,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 		Peers:      ps,
 		PrivateKey: privateKey,
 		Swarms: map[string]multiswarm.DynSwarm{
-			nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr](swarm),
+			nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](swarm),
 		},
 	})
 	s.nodes[id] = n.(*node)

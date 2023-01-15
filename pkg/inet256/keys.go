@@ -120,6 +120,10 @@ func (pk *Ed25519PrivateKey) Public() PublicKey {
 	return pub
 }
 
+func (pk *Ed25519PrivateKey) Seed() []byte {
+	return ed25519.PrivateKey(pk[:]).Seed()
+}
+
 func (pk *Ed25519PrivateKey) isPrivateKey() {}
 
 type RSAPrivateKey rsa.PrivateKey

@@ -2,14 +2,14 @@ package mesh256
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/p/p2pmux"
+	"github.com/brendoncarroll/stdctx"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slog"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
@@ -28,30 +28,36 @@ const (
 // Some of the addresses may not even be in the PeerStore
 type swarm[T p2p.Addr] struct {
 	peerStore peers.Store[T]
-	inner     p2p.SecureSwarm[T]
+	inner     p2p.SecureSwarm[T, x509.PublicKey]
 
 	localID   inet256.Addr
-	mux       p2pmux.SecureMux[T, uint16]
-	lm        *linkMonitor[T]
-	dataSwarm p2p.SecureSwarm[T]
+	mux       p2pmux.SecureMux[T, uint16, x509.PublicKey]
+	lm        *linkMonitor[T, x509.PublicKey]
+	dataSwarm p2p.SecureSwarm[T, x509.PublicKey]
 	meters    meterSet
 	extraSwarmMethods
 }
 
-func newSwarm[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T]) *swarm[T] {
-	pubKey, err := inet256.PublicKeyFromBuiltIn(x.PublicKey())
+func newSwarm[T p2p.Addr](bgCtx context.Context, x p2p.SecureSwarm[T, x509.PublicKey], peerStore peers.Store[T]) *swarm[T] {
+	pubKey, err := PublicKeyFromX509(x.PublicKey())
 	if err != nil {
 		panic(err)
 	}
-	mux := p2pmux.NewUint16SecureMux[T](x)
-	log := slog.New(slog.NewTextHandler(os.Stderr))
+	mux := p2pmux.NewUint16SecureMux[T, x509.PublicKey](x)
+	convert := func(pubKey x509.PublicKey) (inet256.Addr, error) {
+		pubKey2, err := PublicKeyFromX509(pubKey)
+		if err != nil {
+			return inet256.Addr{}, err
+		}
+		return inet256.NewAddr(pubKey2), nil
+	}
 	return &swarm[T]{
 		peerStore: peerStore,
 		inner:     x,
 		localID:   inet256.NewAddr(pubKey),
 
 		mux:       mux,
-		lm:        newLinkMonitor(mux.Open(channelHeartbeat), peerStore, log),
+		lm:        newLinkMonitor(stdctx.Child(bgCtx, "linkMonitor"), mux.Open(channelHeartbeat), peerStore, convert),
 		dataSwarm: mux.Open(channelData),
 	}
 }
@@ -106,8 +112,12 @@ func (s *swarm[T]) Receive(ctx context.Context, th func(p2p.Message[inet256.Addr
 	return nil
 }
 
-func (s *swarm[T]) PublicKey() p2p.PublicKey {
-	return s.inner.PublicKey()
+func (s *swarm[T]) PublicKey() inet256.PublicKey {
+	pubKey, err := PublicKeyFromX509(s.inner.PublicKey())
+	if err != nil {
+		panic(err)
+	}
+	return pubKey
 }
 
 func (s *swarm[T]) LocalAddr() inet256.Addr {
@@ -139,7 +149,7 @@ func (s *swarm[T]) MaxIncomingSize() int {
 	return s.inner.MaxIncomingSize()
 }
 
-func (s *swarm[T]) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2p.PublicKey, error) {
+func (s *swarm[T]) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
 	if !s.peerStore.Contains(target) {
 		return nil, p2p.ErrPublicKeyNotFound
 	}
@@ -150,7 +160,11 @@ func (s *swarm[T]) LookupPublicKey(ctx context.Context, target inet256.Addr) (p2
 		}
 		return nil, err
 	}
-	return s.dataSwarm.LookupPublicKey(ctx, *addr)
+	pubKey, err := s.dataSwarm.LookupPublicKey(ctx, *addr)
+	if err != nil {
+		return nil, err
+	}
+	return PublicKeyFromX509(pubKey)
 }
 
 func (s *swarm[T]) selectAddr(ctx context.Context, x inet256.Addr) (*T, error) {

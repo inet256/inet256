@@ -9,7 +9,6 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -21,36 +20,41 @@ const expireAfter = 30 * time.Second
 
 // linkMonitor sends out heartbeats to all addresses in the peer store
 // and keeps track of where heartbeats are coming from.
-type linkMonitor[T p2p.Addr] struct {
-	x           p2p.SecureSwarm[T]
-	peerStore   peers.Store[T]
+type linkMonitor[A p2p.Addr, Pub any] struct {
+	x           p2p.SecureSwarm[A, Pub]
+	peerStore   peers.Store[A]
 	expireAfter time.Duration
+	convert     func(Pub) (inet256.Addr, error)
 	sg          netutil.ServiceGroup
 
 	mu        sync.RWMutex
 	sightings map[inet256.Addr]map[string]time.Time
-	addrs     map[string]T
+	addrs     map[string]A
 }
 
-func newLinkMonitor[T p2p.Addr](x p2p.SecureSwarm[T], peerStore peers.Store[T], log *slog.Logger) *linkMonitor[T] {
-	lm := &linkMonitor[T]{
+// newLinkMonitor monitors all the peers in peerStore by sending messages over x.
+// convert is called to convert a Pub to an inet256.Addr
+func newLinkMonitor[A p2p.Addr, Pub any](bgCtx context.Context, x p2p.SecureSwarm[A, Pub], peerStore peers.Store[A], convert func(Pub) (inet256.Addr, error)) *linkMonitor[A, Pub] {
+	lm := &linkMonitor[A, Pub]{
 		x:           x,
 		peerStore:   peerStore,
 		expireAfter: expireAfter,
-		sightings:   make(map[inet256.Addr]map[string]time.Time),
-		addrs:       make(map[string]T),
+		convert:     convert,
+
+		sightings: make(map[inet256.Addr]map[string]time.Time),
+		addrs:     make(map[string]A),
 	}
-	lm.sg.Background = logctx.NewContext(context.Background(), log)
+	lm.sg.Background = bgCtx
 	lm.sg.Go(lm.recvLoop)
 	lm.sg.Go(lm.heartbeatLoop)
 	lm.sg.Go(lm.cleanupLoop)
 	return lm
 }
 
-func (lm *linkMonitor[T]) recvLoop(ctx context.Context) error {
-	var msg p2p.Message[T]
+func (lm *linkMonitor[A, Pub]) recvLoop(ctx context.Context) error {
+	var msg p2p.Message[A]
 	for {
-		if err := p2p.Receive[T](ctx, lm.x, &msg); err != nil {
+		if err := p2p.Receive[A](ctx, lm.x, &msg); err != nil {
 			return err
 		}
 		pubKey, err := lm.x.LookupPublicKey(ctx, msg.Src)
@@ -58,16 +62,16 @@ func (lm *linkMonitor[T]) recvLoop(ctx context.Context) error {
 			logctx.Errorln(ctx, "in linkMonitor.recvLoop: ", err)
 			continue
 		}
-		pubKey2, err := inet256.PublicKeyFromBuiltIn(pubKey)
+		addr, err := lm.convert(pubKey)
 		if err != nil {
 			logctx.Errorf(ctx, "linkMonitor: converting public key %v", err)
 			continue
 		}
-		lm.Mark(inet256.NewAddr(pubKey2), msg.Src, time.Now())
+		lm.Mark(addr, msg.Src, time.Now())
 	}
 }
 
-func (lm *linkMonitor[T]) heartbeatLoop(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub]) heartbeatLoop(ctx context.Context) error {
 	const period = 5 * time.Second
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
@@ -87,7 +91,7 @@ func (lm *linkMonitor[T]) heartbeatLoop(ctx context.Context) error {
 	}
 }
 
-func (lm *linkMonitor[T]) heartbeat(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub]) heartbeat(ctx context.Context) error {
 	data := []byte(time.Now().String())
 	eg := errgroup.Group{}
 	for _, id := range lm.peerStore.ListPeers() {
@@ -102,7 +106,7 @@ func (lm *linkMonitor[T]) heartbeat(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (lm *linkMonitor[T]) Mark(id inet256.Addr, a T, t time.Time) {
+func (lm *linkMonitor[A, Pub]) Mark(id inet256.Addr, a A, t time.Time) {
 	data, _ := a.MarshalText()
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
@@ -118,7 +122,7 @@ func (lm *linkMonitor[T]) Mark(id inet256.Addr, a T, t time.Time) {
 	}
 }
 
-func (lm *linkMonitor[T]) PickAddr(ctx context.Context, id inet256.Addr) (*T, error) {
+func (lm *linkMonitor[A, Pub]) PickAddr(ctx context.Context, id inet256.Addr) (*A, error) {
 	if !lm.peerStore.Contains(id) {
 		logctx.Errorln(ctx, "peers in store:", lm.peerStore.ListPeers())
 		return nil, errors.Errorf("cannot pick address for peer not in store %v", id)
@@ -128,7 +132,7 @@ func (lm *linkMonitor[T]) PickAddr(ctx context.Context, id inet256.Addr) (*T, er
 	// check for a known good address.
 	m := lm.sightings[id]
 	if m != nil {
-		var latestAddr *T
+		var latestAddr *A
 		var latestTime time.Time
 		for addr, seenAt := range m {
 			if seenAt.After(latestTime) {
@@ -154,20 +158,20 @@ func (lm *linkMonitor[T]) PickAddr(ctx context.Context, id inet256.Addr) (*T, er
 	return &addr, nil
 }
 
-func (lm *linkMonitor[T]) Close() error {
+func (lm *linkMonitor[A, Pub]) Close() error {
 	var el netutil.ErrList
 	el.Add(lm.sg.Stop())
 	el.Add(lm.x.Close())
 	return el.Err()
 }
 
-func (lm *linkMonitor[T]) LastSeen(id inet256.Addr) map[string]time.Time {
+func (lm *linkMonitor[A, Pub]) LastSeen(id inet256.Addr) map[string]time.Time {
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
 	return copyLastSeen(lm.sightings[id])
 }
 
-func (lm *linkMonitor[T]) cleanupLoop(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub]) cleanupLoop(ctx context.Context) error {
 	ticker := time.NewTicker(lm.expireAfter / 2)
 	defer ticker.Stop()
 	for {
@@ -181,7 +185,7 @@ func (lm *linkMonitor[T]) cleanupLoop(ctx context.Context) error {
 	}
 }
 
-func (lm *linkMonitor[T]) cleanupOnce(ctx context.Context, now time.Time) {
+func (lm *linkMonitor[A, Pub]) cleanupOnce(ctx context.Context, now time.Time) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	for id, addrs := range lm.sightings {
