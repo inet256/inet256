@@ -9,19 +9,19 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
-type loopbackAddr interface {
+type comparableAddr interface {
 	p2p.Addr
 	comparable
 }
 
 // loopbackSwarm adds loopback behavior to a swarm.
-type loopbackSwarm[A loopbackAddr, Pub any] struct {
+type loopbackSwarm[A comparableAddr, Pub any] struct {
 	localAddr A
 	localKey  Pub
 	hub       *swarmutil.TellHub[A]
 }
 
-func newLoopbackSwarm[A loopbackAddr, Pub any](local A, publicKey Pub) *loopbackSwarm[A, Pub] {
+func newLoopbackSwarm[A comparableAddr, Pub any](local A, publicKey Pub) *loopbackSwarm[A, Pub] {
 	return &loopbackSwarm[A, Pub]{
 		localAddr: local,
 		localKey:  publicKey,

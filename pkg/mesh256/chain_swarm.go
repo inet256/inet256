@@ -14,29 +14,28 @@ import (
 type chainSwarm[A p2p.Addr, Pub any] struct {
 	swarms []p2p.SecureSwarm[A, Pub]
 	hub    *swarmutil.TellHub[A]
-	sg     *netutil.ServiceGroup
+	sg     netutil.ServiceGroup
 }
 
-func newChainSwarm[A p2p.Addr, Pub any](ss ...p2p.SecureSwarm[A, Pub]) p2p.SecureSwarm[A, Pub] {
-	hub := swarmutil.NewTellHub[A]()
-	sg := &netutil.ServiceGroup{}
+func newChainSwarm[A p2p.Addr, Pub any](bgCtx context.Context, ss ...p2p.SecureSwarm[A, Pub]) p2p.SecureSwarm[A, Pub] {
+	cs := &chainSwarm[A, Pub]{
+		swarms: ss,
+		hub:    swarmutil.NewTellHub[A](),
+	}
+	cs.sg.Background = bgCtx
 	for i := range ss {
 		i := i
-		sg.Go(func(ctx context.Context) error {
+		cs.sg.Go(func(ctx context.Context) error {
 			for {
 				if err := ss[i].Receive(ctx, func(m p2p.Message[A]) {
-					hub.Deliver(ctx, m)
+					cs.hub.Deliver(ctx, m)
 				}); err != nil {
 					return err
 				}
 			}
 		})
 	}
-	return &chainSwarm[A, Pub]{
-		swarms: ss,
-		hub:    hub,
-		sg:     sg,
-	}
+	return cs
 }
 
 func (n *chainSwarm[A, Pub]) Tell(ctx context.Context, dst A, v p2p.IOVec) (retErr error) {
@@ -107,7 +106,7 @@ func (n *chainSwarm[A, Pub]) MaxIncomingSize() int {
 	return max
 }
 
-func (n chainSwarm[A, Pub]) ParseAddr(x []byte) (ret A, retErr error) {
+func (n *chainSwarm[A, Pub]) ParseAddr(x []byte) (ret A, retErr error) {
 	for _, sw := range n.swarms {
 		ret, retErr = sw.ParseAddr(x)
 		if retErr == nil {

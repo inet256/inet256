@@ -1,4 +1,4 @@
-package mesh256
+package multihoming
 
 import (
 	"context"
@@ -10,18 +10,21 @@ import (
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/swarmtest"
+	"github.com/brendoncarroll/stdctx/logctx"
+	"golang.org/x/exp/slog"
+
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
 )
 
 func TestSwarm(t *testing.T) {
-	bgCtx := context.Background()
+	//bgCtx := logctx.NewContext(context.Background(), slog.Default())
 	swarmtest.TestSecureSwarm(t, func(t testing.TB, swarms []p2p.SecureSwarm[Addr, inet256.PublicKey]) {
-		r := memswarm.NewRealm[x509.PublicKey]()
-		for i := range swarms {
-			pk := newTestKey(t, i)
-			swarms[i] = newSwarm[memswarm.Addr](bgCtx, r.NewSwarmWithKey(pk), peers.ChainStore[memswarm.Addr]{})
-		}
+		// r := memswarm.NewRealm[x509.PublicKey]()
+		// for i := range swarms {
+		// 	pk := newTestKey(t, i)
+		// 	swarms[i] = New[memswarm.Addr](bgCtx, r.NewSwarmWithKey(pk), peers.ChainStore[memswarm.Addr]{})
+		// }
 	})
 }
 

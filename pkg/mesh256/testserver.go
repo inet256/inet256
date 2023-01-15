@@ -8,7 +8,9 @@ import (
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slog"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
@@ -16,7 +18,7 @@ import (
 )
 
 func NewTestServer(t testing.TB, nf NetworkFactory) *Server {
-	ctx := context.Background()
+	ctx := logctx.NewContext(context.Background(), slog.Default())
 	ctx, cf := context.WithCancel(ctx)
 	t.Cleanup(cf)
 	pk := inet256test.NewPrivateKey(t, math.MaxInt32)
@@ -42,12 +44,12 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
 		priv := inet256test.NewPrivateKey(t, math.MaxInt32+i)
-		pub := priv.Public()
+		pubX509 := PublicKeyFromINET256(priv.Public())
 		stores[i] = peers.NewStore[TransportAddr]()
 		srvs[i] = NewServer(Params{
 			Background: ctx,
 			Swarms: map[string]multiswarm.DynSwarm{
-				"external": multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](r.NewSwarmWithKey(PublicKeyFromINET256(pub))),
+				"external": multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](r.NewSwarmWithKey(pubX509)),
 			},
 			NewNetwork: nf,
 			Peers:      stores[i],
@@ -74,7 +76,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 }
 
 func getMainAddr(x *Server) inet256.Addr {
-	addr, err := x.MainAddr()
+	addr, err := x.MainAddr(context.TODO())
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +84,7 @@ func getMainAddr(x *Server) inet256.Addr {
 }
 
 func getTransportAddrs(x *Server) []TransportAddr {
-	addrs, err := x.TransportAddrs()
+	addrs, err := x.TransportAddrs(context.TODO())
 	if err != nil {
 		panic(err)
 	}

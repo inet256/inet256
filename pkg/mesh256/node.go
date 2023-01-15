@@ -2,16 +2,17 @@ package mesh256
 
 import (
 	"context"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
+	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/mesh256/multihoming"
 	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
 )
@@ -30,9 +31,13 @@ type node struct {
 
 	secureSwarms   map[string]multiswarm.DynSecureSwarm[x509.PublicKey]
 	transportSwarm p2p.SecureSwarm[TransportAddr, x509.PublicKey]
-	basePeerSwarm  *swarm[TransportAddr]
-	network        Network
-	topSwarm       p2p.SecureSwarm[inet256.Addr, x509.PublicKey]
+
+	mhSwarm   *multihoming.Swarm[TransportAddr, x509.PublicKey, inet256.ID]
+	fragSwarm p2p.SecureSwarm[Addr, x509.PublicKey]
+	// network is an instance of a routing algorithm
+	network Network
+	// topSwarm is the swarm on top of the Network, it secures the application traffic
+	topSwarm p2p.SecureSwarm[inet256.Addr, x509.PublicKey]
 }
 
 func NewNode(params NodeParams) Node {
@@ -41,22 +46,36 @@ func NewNode(params NodeParams) Node {
 		panic(err)
 	}
 	transportSwarm := multiswarm.NewSecure(secureSwarms)
-	basePeerSwarm := newSwarm(params.Background, transportSwarm, params.Peers)
-	fragSw := fragswarm.NewSecure[Addr, inet256.PublicKey](basePeerSwarm, TransportMTU)
-	network := params.NewNetwork(NetworkParams{
-		PrivateKey: params.PrivateKey,
-		Swarm:      swarmFromP2P(fragSw),
+
+	mhSwarm := multihoming.New(multihoming.Params[TransportAddr, x509.PublicKey, inet256.Addr]{
+		Background: stdctx.Child(params.Background, "multihoming"),
+		Inner:      transportSwarm,
 		Peers:      params.Peers,
+		GroupBy: func(pub x509.PublicKey) (inet256.ID, error) {
+			pub2, err := PublicKeyFromX509(pub)
+			if err != nil {
+				return inet256.ID{}, nil
+			}
+			return inet256.NewAddr(pub2), nil
+		},
+	})
+	fragSw := fragswarm.NewSecure[Addr, x509.PublicKey](mhSwarm, TransportMTU)
+	network := params.NewNetwork(NetworkParams{
 		Background: stdctx.Child(params.Background, "network"),
+		PrivateKey: params.PrivateKey,
+		Swarm:      swarm{fragSw},
+		Peers:      params.Peers,
 	})
 	topSwarm := wrapNetwork(params.PrivateKey, network)
 	return &node{
 		params:         params,
 		secureSwarms:   secureSwarms,
 		transportSwarm: transportSwarm,
-		basePeerSwarm:  basePeerSwarm,
-		network:        network,
-		topSwarm:       topSwarm,
+
+		mhSwarm:   mhSwarm,
+		fragSwarm: fragSw,
+		network:   network,
+		topSwarm:  topSwarm,
 	}
 }
 
@@ -98,8 +117,8 @@ func (n *node) TransportAddrs() []TransportAddr {
 	return n.transportSwarm.LocalAddrs()
 }
 
-func (n *node) LastSeen(id inet256.Addr) map[string]time.Time {
-	return n.basePeerSwarm.LastSeen(id)
+func (n *node) LastSeen(id inet256.Addr) map[string]tai64.TAI64N {
+	return n.mhSwarm.LastSeen(id)
 }
 
 func (n *node) ListOneHop() []Addr {
@@ -110,7 +129,8 @@ func (n *node) Close() (retErr error) {
 	var el netutil.ErrList
 	el.Add(n.topSwarm.Close())
 	el.Add(n.network.Close())
-	el.Add(n.basePeerSwarm.Close())
+	el.Add(n.fragSwarm.Close())
+	el.Add(n.mhSwarm.Close())
 	el.Add(n.transportSwarm.Close())
 	return el.Err()
 }
@@ -132,7 +152,7 @@ func SecureDynSwarm(protoName string, s multiswarm.DynSwarm, privateKey x509.Pri
 		return protoName, sec
 	}
 	fingerprinter := func(pubKey x509.PublicKey) p2p.PeerID {
-		pubKey2, err := inet256.PublicKeyFromBuiltIn(pubKey)
+		pubKey2, err := PublicKeyFromX509(pubKey)
 		if err != nil {
 			panic(err)
 		}

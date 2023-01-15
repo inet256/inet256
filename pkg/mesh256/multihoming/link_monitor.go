@@ -1,47 +1,48 @@
-package mesh256
+package multihoming
 
 import (
 	"context"
+	"fmt"
 	mrand "math/rand"
 	"sync"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p"
+	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/peers"
 )
 
 const expireAfter = 30 * time.Second
 
 // linkMonitor sends out heartbeats to all addresses in the peer store
 // and keeps track of where heartbeats are coming from.
-type linkMonitor[A p2p.Addr, Pub any] struct {
+type linkMonitor[A p2p.Addr, Pub any, K comparable] struct {
 	x           p2p.SecureSwarm[A, Pub]
-	peerStore   peers.Store[A]
+	peers       PeerStore[K, A]
 	expireAfter time.Duration
-	convert     func(Pub) (inet256.Addr, error)
+	groupBy     func(Pub) (K, error)
 	sg          netutil.ServiceGroup
 
 	mu        sync.RWMutex
-	sightings map[inet256.Addr]map[string]time.Time
+	sightings map[K]map[string]tai64.TAI64N
 	addrs     map[string]A
 }
 
 // newLinkMonitor monitors all the peers in peerStore by sending messages over x.
 // convert is called to convert a Pub to an inet256.Addr
-func newLinkMonitor[A p2p.Addr, Pub any](bgCtx context.Context, x p2p.SecureSwarm[A, Pub], peerStore peers.Store[A], convert func(Pub) (inet256.Addr, error)) *linkMonitor[A, Pub] {
-	lm := &linkMonitor[A, Pub]{
+func newLinkMonitor[A p2p.Addr, Pub any, K comparable](bgCtx context.Context, x p2p.SecureSwarm[A, Pub], peers PeerStore[K, A], groupBy func(Pub) (K, error)) *linkMonitor[A, Pub, K] {
+	lm := &linkMonitor[A, Pub, K]{
 		x:           x,
-		peerStore:   peerStore,
+		peers:       peers,
 		expireAfter: expireAfter,
-		convert:     convert,
+		groupBy:     groupBy,
 
-		sightings: make(map[inet256.Addr]map[string]time.Time),
+		sightings: make(map[K]map[string]tai64.TAI64N),
 		addrs:     make(map[string]A),
 	}
 	lm.sg.Background = bgCtx
@@ -51,7 +52,7 @@ func newLinkMonitor[A p2p.Addr, Pub any](bgCtx context.Context, x p2p.SecureSwar
 	return lm
 }
 
-func (lm *linkMonitor[A, Pub]) recvLoop(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub, K]) recvLoop(ctx context.Context) error {
 	var msg p2p.Message[A]
 	for {
 		if err := p2p.Receive[A](ctx, lm.x, &msg); err != nil {
@@ -62,16 +63,16 @@ func (lm *linkMonitor[A, Pub]) recvLoop(ctx context.Context) error {
 			logctx.Errorln(ctx, "in linkMonitor.recvLoop: ", err)
 			continue
 		}
-		addr, err := lm.convert(pubKey)
+		k, err := lm.groupBy(pubKey)
 		if err != nil {
 			logctx.Errorf(ctx, "linkMonitor: converting public key %v", err)
 			continue
 		}
-		lm.Mark(addr, msg.Src, time.Now())
+		lm.Mark(k, msg.Src, tai64.Now())
 	}
 }
 
-func (lm *linkMonitor[A, Pub]) heartbeatLoop(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub, K]) heartbeatLoop(ctx context.Context) error {
 	const period = 5 * time.Second
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
@@ -91,12 +92,13 @@ func (lm *linkMonitor[A, Pub]) heartbeatLoop(ctx context.Context) error {
 	}
 }
 
-func (lm *linkMonitor[A, Pub]) heartbeat(ctx context.Context) error {
-	data := []byte(time.Now().String())
+func (lm *linkMonitor[A, Pub, K]) heartbeat(ctx context.Context) error {
+	now := tai64.Now()
+	data := now.Marshal()
 	eg := errgroup.Group{}
-	for _, id := range lm.peerStore.ListPeers() {
+	for _, id := range lm.peers.ListPeers() {
 		id := id
-		for _, addr := range lm.peerStore.ListAddrs(id) {
+		for _, addr := range lm.peers.ListAddrs(id) {
 			addr := addr
 			eg.Go(func() error {
 				return lm.x.Tell(ctx, addr, p2p.IOVec{data})
@@ -106,36 +108,36 @@ func (lm *linkMonitor[A, Pub]) heartbeat(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (lm *linkMonitor[A, Pub]) Mark(id inet256.Addr, a A, t time.Time) {
-	data, _ := a.MarshalText()
+func (lm *linkMonitor[A, Pub, K]) Mark(k K, a A, t tai64.TAI64N) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
-	m := lm.sightings[id]
+	m := lm.sightings[k]
 	if m == nil {
-		m = make(map[string]time.Time)
-		lm.sightings[id] = m
+		m = make(map[string]tai64.TAI64N)
+		lm.sightings[k] = m
 	}
-	current := m[string(data)]
+	ka := keyForAddr(a)
+	current := m[ka]
 	if t.After(current) {
-		m[string(data)] = t
-		lm.addrs[string(data)] = a
+		m[ka] = t
+		lm.addrs[ka] = a
 	}
 }
 
-func (lm *linkMonitor[A, Pub]) PickAddr(ctx context.Context, id inet256.Addr) (*A, error) {
-	if !lm.peerStore.Contains(id) {
-		logctx.Errorln(ctx, "peers in store:", lm.peerStore.ListPeers())
-		return nil, errors.Errorf("cannot pick address for peer not in store %v", id)
+func (lm *linkMonitor[A, Pub, K]) PickAddr(ctx context.Context, k K) (*A, error) {
+	if !lm.peers.Contains(k) {
+		logctx.Errorln(ctx, "peers in store:", lm.peers.ListPeers())
+		return nil, errors.Errorf("cannot pick address for peer not in store %v", k)
 	}
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
 	// check for a known good address.
-	m := lm.sightings[id]
+	m := lm.sightings[k]
 	if m != nil {
 		var latestAddr *A
-		var latestTime time.Time
+		var latestTime tai64.TAI64N
 		for addr, seenAt := range m {
-			if seenAt.After(latestTime) {
+			if (latestTime == tai64.TAI64N{}) || seenAt.After(latestTime) {
 				var exists bool
 				latestTime = seenAt
 				a, exists := lm.addrs[addr]
@@ -150,47 +152,48 @@ func (lm *linkMonitor[A, Pub]) PickAddr(ctx context.Context, id inet256.Addr) (*
 		}
 	}
 	// pick a random address from the store.
-	addrs := lm.peerStore.ListAddrs(id)
+	addrs := lm.peers.ListAddrs(k)
 	if len(addrs) == 0 {
-		return nil, inet256.ErrAddrUnreachable{Addr: id}
+		return nil, fmt.Errorf("no good addresses for %v", k)
 	}
 	addr := addrs[mrand.Intn(len(addrs))]
 	return &addr, nil
 }
 
-func (lm *linkMonitor[A, Pub]) Close() error {
+func (lm *linkMonitor[A, Pub, K]) Close() error {
 	var el netutil.ErrList
 	el.Add(lm.sg.Stop())
 	el.Add(lm.x.Close())
 	return el.Err()
 }
 
-func (lm *linkMonitor[A, Pub]) LastSeen(id inet256.Addr) map[string]time.Time {
+func (lm *linkMonitor[A, Pub, K]) LastSeen(k K) map[string]tai64.TAI64N {
 	lm.mu.RLock()
 	defer lm.mu.RUnlock()
-	return copyLastSeen(lm.sightings[id])
+	return maps.Clone(lm.sightings[k])
 }
 
-func (lm *linkMonitor[A, Pub]) cleanupLoop(ctx context.Context) error {
+func (lm *linkMonitor[A, Pub, K]) cleanupLoop(ctx context.Context) error {
 	ticker := time.NewTicker(lm.expireAfter / 2)
 	defer ticker.Stop()
+	now := tai64.Now()
 	for {
-		now := time.Now()
 		lm.cleanupOnce(ctx, now)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case t := <-ticker.C:
+			now = tai64.FromGoTime(t)
 		}
 	}
 }
 
-func (lm *linkMonitor[A, Pub]) cleanupOnce(ctx context.Context, now time.Time) {
+func (lm *linkMonitor[A, Pub, K]) cleanupOnce(ctx context.Context, now tai64.TAI64N) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	for id, addrs := range lm.sightings {
 		for addr, lastSeen := range addrs {
-			if now.Sub(lastSeen) > lm.expireAfter {
+			if tai64DeltaGt(now, lastSeen, lm.expireAfter) {
 				delete(addrs, addr)
 			}
 		}
@@ -200,10 +203,11 @@ func (lm *linkMonitor[A, Pub]) cleanupOnce(ctx context.Context, now time.Time) {
 	}
 }
 
-func copyLastSeen(x map[string]time.Time) map[string]time.Time {
-	y := make(map[string]time.Time, len(x))
-	for k, v := range x {
-		y[k] = v
-	}
-	return y
+func tai64DeltaGt(a, b tai64.TAI64N, d time.Duration) bool {
+	return a.GoTime().Sub(b.GoTime()) > d
+}
+
+func keyForAddr(x p2p.Addr) string {
+	data, _ := x.MarshalText()
+	return string(data)
 }

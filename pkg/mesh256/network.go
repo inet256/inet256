@@ -66,7 +66,7 @@ func wrapNetwork(privateKey inet256.PrivateKey, x Network) p2p.SecureSwarm[inet2
 	localAddr := inet256.NewAddr(privateKey.Public())
 	lbSw := newLoopbackSwarm(localAddr, pubX509)
 
-	return newChainSwarm[inet256.Addr, x509.PublicKey](lbSw, idenSw)
+	return newChainSwarm[inet256.Addr, x509.PublicKey](context.TODO(), lbSw, idenSw)
 }
 
 type FindAddrFunc = func(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
@@ -139,4 +139,31 @@ func (extraSwarmMethods) ParseAddr(data []byte) (inet256.Addr, error) {
 		return inet256.Addr{}, err
 	}
 	return addr, nil
+}
+
+var _ Swarm = swarm{}
+
+// swarm is presented to Networks
+type swarm struct {
+	p2p.SecureSwarm[inet256.Addr, x509.PublicKey]
+}
+
+func (s swarm) PublicKey() inet256.PublicKey {
+	pubKey, err := PublicKeyFromX509(s.SecureSwarm.PublicKey())
+	if err != nil {
+		panic(err)
+	}
+	return pubKey
+}
+
+func (s swarm) LookupPublicKey(ctx context.Context, target inet256.Addr) (ret inet256.PublicKey, _ error) {
+	pub, err := s.SecureSwarm.LookupPublicKey(ctx, target)
+	if err != nil {
+		return ret, err
+	}
+	return PublicKeyFromX509(pub)
+}
+
+func (s swarm) LocalAddr() inet256.Addr {
+	return s.SecureSwarm.LocalAddrs()[0]
 }

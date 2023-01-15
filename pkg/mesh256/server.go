@@ -3,11 +3,11 @@ package mesh256
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
@@ -22,14 +22,14 @@ const nameMemSwarm = "memory"
 type Service interface {
 	inet256.Service
 
-	MainAddr() (Addr, error)
-	TransportAddrs() ([]TransportAddr, error)
-	PeerStatus() ([]PeerStatus, error)
+	MainAddr(context.Context) (Addr, error)
+	TransportAddrs(context.Context) ([]TransportAddr, error)
+	PeerStatus(context.Context) ([]PeerStatus, error)
 }
 
 type PeerStatus struct {
 	Addr       Addr
-	LastSeen   map[string]time.Time
+	LastSeen   map[string]tai64.TAI64N
 	Uploaded   uint64
 	Downloaded uint64
 }
@@ -43,7 +43,7 @@ type Server struct {
 	mainID       inet256.Addr
 	mainMemPeers peers.Store[multiswarm.Addr]
 	mainMemSwarm *memswarm.Swarm[x509.PublicKey]
-	mainNode     Node
+	mainNode     *node
 
 	mu    sync.Mutex
 	nodes map[inet256.Addr]*node
@@ -72,7 +72,7 @@ func NewServer(params Params) *Server {
 			Swarms:     params.Swarms,
 			NewNetwork: params.NewNetwork,
 			Peers:      peers.ChainStore[TransportAddr]{memPeers, params.Peers},
-		}),
+		}).(*node),
 		nodes: make(map[inet256.Addr]*node),
 	}
 	return s
@@ -139,26 +139,26 @@ func (s *Server) LocalAddr() Addr {
 	return s.mainNode.LocalAddr()
 }
 
-func (s *Server) TransportAddrs() ([]multiswarm.Addr, error) {
-	return s.mainNode.(*node).TransportAddrs(), nil
+func (s *Server) TransportAddrs(ctx context.Context) ([]multiswarm.Addr, error) {
+	return s.mainNode.TransportAddrs(), nil
 }
 
-func (s *Server) PeerStatus() ([]PeerStatus, error) {
+func (s *Server) PeerStatus(ctx context.Context) ([]PeerStatus, error) {
 	var ret []PeerStatus
-	mainNode := s.mainNode.(*node)
+	mainNode := s.mainNode
 	for _, id := range s.params.Peers.ListPeers() {
 		lastSeen := mainNode.LastSeen(id)
 		ret = append(ret, PeerStatus{
 			Addr:       id,
 			LastSeen:   lastSeen,
-			Uploaded:   mainNode.basePeerSwarm.GetTx(id),
-			Downloaded: mainNode.basePeerSwarm.GetRx(id),
+			Uploaded:   mainNode.mhSwarm.GetTx(id),
+			Downloaded: mainNode.mhSwarm.GetRx(id),
 		})
 	}
 	return ret, nil
 }
 
-func (s *Server) MainAddr() (Addr, error) {
+func (s *Server) MainAddr(ctx context.Context) (Addr, error) {
 	return s.MainNode().LocalAddr(), nil
 }
 
