@@ -192,34 +192,3 @@ type secureAddrParser struct {
 func (sap secureAddrParser) ParseAddr(x []byte) (p2p.Addr, error) {
 	return quicswarm.ParseAddr(sap.DynSwarm.ParseAddr, x)
 }
-
-// swarmFromP2P converts a p2p.SecureSwarm[inet256.Addr, inet256.PublicKey] to a Swarm
-// Swarm is the type passed to a Network
-func swarmFromP2P(x p2p.SecureSwarm[inet256.Addr, inet256.PublicKey]) Swarm {
-	return swarmWrapper{x}
-}
-
-// swarmWrapper creates a Swarm from a p2p.SecureSwarm
-type swarmWrapper struct {
-	p2p.SecureSwarm[inet256.Addr, inet256.PublicKey]
-}
-
-func (s swarmWrapper) LocalAddr() inet256.Addr {
-	return s.SecureSwarm.LocalAddrs()[0]
-}
-
-// func (s swarmWrapper) LookupPublicKey(ctx context.Context, target inet256.Addr) (inet256.PublicKey, error) {
-// 	pubKey, err := s.SecureSwarm.LookupPublicKey(ctx, target)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return inet256.PublicKeyFromBuiltIn(pubKey)
-// }
-
-// func (s swarmWrapper) PublicKey() inet256.PublicKey {
-// 	pubKey, err := inet256.PublicKeyFromBuiltIn(s.SecureSwarm.PublicKey())
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return pubKey
-// }
