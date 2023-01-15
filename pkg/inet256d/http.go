@@ -45,9 +45,10 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 		BaseContext: func(l net.Listener) context.Context { return ctx },
 	}
 	mux.HandleFunc("/admin/status", func(w http.ResponseWriter, r *http.Request) {
-		peers, _ := srv.PeerStatus()
-		transportAddrs, _ := srv.TransportAddrs()
-		mainAddr, _ := srv.MainAddr()
+		ctx := r.Context()
+		peers, _ := srv.PeerStatus(ctx)
+		transportAddrs, _ := srv.TransportAddrs(ctx)
+		mainAddr, _ := srv.MainAddr(ctx)
 		data, _ := json.Marshal(StatusRes{
 			MainAddr:       mainAddr,
 			TransportAddrs: mapSlice(transportAddrs, func(x TransportAddr) string { return fmt.Sprint(x) }),

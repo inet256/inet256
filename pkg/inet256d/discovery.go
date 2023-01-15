@@ -37,9 +37,9 @@ var broadcastTransports = map[string]struct{}{
 	mesh256.SecureProtocolName("udp"): {},
 }
 
-func adaptTransportAddrs(f func() ([]TransportAddr, error)) func() []TransportAddr {
+func adaptTransportAddrs(f func(ctx context.Context) ([]TransportAddr, error)) func() []TransportAddr {
 	return func() []TransportAddr {
-		addrs, err := f()
+		addrs, err := f(context.TODO())
 		if err != nil {
 			panic(err)
 		}

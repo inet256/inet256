@@ -8,14 +8,13 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
-// SwarmFromNode converts an inet256.Node to a p2p.SecureSwarm[inet256.Addr]
-func SwarmFromNode(node inet256.Node) p2p.SecureSwarm[inet256.Addr] {
+// SwarmFromNode converts an inet256.Node to a p2p.SecureSwarm[inet256.Addr, inet256.PublicKey]
+func SwarmFromNode(node inet256.Node) p2p.SecureSwarm[inet256.Addr, inet256.PublicKey] {
 	return p2pNode{Node: node}
 }
 
 type p2pNode struct {
 	inet256.Node
-	extraSwarmMethods
 }
 
 func (pn p2pNode) Tell(ctx context.Context, dst inet256.Addr, v p2p.IOVec) error {
@@ -36,25 +35,11 @@ func (pn p2pNode) LocalAddrs() []inet256.Addr {
 	return []inet256.Addr{pn.Node.LocalAddr()}
 }
 
-func (pn p2pNode) LookupPublicKey(ctx context.Context, x inet256.Addr) (p2p.PublicKey, error) {
-	pubKey, err := pn.Node.LookupPublicKey(ctx, x)
-	if err != nil {
-		return nil, err
-	}
-	return pubKey.BuiltIn(), nil
-}
-
-func (pn p2pNode) PublicKey() p2p.PublicKey {
-	return pn.Node.PublicKey().BuiltIn()
-}
-
-type extraSwarmMethods struct{}
-
-func (extraSwarmMethods) MaxIncomingSize() int {
+func (p2pNode) MaxIncomingSize() int {
 	return inet256.MaxMTU
 }
 
-func (extraSwarmMethods) ParseAddr(data []byte) (inet256.Addr, error) {
+func (p2pNode) ParseAddr(data []byte) (inet256.Addr, error) {
 	var addr inet256.Addr
 	if err := addr.UnmarshalText(data); err != nil {
 		return inet256.Addr{}, err

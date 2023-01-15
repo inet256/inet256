@@ -5,11 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/inet256mem"
-	"github.com/inet256/inet256/pkg/p2padapter"
 )
 
 const DefaultAPIEndpoint = "http://127.0.0.1:2560/nodes/"
@@ -43,9 +41,4 @@ func NewPacketConn(n inet256.Node) net.PacketConn {
 // NewTestService can be used to spawn an inet256 service without any peering for use in tests
 func NewTestService(t testing.TB) inet256.Service {
 	return inet256mem.New()
-}
-
-// NewSwarm creates a p2p.SecureSwarm from an inet256.Node.
-func NewSwarm(node inet256.Node) p2p.SecureSwarm[inet256.Addr] {
-	return p2padapter.SwarmFromNode(node)
 }

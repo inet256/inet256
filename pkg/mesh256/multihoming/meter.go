@@ -1,20 +1,20 @@
-package mesh256
+package multihoming
 
 import (
 	"sync"
 	"sync/atomic"
 )
 
-type meterSet struct {
+type meterSet[K comparable] struct {
 	m sync.Map
 }
 
-func (m meterSet) Tx(k Addr, x int) uint64 {
+func (m meterSet[K]) Tx(k K, x int) uint64 {
 	actual, _ := m.m.LoadOrStore(k, new(meter))
 	return actual.(*meter).Tx(x)
 }
 
-func (m meterSet) Rx(k Addr, x int) uint64 {
+func (m meterSet[K]) Rx(k K, x int) uint64 {
 	actual, _ := m.m.LoadOrStore(k, new(meter))
 	return actual.(*meter).Rx(x)
 }
