@@ -3,23 +3,35 @@ package inet256mem
 import (
 	"context"
 	"errors"
-	"net"
+	"log"
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"github.com/brendoncarroll/stdctx/logctx"
 
+	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
+const defaultQueueLen = 1
+
 type memService struct {
+	config config
+
 	mu    sync.RWMutex
 	nodes map[inet256.Addr]*memNode
 }
 
-func New() inet256.Service {
+func New(opts ...Option) inet256.Service {
+	config := config{
+		queueLen: defaultQueueLen,
+	}
+	for _, opt := range opts {
+		opt(&config)
+	}
 	return &memService{
-		nodes: make(map[inet256.Addr]*memNode),
+		config: config,
+		nodes:  make(map[inet256.Addr]*memNode),
 	}
 }
 
@@ -45,7 +57,7 @@ func (s *memService) delete(id inet256.Addr) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if node, exists := s.nodes[id]; exists {
-		node.hub.CloseWithError(net.ErrClosed)
+		node.incoming.Close()
 		delete(s.nodes, id)
 	}
 }
@@ -70,31 +82,35 @@ func (s *memService) getNode(x inet256.Addr) *memNode {
 type memNode struct {
 	s         *memService
 	publicKey inet256.PublicKey
-	hub       *swarmutil.TellHub[inet256.Addr]
+	incoming  netutil.Queue[inet256.Addr]
 }
 
 func newMemNode(s *memService, privKey inet256.PrivateKey) *memNode {
 	return &memNode{
 		s:         s,
 		publicKey: privKey.Public(),
-		hub:       swarmutil.NewTellHub[inet256.Addr](),
+		incoming:  netutil.NewQueue[inet256.Addr](s.config.queueLen),
 	}
 }
 
 func (node *memNode) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
 	dstNode := node.s.getNode(dst)
 	if dstNode != nil {
-		return dstNode.hub.Deliver(ctx, p2p.Message[inet256.Addr]{
+		accepted := dstNode.incoming.Deliver(p2p.Message[inet256.Addr]{
 			Src:     node.LocalAddr(),
 			Dst:     dst,
 			Payload: data,
 		})
+		if !accepted {
+			log.Println("dropped message")
+			logctx.Warnf(ctx, "inet256mem: dropped message len=%d dst=%v", len(data), dst)
+		}
 	}
 	return nil
 }
 
 func (node *memNode) Receive(ctx context.Context, fn inet256.ReceiveFunc) error {
-	return node.hub.Receive(ctx, func(x p2p.Message[inet256.Addr]) {
+	return node.incoming.Receive(ctx, func(x p2p.Message[inet256.Addr]) {
 		fn(inet256.Message{
 			Src:     x.Src,
 			Dst:     x.Dst,

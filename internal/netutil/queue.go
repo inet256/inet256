@@ -14,6 +14,7 @@ type Queue[A p2p.Addr] struct {
 	nonEmpty     bool
 	buffer       []p2p.Message[A]
 	nonEmptyChan chan struct{}
+	closed       chan struct{}
 }
 
 func NewQueue[A p2p.Addr](maxLen int) Queue[A] {
@@ -25,6 +26,7 @@ func NewQueue[A p2p.Addr](maxLen int) Queue[A] {
 		front:        0,
 		back:         0,
 		nonEmptyChan: make(chan struct{}),
+		closed:       make(chan struct{}),
 	}
 }
 
@@ -32,7 +34,7 @@ func NewQueue[A p2p.Addr](maxLen int) Queue[A] {
 func (q *Queue[A]) Deliver(m p2p.Message[A]) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if q.isFull() {
+	if q.isFull() || !isChanOpen(q.closed) {
 		return false
 	}
 	idx := q.pushBack()
@@ -63,12 +65,28 @@ func (q *Queue[A]) Read(ctx context.Context, msg *p2p.Message[A]) error {
 			return nil
 		} else {
 			select {
+			case <-q.closed:
+				return p2p.ErrClosed
+			default:
+			}
+			select {
+			case <-q.closed:
+				return p2p.ErrClosed
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-waitChan:
 			}
 		}
 	}
+}
+
+func (q *Queue[A]) Receive(ctx context.Context, fn func(p2p.Message[A])) error {
+	var msg p2p.Message[A]
+	if err := q.Read(ctx, &msg); err != nil {
+		return err
+	}
+	fn(msg)
+	return nil
 }
 
 // Purge empties the queue and returns the number purged.
@@ -82,6 +100,13 @@ func (q *Queue[A]) Purge() int {
 	close(q.nonEmptyChan)
 	q.nonEmptyChan = make(chan struct{})
 	return count
+}
+
+func (q *Queue[A]) Close() error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	close(q.closed)
+	return nil
 }
 
 func (q *Queue[A]) Len() int {
@@ -98,6 +123,14 @@ func (q *Queue[A]) popFront() int {
 	q.front = mod(q.front+1, uint32(len(q.buffer)))
 	if mod(q.back-q.front, uint32(len(q.buffer))) == 0 {
 		q.nonEmpty = false
+		if q.nonEmptyChan != nil {
+			select {
+			case <-q.nonEmptyChan:
+			default:
+				close(q.nonEmptyChan)
+			}
+		}
+		q.nonEmptyChan = make(chan struct{})
 	}
 	return int(idx)
 }
@@ -106,20 +139,13 @@ func (q *Queue[A]) pushBack() int {
 	if q.isFull() {
 		panic("push on full queue")
 	}
+	if q.isEmpty() {
+		q.nonEmpty = true
+		close(q.nonEmptyChan)
+	}
 	idx := q.back
 	q.back = mod(q.back+1, uint32(len(q.buffer)))
-	if mod(q.back-q.front, uint32(len(q.buffer))) == 0 {
-		q.nonEmpty = true
-	}
 	return int(idx)
-}
-
-func (q *Queue[A]) isFull() bool {
-	return mod(q.back-q.front, uint32(len(q.buffer))) == 0 && q.nonEmpty
-}
-
-func (q *Queue[A]) isEmpty() bool {
-	return q.back == q.front && !q.nonEmpty
 }
 
 func (q *Queue[A]) len() int {
@@ -128,6 +154,23 @@ func (q *Queue[A]) len() int {
 		l = len(q.buffer)
 	}
 	return l
+}
+
+func (q *Queue[A]) isFull() bool {
+	return q.len() == len(q.buffer)
+}
+
+func (q *Queue[A]) isEmpty() bool {
+	return q.len() == 0
+}
+
+func isChanOpen(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return false
+	default:
+		return true
+	}
 }
 
 func zeroMessage[A p2p.Addr](m *p2p.Message[A]) {
