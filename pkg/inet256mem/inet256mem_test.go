@@ -15,3 +15,12 @@ func TestService(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkService(b *testing.B) {
+	inet256test.BenchService(b, func(t testing.TB, xs []inet256.Service) {
+		x := New()
+		for i := range xs {
+			xs[i] = x
+		}
+	})
+}

@@ -18,3 +18,9 @@ func TestServer(t *testing.T) {
 		mesh256.NewTestServers(t, Factory, xs)
 	})
 }
+
+func BenchmarkService(b *testing.B) {
+	inet256test.BenchService(b, func(t testing.TB, xs []inet256.Service) {
+		mesh256.NewTestServers(t, Factory, xs)
+	})
+}

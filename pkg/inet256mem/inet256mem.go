@@ -3,7 +3,6 @@ package inet256mem
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 
 	"github.com/brendoncarroll/go-p2p"
@@ -102,7 +101,6 @@ func (node *memNode) Send(ctx context.Context, dst inet256.Addr, data []byte) er
 			Payload: data,
 		})
 		if !accepted {
-			log.Println("dropped message")
 			logctx.Warnf(ctx, "inet256mem: dropped message len=%d dst=%v", len(data), dst)
 		}
 	}

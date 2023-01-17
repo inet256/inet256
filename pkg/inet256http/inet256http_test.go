@@ -56,6 +56,15 @@ func TestService(t *testing.T) {
 	})
 }
 
+func BenchmarkService(b *testing.B) {
+	inet256test.BenchService(b, func(t testing.TB, xs []inet256.Service) {
+		x := inet256mem.New()
+		for i := range xs {
+			xs[i] = newTestService(t, x)
+		}
+	})
+}
+
 func newTestService(t testing.TB, x inet256.Service) inet256.Service {
 	l, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)

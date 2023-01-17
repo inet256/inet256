@@ -29,6 +29,9 @@ testv: protobuf
 	go test --race -v -count=1 ./cmd/...
 	go test --race -v -count=1 ./e2etest
 
+bench:
+	go test -bench=. -run Benchmark ./...
+
 docker:
 	docker build -t inet256:local .
 
