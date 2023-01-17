@@ -2,7 +2,6 @@ package inet256
 
 import (
 	"context"
-	"log"
 	"net"
 	"os"
 	"sync"
@@ -37,7 +36,6 @@ func (pc *packetConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 }
 
 func (pc *packetConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
-	log.Println("reading")
 	ctx, cf := pc.getReadContext()
 	defer cf()
 	if err = pc.n.Receive(ctx, func(m Message) {
