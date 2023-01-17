@@ -1,6 +1,4 @@
 
-.PHONY: test protobuf drop-replace add-replace build
-
 clean:
 	-rm -r ./out/*
 
@@ -20,7 +18,7 @@ test: protobuf
 	go test --race ./client/go_client/...
 	go test --race ./networks/...
 	go test --race ./cmd/...
-	go test --race ./e2etest
+	go test ./e2etest
 
 testv: protobuf
 	go test --race -v -count=1 ./pkg/...
