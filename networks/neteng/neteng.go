@@ -11,11 +11,11 @@ import (
 	"github.com/brendoncarroll/go-p2p/futures"
 	"github.com/brendoncarroll/stdctx/logctx"
 
+	"github.com/inet256/inet256/internal/netutil"
+	"github.com/inet256/inet256/internal/retry"
 	"github.com/inet256/inet256/pkg/bitstr"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/inet256/inet256/pkg/netutil"
-	"github.com/inet256/inet256/pkg/retry"
 )
 
 // SendFunc is the type of functions used to send data to peers

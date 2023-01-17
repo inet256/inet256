@@ -10,8 +10,8 @@ import (
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
 
+	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/netutil"
 )
 
 const (
