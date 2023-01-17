@@ -1,0 +1,59 @@
+package loadbal
+
+import (
+	"github.com/inet256/inet256/pkg/inet256"
+	kcp "github.com/xtaci/kcp-go/v5"
+	"github.com/xtaci/smux"
+)
+
+// ListenKCP uses node to listen for KCP connections.
+func ListenKCPMux(node inet256.Node) (*KCPMuxListener, error) {
+	bc, err := kcp.NewNoneBlockCrypt(nil)
+	if err != nil {
+		panic(err)
+	}
+	l, err := kcp.ServeConn(bc, 1, 0, inet256.NewPacketConn(node))
+	if err != nil {
+		return nil, err
+	}
+	return (*KCPMuxListener)(l), nil
+}
+
+type KCPMuxListener kcp.Listener
+
+func (l *KCPMuxListener) Accept() (*KCPMuxSession, error) {
+	c, err := (*kcp.Listener)(l).AcceptKCP()
+	if err != nil {
+		return nil, err
+	}
+	c.SetMtu(inet256.MinMTU)
+	sess, err := smux.Server(c, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &KCPMuxSession{conn: c, Session: sess}, nil
+}
+
+func (l *KCPMuxListener) Close() error {
+	return (*kcp.Listener)(l).Close()
+}
+
+// DialKCP uses node to dial an outbonud KCP connection raddr.
+func DialKCPMux(node inet256.Node, raddr inet256.Addr) (*KCPMuxSession, error) {
+	bc, _ := kcp.NewNoneBlockCrypt(nil)
+	c, err := kcp.NewConn3(0, raddr, bc, 1, 0, inet256.NewPacketConn(node))
+	if err != nil {
+		return nil, err
+	}
+	c.SetMtu(inet256.MinMTU)
+	sess, err := smux.Client(c, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &KCPMuxSession{conn: c, Session: sess}, nil
+}
+
+type KCPMuxSession struct {
+	conn *kcp.UDPSession
+	*smux.Session
+}
