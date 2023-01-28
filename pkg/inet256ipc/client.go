@@ -8,10 +8,10 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/futures"
-	"github.com/brendoncarroll/go-p2p/s/swarmutil"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
@@ -26,7 +26,7 @@ type NodeClient struct {
 	localPubKey inet256.PublicKey
 	localAddr   inet256.Addr
 
-	tellHub    swarmutil.TellHub[inet256.Addr]
+	tellHub    netutil.TellHub
 	mtus       *futures.Store[[16]byte, int]
 	findAddrs  *futures.Store[[16]byte, inet256.Addr]
 	lookupPubs *futures.Store[[16]byte, inet256.PublicKey]
@@ -45,7 +45,7 @@ func NewNodeClient(fr Framer, localPubKey inet256.PublicKey, opts ...NodeClientO
 		localPubKey: localPubKey,
 		localAddr:   inet256.NewAddr(localPubKey),
 
-		tellHub:    *swarmutil.NewTellHub[inet256.Addr](),
+		tellHub:    netutil.NewTellHub(),
 		findAddrs:  futures.NewStore[[16]byte, inet256.Addr](),
 		lookupPubs: futures.NewStore[[16]byte, inet256.PublicKey](),
 		mtus:       futures.NewStore[[16]byte, int](),

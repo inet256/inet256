@@ -10,6 +10,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
+	"github.com/brendoncarroll/go-p2p/s/vswarm"
 	"github.com/stretchr/testify/require"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -74,14 +75,14 @@ func TestSendRecvAll(t testing.TB, nets []Network) {
 
 func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []Network {
 	N := len(adjList)
-	swarms := make([]*memswarm.Swarm[x509.PublicKey], N)
+	swarms := make([]*vswarm.SecureSwarm[memswarm.Addr, x509.PublicKey], N)
 	peerStores := make([]peers.Store[memswarm.Addr], N)
 	keys := make([]inet256.PrivateKey, N)
 	netSwarms := make([]mesh256.Swarm, N)
-	r := memswarm.NewRealm[x509.PublicKey]()
+	r := memswarm.NewSecureRealm[x509.PublicKey](memswarm.WithQueueLen(4))
 	for i := 0; i < N; i++ {
 		keys[i] = inet256test.NewPrivateKey(t, i)
-		swarms[i] = r.NewSwarmWithKey(mesh256.PublicKeyFromINET256(keys[i].Public()))
+		swarms[i] = r.NewSwarm(mesh256.PublicKeyFromINET256(keys[i].Public()))
 		peerStores[i] = peers.NewStore[memswarm.Addr]()
 		netSwarms[i] = mesh256.NewTestSwarm[memswarm.Addr](t, swarms[i], peerStores[i])
 	}

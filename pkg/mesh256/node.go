@@ -11,9 +11,9 @@ import (
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx"
 
+	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256/multihoming"
-	"github.com/inet256/inet256/pkg/netutil"
 	"github.com/inet256/inet256/pkg/peers"
 )
 

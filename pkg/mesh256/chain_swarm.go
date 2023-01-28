@@ -8,12 +8,12 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/s/swarmutil"
 
-	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/internal/netutil"
 )
 
 type chainSwarm[A p2p.Addr, Pub any] struct {
 	swarms []p2p.SecureSwarm[A, Pub]
-	hub    *swarmutil.TellHub[A]
+	hub    swarmutil.TellHub[A]
 	sg     netutil.ServiceGroup
 }
 

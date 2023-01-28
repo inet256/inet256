@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/netutil"
+	"github.com/inet256/inet256/internal/netutil"
 )
 
 const expireAfter = 30 * time.Second
