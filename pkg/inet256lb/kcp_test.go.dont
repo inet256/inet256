@@ -1,78 +1,90 @@
-package loadbal
+package inet256lb
 
 import (
-	"context"
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/inet256/inet256/pkg/inet256mem"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sync/errgroup"
 )
 
-func TestKCPConnect(t *testing.T) {
-	t.Skip()
-	s := inet256mem.New()
-	n1 := inet256test.OpenNode(t, s, 0)
-	n2 := inet256test.OpenNode(t, s, 1)
+func TestKCPEndpoints(t *testing.T) {
+	testStreamEndpoints(t, func(t testing.TB) (fe, be StreamEndpoint) {
+		s := inet256mem.New()
+		n1 := inet256test.OpenNode(t, s, 0)
+		n2 := inet256test.OpenNode(t, s, 1)
 
-	t.Log(n1, n2)
-	eg := errgroup.Group{}
+		fe, err := NewKCPFrontend(n1)
+		require.NoError(t, err)
+		t.Cleanup(func() { fe.Close() })
+		be = NewKCPBackend(n2, n1.LocalAddr())
+		t.Cleanup(func() { be.Close() })
 
-	eg.Go(func() error {
-		l, err := ListenKCPMux(n1)
-		if err != nil {
-			return err
-		}
-		defer l.Close()
-
-		sess, err := l.Accept()
-		if err != nil {
-			return err
-		}
-		t.Log("accepted", sess.RemoteAddr(), fmt.Sprintf("%T", sess.RemoteAddr()))
-		stream, err := sess.AcceptStream()
-		if err != nil {
-			return err
-		}
-		t.Log("accepted stream")
-		defer stream.Close()
-		t.Log("reading all from stream")
-		data, err := ioutil.ReadAll(stream)
-		if err != nil {
-			return err
-		}
-		t.Log("read from stream")
-		if string(data) != "hello world" {
-			return fmt.Errorf("wrong message from client %q", data)
-		}
-		return nil
+		return fe, be
 	})
-	eg.Go(func() error {
-		sess, err := DialKCPMux(n2, n1.LocalAddr())
-		if err != nil {
-			return err
-		}
-		defer sess.Close()
-		t.Log("opening stream")
-		stream, err := sess.OpenStream()
-		if err != nil {
-			return err
-		}
-		defer stream.Close()
-		if _, err := stream.Write([]byte("hello")); err != nil {
-			return err
-		}
-		if _, err := stream.Write([]byte("world")); err != nil {
-			return err
-		}
-		if err := stream.Close(); err != nil {
-			return err
-		}
-		t.Log("closed stream")
-		return nil
-	})
-	require.NoError(t, eg.Wait())
 }
+
+// func TestKCPConnect(t *testing.T) {
+// 	t.Skip()
+// 	s := inet256mem.New()
+// 	n1 := inet256test.OpenNode(t, s, 0)
+// 	n2 := inet256test.OpenNode(t, s, 1)
+
+// 	t.Log(n1, n2)
+// 	eg := errgroup.Group{}
+
+// 	eg.Go(func() error {
+// 		l, err := ListenKCPMux(n1)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer l.Close()
+
+// 		sess, err := l.Accept()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		t.Log("accepted", sess.RemoteAddr(), fmt.Sprintf("%T", sess.RemoteAddr()))
+// 		stream, err := sess.AcceptStream()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		t.Log("accepted stream")
+// 		defer stream.Close()
+// 		t.Log("reading all from stream")
+// 		data, err := ioutil.ReadAll(stream)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		t.Log("read from stream")
+// 		if string(data) != "hello world" {
+// 			return fmt.Errorf("wrong message from client %q", data)
+// 		}
+// 		return nil
+// 	})
+// 	eg.Go(func() error {
+// 		sess, err := DialKCPMux(n2, n1.LocalAddr())
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer sess.Close()
+// 		t.Log("opening stream")
+// 		stream, err := sess.OpenStream()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		defer stream.Close()
+// 		if _, err := stream.Write([]byte("hello")); err != nil {
+// 			return err
+// 		}
+// 		if _, err := stream.Write([]byte("world")); err != nil {
+// 			return err
+// 		}
+// 		if err := stream.Close(); err != nil {
+// 			return err
+// 		}
+// 		t.Log("closed stream")
+// 		return nil
+// 	})
+// 	require.NoError(t, eg.Wait())
+// }

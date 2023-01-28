@@ -9,41 +9,37 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
-type UTPFrontend struct {
-	node inet256.Node
-	pc   net.PacketConn
-	s    *utp.Socket
-}
-
 func NewUTPFrontend(node inet256.Node) StreamEndpoint {
 	pc := inet256.NewPacketConn(node)
-	return &UTPFrontend{
-		node: node,
-		pc:   pc,
-		s:    utp.NewSocket(pc),
+	return &utpEndpoint{
+		pc: pc,
+		s:  utp.NewSocket(pc),
 	}
 }
 
-func (fe *UTPFrontend) Open(ctx context.Context) (net.Conn, error) {
-	return fe.s.Listen()
-}
-
-func (fe *UTPFrontend) Close() error {
-	fe.s.Close()
-	fe.pc.Close()
-	fe.node.Close()
-	return nil
-}
-
-// TODO: this leaks the socket.
-func DialUTP(ctx context.Context, node inet256.Node, dst inet256.Addr) (net.Conn, error) {
+func NewUTPBackend(node inet256.Node, target inet256.Addr) StreamEndpoint {
 	pc := inet256.NewPacketConn(node)
-	s := utp.NewSocket(pc)
-	return s.DialContext(ctx, dst)
+	return &utpEndpoint{
+		pc:     pc,
+		s:      utp.NewSocket(pc),
+		target: target,
+	}
 }
 
-func ListenUTP(ctx context.Context, node inet256.Node) (net.Listener, error) {
-	pc := inet256.NewPacketConn(node)
-	s := utp.NewSocket(pc)
-	return s, nil
+type utpEndpoint struct {
+	pc     net.PacketConn
+	s      *utp.Socket
+	target inet256.Addr
+}
+
+func (e *utpEndpoint) Open(ctx context.Context) (net.Conn, error) {
+	if e.target.IsZero() {
+		return e.s.Accept()
+	} else {
+		return e.s.DialContext(ctx, e.target)
+	}
+}
+
+func (e *utpEndpoint) Close() error {
+	return e.s.Close()
 }

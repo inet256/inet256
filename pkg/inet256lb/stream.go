@@ -7,6 +7,9 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+
+	"github.com/brendoncarroll/stdctx/logctx"
+	"golang.org/x/exp/slog"
 )
 
 type StreamEndpoint interface {
@@ -17,6 +20,10 @@ type StreamEndpoint interface {
 type StreamBalancer struct {
 	mu       sync.RWMutex
 	backends map[string]*streamBalEntry
+}
+
+func NewStreamBalancer() *StreamBalancer {
+	return &StreamBalancer{}
 }
 
 func (b *StreamBalancer) AddBackend(k string, be StreamEndpoint) error {
@@ -42,7 +49,7 @@ func (b *StreamBalancer) RemoveBackend(k string) error {
 	return nil
 }
 
-func (b *StreamBalancer) Serve(ctx context.Context, frontend StreamEndpoint) error {
+func (b *StreamBalancer) ServeFrontend(ctx context.Context, frontend StreamEndpoint) error {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 	for {
@@ -50,12 +57,12 @@ func (b *StreamBalancer) Serve(ctx context.Context, frontend StreamEndpoint) err
 		if err != nil {
 			return err
 		}
-		logctx.Infof(ctx, "accepted connection", slog.Any("remote_addr", conn.RemoteAddr()))
+		logctx.Info(ctx, "accepted connection", slog.Any("remote_addr", fconn.RemoteAddr()))
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer logctx.Info(ctx, "closed connection", slog.Any("remote_addr", conn.RemoteAddr()))
+			defer logctx.Info(ctx, "closed connection", slog.Any("remote_addr", fconn.RemoteAddr()))
 			if err := b.serveFrontendConn(ctx, fconn); err != nil {
 				logctx.Errorln(ctx, err)
 			}
