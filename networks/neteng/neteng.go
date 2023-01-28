@@ -71,7 +71,7 @@ func New(params mesh256.NetworkParams, router Router, hbPeriod time.Duration) *N
 		localID:   inet256.NewAddr(publicKey),
 
 		router:       router,
-		tellHub:      *netutil.NewTellHub(),
+		tellHub:      netutil.NewTellHub(),
 		findAddr:     futures.NewStore[bitstr.String, inet256.Addr](),
 		lookupPubKey: futures.NewStore[inet256.Addr, inet256.PublicKey](),
 	}

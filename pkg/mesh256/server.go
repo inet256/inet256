@@ -7,6 +7,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/f/x509"
 	"github.com/brendoncarroll/go-p2p/s/memswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/go-p2p/s/vswarm"
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx"
 	"github.com/brendoncarroll/stdctx/logctx"
@@ -18,6 +19,8 @@ import (
 )
 
 const nameMemSwarm = "memory"
+
+const DefaultQueueLen = 4
 
 type Service interface {
 	inet256.Service
@@ -39,10 +42,10 @@ type Params NodeParams
 type Server struct {
 	params Params
 
-	memrealm     *memswarm.Realm[x509.PublicKey]
+	memrealm     *memswarm.SecureRealm[x509.PublicKey]
 	mainID       inet256.Addr
 	mainMemPeers peers.Store[multiswarm.Addr]
-	mainMemSwarm *memswarm.Swarm[x509.PublicKey]
+	mainMemSwarm *vswarm.SecureSwarm[memswarm.Addr, x509.PublicKey]
 	mainNode     *node
 
 	mu    sync.Mutex
@@ -50,8 +53,8 @@ type Server struct {
 }
 
 func NewServer(params Params) *Server {
-	r := memswarm.NewRealm[x509.PublicKey]()
-	msw := r.NewSwarmWithKey(PublicKeyFromINET256(params.PrivateKey.Public()))
+	r := memswarm.NewSecureRealm[x509.PublicKey](memswarm.WithQueueLen(DefaultQueueLen))
+	msw := r.NewSwarm(PublicKeyFromINET256(params.PrivateKey.Public()))
 	if params.Swarms == nil {
 		params.Swarms = make(map[string]multiswarm.DynSwarm, 1)
 	}
@@ -88,7 +91,7 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 	if _, exists := s.nodes[id]; exists {
 		return nil, errors.New("node is already open")
 	}
-	swarm := s.memrealm.NewSwarmWithKey(PublicKeyFromINET256(privateKey.Public()))
+	swarm := s.memrealm.NewSwarm(PublicKeyFromINET256(privateKey.Public()))
 
 	ps := peers.NewStore[TransportAddr]()
 	ps.Add(s.mainID)

@@ -19,11 +19,6 @@ const (
 	channelData      = 1
 )
 
-type comparableAddr interface {
-	p2p.Addr
-	comparable
-}
-
 type PeerStore[K comparable, A p2p.Addr] interface {
 	Contains(k K) bool
 	ListPeers() []K
@@ -33,7 +28,7 @@ type PeerStore[K comparable, A p2p.Addr] interface {
 // Swarm manages a underlying swarm where many addresses A map to fewer Ks
 // Swarm manages sending background heartbeats to monitor the status of peers at any of the As
 // Swarm allows callers to send to the best A for a given K
-type Swarm[A p2p.Addr, Pub any, K comparableAddr] struct {
+type Swarm[A p2p.Addr, Pub any, K p2p.ComparableAddr] struct {
 	peerStore PeerStore[K, A]
 	inner     p2p.SecureSwarm[A, Pub]
 	groupBy   func(Pub) (K, error)
@@ -45,14 +40,14 @@ type Swarm[A p2p.Addr, Pub any, K comparableAddr] struct {
 	meters    meterSet[K]
 }
 
-type Params[A p2p.Addr, Pub any, K comparableAddr] struct {
+type Params[A p2p.Addr, Pub any, K p2p.ComparableAddr] struct {
 	Background context.Context
 	Inner      p2p.SecureSwarm[A, Pub]
 	Peers      PeerStore[K, A]
 	GroupBy    func(Pub) (K, error)
 }
 
-func New[A p2p.Addr, Pub any, K comparableAddr](params Params[A, Pub, K]) *Swarm[A, Pub, K] {
+func New[A p2p.Addr, Pub any, K p2p.ComparableAddr](params Params[A, Pub, K]) *Swarm[A, Pub, K] {
 	localKey, err := params.GroupBy(params.Inner.PublicKey())
 	if err != nil {
 		panic(err)

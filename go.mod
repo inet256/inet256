@@ -3,7 +3,7 @@ module github.com/inet256/inet256
 go 1.19
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20230114214147-902f4e36cc2b
+	github.com/brendoncarroll/go-p2p v0.0.0-20230128152042-d277ff52ca7d
 	github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4
 	github.com/brendoncarroll/stdctx v0.0.0-20230114173309-0ff5de5eda5a
 	github.com/go-chi/chi v1.5.4
@@ -30,7 +30,6 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1 // indirect
 	github.com/lucas-clemente/quic-go v0.29.2 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.3 // indirect
 	github.com/marten-seemann/qtls-go1-19 v0.1.1 // indirect

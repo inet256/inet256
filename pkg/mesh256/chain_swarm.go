@@ -13,7 +13,7 @@ import (
 
 type chainSwarm[A p2p.Addr, Pub any] struct {
 	swarms []p2p.SecureSwarm[A, Pub]
-	hub    *swarmutil.TellHub[A]
+	hub    swarmutil.TellHub[A]
 	sg     netutil.ServiceGroup
 }
 

@@ -81,14 +81,14 @@ func (s *memService) getNode(x inet256.Addr) *memNode {
 type memNode struct {
 	s         *memService
 	publicKey inet256.PublicKey
-	incoming  netutil.Queue[inet256.Addr]
+	incoming  netutil.Queue
 }
 
 func newMemNode(s *memService, privKey inet256.PrivateKey) *memNode {
 	return &memNode{
 		s:         s,
 		publicKey: privKey.Public(),
-		incoming:  netutil.NewQueue[inet256.Addr](s.config.queueLen),
+		incoming:  netutil.NewQueue(s.config.queueLen),
 	}
 }
 

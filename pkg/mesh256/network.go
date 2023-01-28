@@ -13,6 +13,7 @@ import (
 // This interface is not described in the spec, and is incidental to the implementation.
 type Network interface {
 	p2p.Teller[inet256.Addr]
+	p2p.Receiver[inet256.Addr]
 	LocalAddr() inet256.Addr
 	MTU(context.Context, inet256.Addr) int
 	Close() error
@@ -28,6 +29,7 @@ type Network interface {
 // This interface is not described in the spec, and is incidental to the implementation.
 type Swarm interface {
 	p2p.Teller[inet256.Addr]
+	p2p.Receiver[inet256.Addr]
 
 	LookupPublicKey(context.Context, inet256.Addr) (inet256.PublicKey, error)
 	PublicKey() inet256.PublicKey

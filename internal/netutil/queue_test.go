@@ -12,7 +12,7 @@ import (
 func TestQueue(t *testing.T) {
 	ctx := context.Background()
 	const N = 3
-	q := NewQueue[inet256.Addr](N)
+	q := NewQueue(N)
 	defer q.Close()
 
 	for i := 0; i < N; i++ {
@@ -41,7 +41,7 @@ func BenchmarkQueue(b *testing.B) {
 	b.Run("SendRecv", func(b *testing.B) {
 		ctx := context.Background()
 		const msgSize = 1 << 15
-		q := NewQueue[inet256.Addr](1)
+		q := NewQueue(1)
 
 		msgIn := p2p.Message[inet256.Addr]{
 			Payload: make([]byte, msgSize),

@@ -41,7 +41,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 	ctx := context.Background()
 	ctx, cf := context.WithCancel(ctx)
 	t.Cleanup(cf)
-	r := memswarm.NewRealm[x509.PublicKey]()
+	r := memswarm.NewSecureRealm[x509.PublicKey]()
 	stores := make([]peers.Store[TransportAddr], len(xs))
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
@@ -51,7 +51,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 		srvs[i] = NewServer(Params{
 			Background: ctx,
 			Swarms: map[string]multiswarm.DynSwarm{
-				"external": multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](r.NewSwarmWithKey(pubX509)),
+				"external": multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](r.NewSwarm(pubX509)),
 			},
 			NewNetwork: nf,
 			Peers:      stores[i],
