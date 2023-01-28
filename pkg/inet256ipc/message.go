@@ -145,42 +145,45 @@ func (m Message) MTURes() (*MTURes, error) {
 }
 
 // WriteDataMessage places a message in the frame
-func WriteDataMessage(fr *Frame, addr inet256.Addr, data []byte) {
-	fr.SetLen(4 + 32 + len(data))
-	m := Message(fr.Body())
+func WriteDataMessage(dst []byte, addr inet256.Addr, data []byte) int {
+	l := 4 + 32 + len(data)
+	m := Message(dst[:l])
 	m.SetType(MT_Data)
 	copyExact(m.DataAddrBytes(), addr[:])
 	copyExact(m.DataPayload(), data)
+	return l
 }
 
-func WriteKeepAlive(fr *Frame) {
-	fr.SetLen(4)
-	m := Message(fr.Body())
+func WriteKeepAlive(dst []byte) int {
+	l := 4
+	m := Message(dst[:l])
 	m.SetType(MT_KeepAlive)
+	return l
 }
 
-func WriteAskMessage(fr *Frame, reqID [16]byte, mtype MessageType, x any) {
+func WriteAskMessage(dst []byte, reqID [16]byte, mtype MessageType, x any) int {
 	data, err := json.Marshal(x)
 	if err != nil {
 		panic(err)
 	}
-	fr.SetLen(4 + 16 + len(data))
-	m := Message(fr.Body())
+	l := 4 + 16 + len(data)
+	m := Message(dst[:l])
 	m.SetType(mtype)
 	m.SetRequestID(reqID)
 	copyExact(m.AskBody(), data)
+	return l
 }
 
-func WriteRequest(fr *Frame, reqID [16]byte, mtype MessageType, x any) {
-	WriteAskMessage(fr, reqID, mtype, x)
+func WriteRequest(dst []byte, reqID [16]byte, mtype MessageType, x any) int {
+	return WriteAskMessage(dst, reqID, mtype, x)
 }
 
-func WriteSuccess[T any](fr *Frame, reqID [16]byte, mtype MessageType, x T) {
-	WriteAskMessage(fr, reqID, mtype, Response[T]{Success: x})
+func WriteSuccess[T any](dst []byte, reqID [16]byte, mtype MessageType, x T) int {
+	return WriteAskMessage(dst, reqID, mtype, Response[T]{Success: x})
 }
 
-func WriteError[T any](fr *Frame, reqID [16]byte, mtype MessageType, err error) {
-	WriteAskMessage(fr, reqID, mtype, Response[T]{Error: err.Error()})
+func WriteError[T any](dst []byte, reqID [16]byte, mtype MessageType, err error) int {
+	return WriteAskMessage(dst, reqID, mtype, Response[T]{Error: err.Error()})
 }
 
 func NewRequestID() (ret [16]byte) {

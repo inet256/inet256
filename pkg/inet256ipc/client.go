@@ -21,8 +21,13 @@ type NodeClientOption func(*clientConfig)
 
 var _ inet256.Node = &NodeClient{}
 
+type SendReceiver interface {
+	Send(ctx context.Context, data []byte) error
+	Receive(ctx context.Context, fn func(data []byte)) error
+}
+
 type NodeClient struct {
-	framer      Framer
+	transport   SendReceiver
 	localPubKey inet256.PublicKey
 	localAddr   inet256.Addr
 
@@ -30,18 +35,17 @@ type NodeClient struct {
 	mtus       *futures.Store[[16]byte, int]
 	findAddrs  *futures.Store[[16]byte, inet256.Addr]
 	lookupPubs *futures.Store[[16]byte, inet256.PublicKey]
-	framePool  *framePool
 
 	cf context.CancelFunc
 	eg errgroup.Group
 }
 
 // NewNodeClient returns a client which will read and write from rwc in the background
-func NewNodeClient(fr Framer, localPubKey inet256.PublicKey, opts ...NodeClientOption) *NodeClient {
+func NewNodeClient(transport SendReceiver, localPubKey inet256.PublicKey, opts ...NodeClientOption) *NodeClient {
 	ctx := context.Background()
 	ctx, cf := context.WithCancel(ctx)
 	c := &NodeClient{
-		framer:      fr,
+		transport:   transport,
 		localPubKey: localPubKey,
 		localAddr:   inet256.NewAddr(localPubKey),
 
@@ -49,7 +53,6 @@ func NewNodeClient(fr Framer, localPubKey inet256.PublicKey, opts ...NodeClientO
 		findAddrs:  futures.NewStore[[16]byte, inet256.Addr](),
 		lookupPubs: futures.NewStore[[16]byte, inet256.PublicKey](),
 		mtus:       futures.NewStore[[16]byte, int](),
-		framePool:  newFramePool(),
 
 		cf: cf,
 	}
@@ -68,15 +71,14 @@ func (c *NodeClient) keepAliveLoop(ctx context.Context) error {
 	defer c.cf()
 	ticker := time.NewTicker(DefaultKeepAliveInterval)
 	defer ticker.Stop()
+	var buf [MaxMessageLen]byte
 	for {
 		select {
 		case <-ticker.C:
-			fr := c.framePool.Acquire()
-			WriteKeepAlive(fr)
-			if err := c.framer.WriteFrame(ctx, fr); err != nil {
+			n := WriteKeepAlive(buf[:])
+			if err := c.transport.Send(ctx, buf[:n]); err != nil {
 				return err
 			}
-			c.framePool.Release(fr)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -84,14 +86,13 @@ func (c *NodeClient) keepAliveLoop(ctx context.Context) error {
 }
 
 func (c *NodeClient) readLoop(ctx context.Context) error {
-	fr := c.framePool.Acquire()
-	defer c.framePool.Release(fr)
 	for {
-		if err := c.framer.ReadFrame(ctx, fr); err != nil {
+		if err := c.transport.Receive(ctx, func(data []byte) {
+			if err := c.handleMessage(ctx, data); err != nil {
+				logctx.Errorf(ctx, "handling message %v", err)
+			}
+		}); err != nil {
 			return err
-		}
-		if err := c.handleMessage(ctx, fr.Body()); err != nil {
-			logctx.Errorf(ctx, "handling message %v", err)
 		}
 	}
 }
@@ -158,10 +159,9 @@ func (c *NodeClient) Receive(ctx context.Context, fn inet256.ReceiveFunc) error 
 }
 
 func (c *NodeClient) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
-	fr := c.framePool.Acquire()
-	defer c.framePool.Release(fr)
-	WriteDataMessage(fr, dst, data)
-	return c.framer.WriteFrame(ctx, fr)
+	var buf [MaxMessageLen]byte
+	n := WriteDataMessage(buf[:], dst, data)
+	return c.transport.Send(ctx, buf[:n])
 }
 
 func (c *NodeClient) Close() error {
@@ -178,10 +178,9 @@ func (c *NodeClient) PublicKey() inet256.PublicKey {
 }
 
 func (c *NodeClient) sendRequest(ctx context.Context, reqID *[16]byte, mtype MessageType, req any) error {
-	fr := c.framePool.Acquire()
-	defer c.framePool.Release(fr)
-	WriteRequest(fr, *reqID, mtype, req)
-	return c.framer.WriteFrame(ctx, fr)
+	var buf [MaxMessageLen]byte
+	n := WriteRequest(buf[:], *reqID, mtype, req)
+	return c.transport.Send(ctx, buf[:n])
 }
 
 func (c *NodeClient) MTU(ctx context.Context, target inet256.Addr) int {
