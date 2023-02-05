@@ -20,7 +20,7 @@ import (
 
 const nameMemSwarm = "memory"
 
-const DefaultQueueLen = 4
+const DefaultQueueLen = 8
 
 type Service interface {
 	inet256.Service

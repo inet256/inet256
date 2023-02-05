@@ -41,7 +41,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 	ctx := context.Background()
 	ctx, cf := context.WithCancel(ctx)
 	t.Cleanup(cf)
-	r := memswarm.NewSecureRealm[x509.PublicKey]()
+	r := memswarm.NewSecureRealm[x509.PublicKey](memswarm.WithQueueLen(4))
 	stores := make([]peers.Store[TransportAddr], len(xs))
 	srvs := make([]*Server, len(xs))
 	for i := range srvs {
