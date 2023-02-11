@@ -140,6 +140,8 @@ type rwBackend struct {
 
 func newRWBackend(r io.Reader, w io.Writer) *rwBackend {
 	return &rwBackend{
+		r:      r,
+		w:      w,
 		sem:    make(chan struct{}, 1),
 		closed: make(chan struct{}),
 	}

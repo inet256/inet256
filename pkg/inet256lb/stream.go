@@ -100,15 +100,15 @@ func (b *StreamBalancer) pickBackend(raddr, laddr net.Addr) (*streamBalEntry, er
 	if len(b.backends) == 0 {
 		return nil, errors.New("no backends available")
 	}
-	var bestK string
+	var best *streamBalEntry
 	var minActive int64
-	for k, e := range b.backends {
-		if active := e.active.Load(); active < minActive {
-			bestK = k
+	for _, e := range b.backends {
+		if active := e.active.Load(); best == nil || active < minActive {
+			best = e
 			minActive = active
 		}
 	}
-	return b.backends[bestK], nil
+	return best, nil
 }
 
 func (b *StreamBalancer) serveStream(ctx context.Context, fconn, bconn net.Conn) error {
