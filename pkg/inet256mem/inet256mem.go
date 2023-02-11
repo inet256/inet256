@@ -12,7 +12,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
-const defaultQueueLen = 1
+const defaultQueueLen = 4
 
 type memService struct {
 	config config
