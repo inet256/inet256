@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/inet256/inet256/pkg/inet256"
@@ -15,48 +16,56 @@ import (
 )
 
 func NewDialCmd(newNode func(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error)) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "dial",
 		Short: "dials a new connection using a transport protocol on INET256",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			dst, err := inet256.ParseAddrBase64([]byte(args[0]))
-			if err != nil {
-				return err
-			}
-			var privateKey inet256.PrivateKey // TODO: flag
-			var protocol string               // TODO: flag
-
-			var newEndpoint func(inet256.Node) inet256lb.StreamEndpoint
-			switch protocol {
-			case "utp":
-				newEndpoint = func(node inet256.Node) inet256lb.StreamEndpoint {
-					return inet256lb.NewUTPBackend(node, dst)
-				}
-			default:
-				return fmt.Errorf("protocol unknown %q", protocol)
-			}
-
-			node, err := newNode(ctx, privateKey)
-			if err != nil {
-				return nil
-			}
-			defer node.Close()
-			endpoint := newEndpoint(node)
-			defer endpoint.Close()
-
-			conn, err := endpoint.Open(ctx)
-			if err != nil {
-				return err
-			}
-			defer conn.Close()
-			pair := rwPair{
-				Reader: cmd.InOrStdin(),
-				Writer: cmd.OutOrStdout(),
-			}
-			return inet256lb.PlumbRWC(pair, conn)
-		},
 	}
+	protocol := flagProtocol(cmd)
+	privateKeyPath := flagPrivateKey(cmd)
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		dst, err := inet256.ParseAddrBase64([]byte(args[0]))
+		if err != nil {
+			return err
+		}
+		if *privateKeyPath == "" {
+			return errors.New("must provide private-key")
+		}
+		privateKey, err := loadPrivateKeyFromFile(*privateKeyPath)
+		if err != nil {
+			return err
+		}
+
+		var newEndpoint func(inet256.Node) inet256lb.StreamEndpoint
+		switch *protocol {
+		case "utp":
+			newEndpoint = func(node inet256.Node) inet256lb.StreamEndpoint {
+				return inet256lb.NewUTPBackend(node, dst)
+			}
+		default:
+			return fmt.Errorf("protocol unknown %q", *protocol)
+		}
+
+		node, err := newNode(ctx, privateKey)
+		if err != nil {
+			return nil
+		}
+		defer node.Close()
+		endpoint := newEndpoint(node)
+		defer endpoint.Close()
+
+		conn, err := endpoint.Open(ctx)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		pair := rwPair{
+			Reader: cmd.InOrStdin(),
+			Writer: cmd.OutOrStdout(),
+		}
+		return inet256lb.PlumbRWC(pair, conn)
+	}
+	return cmd
 }
 
 type rwPair struct {
@@ -75,41 +84,49 @@ func (p rwPair) Close() error {
 }
 
 func NewListenCmd(newNode func(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error)) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "listen",
 		Short: "listens for new connections using a transport protocol on INET256",
 		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var privateKey inet256.PrivateKey // TODO: flag
-			var protocol string               // TODO: flag
-
-			node, err := newNode(ctx, privateKey)
-			if err != nil {
-				return nil
-			}
-			bal := inet256lb.NewStreamBalancer()
-
-			// backends
-			if len(args) == 1 && args[0] == "stdio" {
-				bal.AddBackend("stdio", newRWBackend(cmd.InOrStdin(), cmd.OutOrStdout()))
-			} else {
-				for i := range args {
-					e, err := inet256lb.MakeStreamBackend(args[i], func() inet256.Node { return node })
-					if err != nil {
-						return err
-					}
-					bal.AddBackend(args[i], e)
-				}
-			}
-
-			// frontend
-			frontend, err := inet256lb.MakeStreamFrontend(protocol, node)
-			if err != nil {
-				return err
-			}
-			return bal.ServeFrontend(ctx, frontend)
-		},
 	}
+	protocol := flagProtocol(cmd)
+	privateKeyPath := flagPrivateKey(cmd)
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if *privateKeyPath == "" {
+			return errors.New("must provide private-key")
+		}
+		privateKey, err := loadPrivateKeyFromFile(*privateKeyPath)
+		if err != nil {
+			return err
+		}
+
+		node, err := newNode(ctx, privateKey)
+		if err != nil {
+			return nil
+		}
+		bal := inet256lb.NewStreamBalancer()
+
+		// backends
+		if len(args) == 1 && args[0] == "stdio" {
+			bal.AddBackend("stdio", newRWBackend(cmd.InOrStdin(), cmd.OutOrStdout()))
+		} else {
+			for i := range args {
+				e, err := inet256lb.MakeStreamBackend(args[i], func() inet256.Node { return node })
+				if err != nil {
+					return err
+				}
+				bal.AddBackend(args[i], e)
+			}
+		}
+
+		// frontend
+		frontend, err := inet256lb.MakeStreamFrontend(*protocol, node)
+		if err != nil {
+			return err
+		}
+		return bal.ServeFrontend(ctx, frontend)
+	}
+	return cmd
 }
 
 type rwBackend struct {
@@ -206,4 +223,12 @@ func (rwAddr) Network() string {
 
 func (rwAddr) String() string {
 	return "stdio"
+}
+
+func flagPrivateKey(cmd *cobra.Command) *string {
+	return cmd.Flags().StringP("private-key", "k", "", "--private-key=./path/to/private/key.pem")
+}
+
+func flagProtocol(cmd *cobra.Command) *string {
+	return cmd.Flags().StringP("protocol", "p", "", "--protocol=utp")
 }

@@ -59,6 +59,7 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(NewKeygenCmd())
 	c.AddCommand(NewAddrCmd())
 	c.AddCommand(NewDialCmd(newNode))
+	c.AddCommand(NewListenCmd(newNode))
 
 	return c
 }
