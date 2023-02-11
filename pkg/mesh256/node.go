@@ -28,6 +28,7 @@ type NodeParams struct {
 
 type node struct {
 	params NodeParams
+	server *Server
 
 	secureSwarms   map[string]multiswarm.DynSecureSwarm[x509.PublicKey]
 	transportSwarm p2p.SecureSwarm[TransportAddr, x509.PublicKey]
@@ -127,6 +128,14 @@ func (n *node) ListOneHop() []Addr {
 }
 
 func (n *node) Close() (retErr error) {
+	if n.server != nil {
+		return n.server.Drop(context.TODO(), n.params.PrivateKey)
+	} else {
+		return n.close()
+	}
+}
+
+func (n *node) close() (retErr error) {
 	var el netutil.ErrList
 	el.Add(n.topSwarm.Close())
 	el.Add(n.network.Close())

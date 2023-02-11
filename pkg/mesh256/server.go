@@ -12,7 +12,7 @@ import (
 	"github.com/brendoncarroll/stdctx"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slog"
+	"golang.org/x/exp/maps"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/peers"
@@ -108,22 +108,27 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 			nameMemSwarm: multiswarm.WrapSecureSwarm[memswarm.Addr, x509.PublicKey](swarm),
 		},
 	})
+	n.(*node).server = s
 	s.nodes[id] = n.(*node)
-	logctx.Info(ctx, "created node", slog.Any("addr", id))
+
+	logctx.Infof(ctx, "created node %v", id.String())
 	return n, nil
 }
 
 func (s *Server) Drop(ctx context.Context, privateKey inet256.PrivateKey) error {
 	id := inet256.NewAddr(privateKey.Public())
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	n, exists := s.nodes[id]
 	if !exists {
+		s.mu.Unlock()
+		logctx.Warnf(ctx, "Drop on node which does not exist %v", id)
 		return nil
+	} else {
+		delete(s.nodes, id)
+		s.mainMemPeers.Remove(id)
+		s.mu.Unlock()
 	}
-	err := n.Close()
-	delete(s.nodes, id)
-	return err
+	return n.close()
 }
 
 func (s *Server) LookupPublicKey(ctx context.Context, target Addr) (inet256.PublicKey, error) {
@@ -173,9 +178,9 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, n := range s.nodes {
-		n.Close()
+		n.close()
 	}
-	s.nodes = make(map[inet256.Addr]*node)
+	maps.Clear(s.nodes)
 	s.mainNode.Close()
 	return nil
 }
