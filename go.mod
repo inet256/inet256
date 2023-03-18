@@ -3,15 +3,16 @@ module github.com/inet256/inet256
 go 1.19
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20230311160607-9e3210bcf494
+	github.com/brendoncarroll/go-p2p v0.0.0-20230318184050-1b4145c902cf
 	github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4
-	github.com/brendoncarroll/stdctx v0.0.0-20230114173309-0ff5de5eda5a
+	github.com/brendoncarroll/stdctx v0.0.0-20230318183431-4786d63efd50
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/testify v1.8.1
+	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.4.0
 	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 	golang.org/x/net v0.7.0
@@ -41,6 +42,8 @@ require (
 	github.com/quic-go/qtls-go1-20 v0.1.1 // indirect
 	github.com/quic-go/quic-go v0.33.0 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect

@@ -8,7 +8,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/pkg/errors"
-	"golang.org/x/exp/slog"
+	"go.uber.org/zap"
 
 	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/inet256"
@@ -16,7 +16,7 @@ import (
 )
 
 type Router struct {
-	log                        *slog.Logger
+	log                        *zap.Logger
 	privateKey                 inet256.PrivateKey
 	peers                      mesh256.PeerSet
 	localID                    inet256.Addr
@@ -29,7 +29,7 @@ type Router struct {
 	ourBeacon   *Beacon
 }
 
-func NewRouter(log *slog.Logger) neteng.Router {
+func NewRouter(log *zap.Logger) neteng.Router {
 	return &Router{
 		log:          log,
 		peerStateTTL: defaultPeerStateTTL,
@@ -69,7 +69,7 @@ func (r *Router) HandleAbove(dst inet256.Addr, data p2p.IOVec, send neteng.SendF
 
 func (r *Router) HandleBelow(from inet256.Addr, data []byte, send neteng.SendFunc, deliver neteng.DeliverFunc, info neteng.InfoFunc) {
 	if err := r.handleMessage(send, deliver, info, from, data); err != nil {
-		r.log.Warn("handle below: ", err)
+		r.log.Sugar().Warnln("handle below: ", err)
 	}
 }
 

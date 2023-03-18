@@ -11,7 +11,7 @@ import (
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/slog"
+	"go.uber.org/zap"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256test"
@@ -20,7 +20,8 @@ import (
 )
 
 func NewTestServer(t testing.TB, nf NetworkFactory) *Server {
-	ctx := logctx.NewContext(context.Background(), slog.Default())
+	l, _ := zap.NewDevelopment()
+	ctx := logctx.NewContext(context.Background(), l)
 	ctx, cf := context.WithCancel(ctx)
 	t.Cleanup(cf)
 	pk := inet256test.NewPrivateKey(t, math.MaxInt32)
