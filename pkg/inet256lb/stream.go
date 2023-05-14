@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/brendoncarroll/stdctx/logctx"
-	"golang.org/x/exp/slog"
 )
 
 type StreamEndpoint interface {
@@ -57,12 +56,12 @@ func (b *StreamBalancer) ServeFrontend(ctx context.Context, frontend StreamEndpo
 		if err != nil {
 			return err
 		}
-		logctx.Info(ctx, "accepted connection", slog.Any("remote_addr", fconn.RemoteAddr()))
+		logctx.Info(ctx, "accepted connection", logctx.Any("remote_addr", fconn.RemoteAddr()))
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer logctx.Info(ctx, "closed connection", slog.Any("remote_addr", fconn.RemoteAddr()))
+			defer logctx.Info(ctx, "closed connection", logctx.Any("remote_addr", fconn.RemoteAddr()))
 			if err := b.serveFrontendConn(ctx, fconn); err != nil {
 				logctx.Errorln(ctx, err)
 			}
