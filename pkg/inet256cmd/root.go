@@ -13,7 +13,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256ipv6"
 )
 
-const defaultAPIAddr = "http://127.0.0.1:2560"
+const defaultAPIAddr = inet256d.DefaultAPIEndpoint
 
 var ctx = func() context.Context {
 	ctx := context.Background()
@@ -31,7 +31,7 @@ func NewRootCmd() *cobra.Command {
 		return inet256client.NewEnvClient()
 	}
 	newAdminClient := func() (inet256d.AdminClient, error) {
-		return inet256d.NewAdminClient(defaultAPIAddr + "/admin")
+		return inet256d.NewAdminClient(inet256client.GetAPIEndpointFromEnv())
 	}
 	newNode := func(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error) {
 		c, err := newClient()

@@ -10,7 +10,7 @@ import (
 	"github.com/inet256/inet256/pkg/inet256mem"
 )
 
-const DefaultAPIEndpoint = "http://127.0.0.1:2560/nodes/"
+const DefaultAPIEndpoint = "unix:///run/inet256.sock"
 
 type (
 	Addr = inet256.Addr
@@ -26,11 +26,7 @@ func NewClient(endpoint string) (inet256.Service, error) {
 // If you are looking for a inet256.Service constructor, this is probably the one you want.
 // It checks the environment variable `INET256_API`
 func NewEnvClient() (inet256.Service, error) {
-	endpoint, yes := os.LookupEnv("INET256_API")
-	if !yes {
-		endpoint = DefaultAPIEndpoint
-	}
-	return NewClient(endpoint)
+	return NewClient(GetAPIEndpointFromEnv())
 }
 
 // NewPacketConn wraps the Node n in an adapter exposing the net.PacketConn interface instead.
@@ -41,4 +37,14 @@ func NewPacketConn(n inet256.Node) net.PacketConn {
 // NewTestService can be used to spawn an inet256 service without any peering for use in tests
 func NewTestService(t testing.TB) inet256.Service {
 	return inet256mem.New()
+}
+
+// GetAPIEndpointFromEnv looks for an API endpoint in the environment variable INET256_API.
+// If no such variable exists it falls back to DefaultAPIEndpoint
+func GetAPIEndpointFromEnv() string {
+	endpoint, yes := os.LookupEnv("INET256_API")
+	if !yes {
+		endpoint = DefaultAPIEndpoint
+	}
+	return endpoint
 }

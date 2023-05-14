@@ -21,5 +21,3 @@ The operating system receives the packet as regular IPv6 traffic, so any applica
 > If you are developing a new application which depends on INET256, it is highly recommended that you consume the INET256 API directly.
 It is generally not safe to assume that IPv6 traffic is confidential, although it would be when using the portal.
 If you mess up an address, or start serving traffic on a different IPv6 address, then you are at risk of communicating insecurely.
-At that point INET256 is just providing stable addresses (which is maybe all you want), but the other big reason to use it is to inherit security from the network layer.
-

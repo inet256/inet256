@@ -14,6 +14,7 @@ import (
 
 	"github.com/brendoncarroll/go-p2p/s/swarmutil/retry"
 	"github.com/brendoncarroll/stdctx/logctx"
+	"golang.org/x/exp/slices"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/inet256ipc"
@@ -31,17 +32,21 @@ func WithDialer(d net.Dialer) func(c *Client) {
 }
 
 type Client struct {
-	endpoint string
+	endpoint *url.URL
 	dialer   net.Dialer
 }
 
 func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
-	_, err := url.Parse(endpoint)
+	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
+	validSchemes := []string{"tcp", "unix"}
+	if !slices.Contains(validSchemes, u.Scheme) {
+		return nil, fmt.Errorf("url scheme must be one of %v. HAVE: %q", validSchemes, endpoint)
+	}
 	c := &Client{
-		endpoint: endpoint,
+		endpoint: u,
 		dialer:   net.Dialer{},
 	}
 	for _, opt := range opts {
@@ -53,22 +58,18 @@ func NewClient(endpoint string, opts ...ClientOption) (*Client, error) {
 func (c *Client) Open(ctx context.Context, privKey inet256.PrivateKey, opts ...inet256.NodeOption) (inet256.Node, error) {
 	pubKey := privKey.Public()
 	id := inet256.NewAddr(pubKey)
-	u, err := c.getURL()
-	if err != nil {
-		return nil, err
-	}
-	u.Path = path.Join(u.Path, id.String())
+	p := path.Join("/nodes/", id.String())
 	reqData, err := json.Marshal(OpenReq{
 		PrivateKey: serde.MarshalPrivateKey(privKey),
 	})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodConnect, u.String(), bytes.NewReader(reqData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodConnect, p, bytes.NewReader(reqData))
 	if err != nil {
 		return nil, err
 	}
-	conn, err := c.dialer.DialContext(ctx, "tcp", u.Host)
+	conn, err := c.dial(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -91,13 +92,9 @@ func (c *Client) Open(ctx context.Context, privKey inet256.PrivateKey, opts ...i
 }
 
 func (c *Client) Drop(ctx context.Context, privKey inet256.PrivateKey) error {
-	u, err := url.Parse(c.endpoint)
-	if err != nil {
-		return err
-	}
 	pubKey := privKey.Public()
 	id := inet256.NewAddr(pubKey)
-	p := path.Join(c.endpoint, id.Base64String())
+	p := path.Join("/nodes/", id.Base64String())
 	reqData, err := json.Marshal(DropReq{PrivateKey: serde.MarshalPrivateKey(privKey)})
 	if err != nil {
 		return err
@@ -106,7 +103,7 @@ func (c *Client) Drop(ctx context.Context, privKey inet256.PrivateKey) error {
 	if err != nil {
 		return err
 	}
-	conn, err := c.dialer.DialContext(ctx, "tcp", u.Host)
+	conn, err := c.dial(ctx)
 	if err != nil {
 		return err
 	}
@@ -125,12 +122,8 @@ func (c *Client) Drop(ctx context.Context, privKey inet256.PrivateKey) error {
 }
 
 func (c *Client) Ping(ctx context.Context) error {
-	u, err := c.getURL()
-	if err != nil {
-		return err
-	}
 	return retry.Retry(ctx, func() error {
-		c, err := c.dialer.DialContext(ctx, "tcp", u.Host)
+		c, err := c.dial(ctx)
 		if err != nil {
 			return err
 		}
@@ -138,12 +131,8 @@ func (c *Client) Ping(ctx context.Context) error {
 	})
 }
 
-func (c *Client) getURL() (*url.URL, error) {
-	u, err := url.Parse(c.endpoint)
-	if err != nil {
-		return nil, err
-	}
-	return u, nil
+func (c *Client) dial(ctx context.Context) (net.Conn, error) {
+	return c.dialer.DialContext(ctx, c.endpoint.Scheme, path.Join(c.endpoint.Host, c.endpoint.Path))
 }
 
 var _ inet256.Node = nodeClient{}

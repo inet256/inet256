@@ -38,18 +38,23 @@ func newDaemonCmd() *cobra.Command {
 }
 
 func newCreateConfigCmd() *cobra.Command {
-	return &cobra.Command{
+	c := &cobra.Command{
 		Use:   "create-config",
 		Short: "creates a new default config and writes it to stdout",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			c := inet256d.DefaultConfig()
-			data, err := yaml.Marshal(c)
-			if err != nil {
-				return err
-			}
-			out := cmd.OutOrStdout()
-			out.Write(data)
-			return nil
-		},
 	}
+	api_endpoint := c.Flags().String("api_endpoint", "", "--api_endpoint=tcp://127.0.0.1:2560")
+	c.RunE = func(cmd *cobra.Command, args []string) error {
+		c := inet256d.DefaultConfig()
+		if *api_endpoint != "" {
+			c.APIEndpoint = *api_endpoint
+		}
+		data, err := yaml.Marshal(c)
+		if err != nil {
+			return err
+		}
+		out := cmd.OutOrStdout()
+		out.Write(data)
+		return nil
+	}
+	return c
 }

@@ -5,7 +5,9 @@ After=inet256-init-config.service
 
 [Service]
 Restart=always
+ExecStartPre=-rm /run/inet256.sock
 ExecStart=inet256 daemon --config=/etc/inet256/config.yml
+ExecStopPost=-rm /run/inet256.sock
 ProtectHome=true
 ProtectSystem=true
 SyslogIdentifier=inet256

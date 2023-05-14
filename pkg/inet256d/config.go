@@ -23,7 +23,7 @@ import (
 	"github.com/inet256/inet256/pkg/serde"
 )
 
-const DefaultAPIEndpoint = "http://127.0.0.1:2560"
+const DefaultAPIEndpoint = "unix:///run/inet256.sock"
 
 type PeerSpec struct {
 	ID    inet256.Addr `yaml:"id"`
