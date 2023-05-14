@@ -3,6 +3,7 @@ package inet256
 import (
 	"context"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -29,7 +30,7 @@ func (pc *packetConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
 	ctx, cf := pc.getWriteContext()
 	defer cf()
 	if err = pc.n.Send(ctx, dst, p); err != nil {
-		return 0, err
+		return 0, convertError(err)
 	}
 	return len(p), nil
 }
@@ -41,7 +42,7 @@ func (pc *packetConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
 		n = copy(p, m.Payload)
 		addr = m.Src
 	}); err != nil {
-		return n, nil, err
+		return n, nil, convertError(err)
 	}
 	return n, addr, nil
 }
@@ -84,7 +85,7 @@ func (pc *packetConn) getReadContext() (context.Context, context.CancelFunc) {
 	if dl != nil {
 		return context.WithDeadline(ctx, *dl)
 	} else {
-		return context.WithCancel(ctx)
+		return ctx, func() {}
 	}
 }
 
@@ -96,7 +97,7 @@ func (pc *packetConn) getWriteContext() (context.Context, context.CancelFunc) {
 	if dl != nil {
 		return context.WithDeadline(ctx, *dl)
 	} else {
-		return context.WithCancel(ctx)
+		return ctx, func() {}
 	}
 }
 
@@ -106,4 +107,11 @@ func convertAddr(x net.Addr) (Addr, error) {
 		return Addr{}, errors.Errorf("invalid address: %v", x)
 	}
 	return y, nil
+}
+
+func convertError(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return os.ErrDeadlineExceeded
+	}
+	return err
 }

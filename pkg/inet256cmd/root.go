@@ -58,6 +58,8 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(inet256ipv6.NewIP6AddrCmd())
 	c.AddCommand(NewKeygenCmd())
 	c.AddCommand(NewAddrCmd())
+	c.AddCommand(NewDialCmd(newNode))
+	c.AddCommand(NewListenCmd(newNode))
 
 	return c
 }
