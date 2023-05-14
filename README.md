@@ -29,6 +29,39 @@ Documentation for the daemon's config file: [Daemon Config](./doc/22_Daemon_Conf
 - IPv6 Portal for IPv6 over INET256. Exposed as a TUN device. (requires `NET_ADMIN`).
 - Autopeering and transport address discovery help make peering easy.
 
+## Getting Started
+
+### Running with Systemd
+Install the inet256 binary to `/usr/local/bin/inet256`
+
+Install the systemd unit files
+```shell
+$ just install-systemd
+```
+
+Start the service
+```shell
+$ systemctl start inet256
+```
+
+### Running with Docker
+First build the docker image
+```shell
+$ just docker
+```
+
+Then create the configuration files
+```shell
+$ mkdir myconfig
+$ inet256 create-config > myconfig/config.yml
+$ inet256 keygen > myconfig/private_key.pem
+```
+
+Finally, run docker container.
+```
+$ docker run -it --rm --net=host -v ./myconfig:/config:ro inet256:local
+```
+
 ## Mesh256
 The reference implementation of an INET256 Service, which lives in this repository, is called `mesh256`.
 It uses a distributed routing algorithm to allow nodes on the network to discover paths between one another.

@@ -1,0 +1,14 @@
+[Unit]
+Description=INET256 API Service
+Wants=network-online.target inet256-init-config.service
+After=inet256-init-config.service
+
+[Service]
+Restart=always
+ExecStart=inet256 daemon --config=/etc/inet256/config.yml
+ProtectHome=true
+ProtectSystem=true
+SyslogIdentifier=inet256
+
+[Install]
+WantedBy=default.target

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/exp/slices"
 
 	"github.com/inet256/inet256/pkg/inet256http"
 	"github.com/inet256/inet256/pkg/mesh256"
@@ -48,6 +49,9 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 		ctx := r.Context()
 		peers, _ := srv.PeerStatus(ctx)
 		transportAddrs, _ := srv.TransportAddrs(ctx)
+		slices.SortFunc(transportAddrs, func(a, b mesh256.TransportAddr) bool {
+			return a.String() < b.String()
+		})
 		mainAddr, _ := srv.MainAddr(ctx)
 		data, _ := json.Marshal(StatusRes{
 			MainAddr:       mainAddr,

@@ -208,8 +208,9 @@ func makeAutoPeeringService(spec AutoPeeringSpec, addrSchema multiswarm.AddrSche
 
 func DefaultConfig() Config {
 	return Config{
-		Network:     DefaultNetwork(),
-		APIEndpoint: DefaultAPIEndpoint,
+		PrivateKeyPath: "./private_key.pem",
+		Network:        DefaultNetwork(),
+		APIEndpoint:    DefaultAPIEndpoint,
 		Transports: []TransportSpec{
 			{
 				UDP: (*UDPTransportSpec)(strPtr("0.0.0.0:0")),

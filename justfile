@@ -8,6 +8,10 @@ protobuf:
 install:
 	go install ./cmd/inet256
 
+install-systemd:
+	cp etc/systemd/* /etc/systemd/system/
+	systemctl daemon-reload
+
 build: protobuf
 	GOOS=darwin GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_darwin_amd64_$(TAG) ./cmd/inet256
 	GOOS=linux GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_linux_amd64_$(TAG) ./cmd/inet256
