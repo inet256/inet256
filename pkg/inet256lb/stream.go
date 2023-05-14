@@ -11,11 +11,14 @@ import (
 	"github.com/brendoncarroll/stdctx/logctx"
 )
 
+// StreamEndpoint represents a source of stream based connections (implementing net.Conn) to a set of remote hosts.
+// The connections can be incoming or outgoing.
 type StreamEndpoint interface {
 	Open(ctx context.Context) (net.Conn, error)
 	Close() error
 }
 
+// StreamBalancer balances load across a set of StreamEndpoint backends.
 type StreamBalancer struct {
 	mu       sync.RWMutex
 	backends map[string]*streamBalEntry
@@ -48,6 +51,7 @@ func (b *StreamBalancer) RemoveBackend(k string) error {
 	return nil
 }
 
+// ServeFrontend serves connections from frontend, until an error occurs (including context cancelled).
 func (b *StreamBalancer) ServeFrontend(ctx context.Context, frontend StreamEndpoint) error {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()

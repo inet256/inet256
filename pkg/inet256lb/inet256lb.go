@@ -37,14 +37,10 @@ func MakeStreamBackend(x string, getNode func() inet256.Node) (StreamEndpoint, e
 		}
 		return NewTCPIPBackend(ap), nil
 
-	case "tcp":
-		fallthrough
-	case "tcp+inet256":
+	case "tcp", "tcp+inet256":
 		return nil, errors.New(`TCP on INET256 is not yet supported, try "tcp+ip"`)
 
-	case "utp":
-		fallthrough
-	case "utp+inet256":
+	case "utp", "utp+inet256":
 		raddr, err := inet256.ParseAddrBase64([]byte(rest))
 		if err != nil {
 			return nil, err
@@ -67,6 +63,7 @@ func parseEndpoint(x string) (scheme, target string, _ error) {
 	return parts[0], parts[1], nil
 }
 
+// PlumbRWC copies data bidirectionally between a and b, until an error occurs.
 func PlumbRWC(a, b io.ReadWriteCloser) error {
 	eg := errgroup.Group{}
 	eg.Go(func() error {

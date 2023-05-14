@@ -9,6 +9,8 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 )
 
+// NewUTPFrontend creates a new StreamEndpoint listening for UTP connections on a node.
+// Nothing else should use node until the endpoint is closed.
 func NewUTPFrontend(node inet256.Node) StreamEndpoint {
 	pc := inet256.NewPacketConn(node)
 	return &utpEndpoint{
@@ -17,6 +19,9 @@ func NewUTPFrontend(node inet256.Node) StreamEndpoint {
 	}
 }
 
+// NewUTPBackend creates a new backend for serving requests.
+// Outgoing UTP connections will be created to target, from node.
+// Nothing else should use node until the endpoint is closed.
 func NewUTPBackend(node inet256.Node, target inet256.Addr) StreamEndpoint {
 	pc := inet256.NewPacketConn(node)
 	return &utpEndpoint{
