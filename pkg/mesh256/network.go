@@ -14,12 +14,11 @@ import (
 type Network interface {
 	p2p.Teller[inet256.Addr]
 	p2p.Receiver[inet256.Addr]
+	p2p.Secure[inet256.Addr, inet256.PublicKey]
+
 	LocalAddr() inet256.Addr
 	MTU(context.Context, inet256.Addr) int
 	Close() error
-
-	LookupPublicKey(context.Context, inet256.Addr) (inet256.PublicKey, error)
-	PublicKey() inet256.PublicKey
 
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
 }
@@ -30,9 +29,7 @@ type Network interface {
 type Swarm interface {
 	p2p.Teller[inet256.Addr]
 	p2p.Receiver[inet256.Addr]
-
-	LookupPublicKey(context.Context, inet256.Addr) (inet256.PublicKey, error)
-	PublicKey() inet256.PublicKey
+	p2p.Secure[inet256.Addr, inet256.PublicKey]
 
 	LocalAddr() Addr
 	MTU(ctx context.Context, addr Addr) int

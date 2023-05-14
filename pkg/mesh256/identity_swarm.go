@@ -27,7 +27,7 @@ func newIdentitySwarm(privateKey inet256.PrivateKey, insecure p2p.Swarm[inet256.
 		return p2p.PeerID(inet256.NewAddr(pubKey2))
 	}
 	privX509 := convertINET256PrivateKey(privateKey)
-	quicSw := p2pkeswarm.New[inet256.Addr](insecure, privX509, p2pkeswarm.WithFingerprinter[inet256.Addr](fingerprinter))
+	quicSw := p2pkeswarm.New(insecure, privX509, p2pkeswarm.WithFingerprinter[inet256.Addr](fingerprinter))
 	return identitySwarm{Swarm: quicSw}
 }
 

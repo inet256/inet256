@@ -3,10 +3,8 @@ package beaconnet
 import (
 	"time"
 
-	"github.com/brendoncarroll/stdctx/logctx"
-
-	"github.com/inet256/inet256/networks/neteng"
 	"github.com/inet256/inet256/pkg/mesh256"
+	"github.com/inet256/inet256/pkg/mesh256/routers"
 )
 
 const (
@@ -14,20 +12,13 @@ const (
 	defaultPeerStateTTL = 30 * time.Second
 )
 
-type Network struct {
-	*neteng.Network
-	router neteng.Router
-}
+type Network = routers.Network
 
 func Factory(params mesh256.NetworkParams) mesh256.Network {
-	return New(params)
+	return NewNetwork(params)
 }
 
-func New(params mesh256.NetworkParams) *Network {
-	router := NewRouter(logctx.FromContext(params.Background))
-	nw := neteng.New(params, router, time.Second)
-	return &Network{
-		Network: nw,
-		router:  router,
-	}
+func NewNetwork(params mesh256.NetworkParams) *Network {
+	r := NewRouter()
+	return routers.NewNetwork(params, r, time.Second)
 }
