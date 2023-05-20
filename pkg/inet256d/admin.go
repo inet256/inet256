@@ -1,14 +1,16 @@
 package inet256d
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
-	"strings"
+	"path"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
@@ -26,7 +28,7 @@ type AdminClient interface {
 
 type adminClient struct {
 	endpoint *url.URL
-	hc       *http.Client
+	d        net.Dialer
 }
 
 func NewAdminClient(endpoint string) (AdminClient, error) {
@@ -36,21 +38,27 @@ func NewAdminClient(endpoint string) (AdminClient, error) {
 	}
 	return &adminClient{
 		endpoint: u,
-		hc:       http.DefaultClient,
 	}, nil
 }
 
 func (c *adminClient) GetStatus(ctx context.Context) (*StatusRes, error) {
-	return doRequest[struct{}, StatusRes](ctx, c.hc, http.MethodGet, c.getPath("status"), nil)
+	conn, err := c.dial(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	return doRequest[struct{}, StatusRes](ctx, conn, http.MethodGet, c.getPath("status"), nil)
 }
 
 func (c *adminClient) getPath(p string) string {
-	u := *c.endpoint
-	u.Path = strings.TrimRight(u.Path, "/") + "/" + strings.Trim(p, "/")
-	return u.String()
+	return path.Join("/admin", p)
 }
 
-func doRequest[Req, Res any](ctx context.Context, hc *http.Client, method, url string, x *Req) (*Res, error) {
+func (c *adminClient) dial(ctx context.Context) (net.Conn, error) {
+	return c.d.DialContext(ctx, c.endpoint.Scheme, path.Join(c.endpoint.Host, c.endpoint.Path))
+}
+
+func doRequest[Req, Res any](ctx context.Context, c net.Conn, method, url string, x *Req) (*Res, error) {
 	var reqBody io.Reader
 	if x != nil {
 		data, err := json.Marshal(x)
@@ -63,7 +71,11 @@ func doRequest[Req, Res any](ctx context.Context, hc *http.Client, method, url s
 	if err != nil {
 		return nil, err
 	}
-	resp, err := hc.Do(req)
+	if err := req.Write(c); err != nil {
+		return nil, err
+	}
+	bufr := bufio.NewReader(c)
+	resp, err := http.ReadResponse(bufr, req)
 	if err != nil {
 		return nil, err
 	}

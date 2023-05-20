@@ -51,7 +51,7 @@ type side struct {
 	i             int
 	dir           string
 	privateKey    inet256.PrivateKey
-	apiPort       int
+	apiEndpoint   string
 	transportPort int
 
 	d *inet256d.Daemon
@@ -60,12 +60,11 @@ type side struct {
 func newSide(t testing.TB, i int) *side {
 	dir := t.TempDir()
 	privateKey := inet256test.NewPrivateKey(t, i)
-	apiPort := 25600 + i
 	transportPort := 32000 + i
 
 	config := inet256d.DefaultConfig()
 	config.PrivateKeyPath = "./private_key.pem"
-	config.APIEndpoint = "http://127.0.0.1:" + strconv.Itoa(apiPort)
+	config.APIEndpoint = fmt.Sprintf("unix://%s/inet256-%d.sock", dir, i)
 	config.Transports = []inet256d.TransportSpec{
 		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(transportPort)),
 	}
@@ -82,7 +81,7 @@ func newSide(t testing.TB, i int) *side {
 		i:             i,
 		dir:           dir,
 		privateKey:    privateKey,
-		apiPort:       apiPort,
+		apiEndpoint:   config.APIEndpoint,
 		transportPort: transportPort,
 	}
 }
@@ -128,7 +127,7 @@ func (s *side) localAddr() inet256.Addr {
 }
 
 func (s *side) newClient(t testing.TB) inet256.Service {
-	client, err := inet256client.NewClient("http://127.0.0.1:" + strconv.Itoa(s.apiPort) + "/nodes/")
+	client, err := inet256client.NewClient(s.apiEndpoint)
 	require.NoError(t, err)
 	return client
 }

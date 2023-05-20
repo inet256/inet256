@@ -32,7 +32,7 @@ The endpoint that the daemon will listen at, to serve the INET256 API.
 
 e.g.
 ```yaml
-api_endpoint: "127.0.0.1:2560"
+api_endpoint: "unix:///run/inet256.sock"
 ```
 
 ## `transports`
@@ -85,22 +85,6 @@ network:
   beaconnet: {}
 ```
 `beaconnet` exposes no additional parameters so it's specification is just the empty object.
-
-Here is an example of 2 networks, using the same algorithm with different parameters.
-`multi` is a network which nests other network specs, and multiplexes them onto the transport layer.
-```yaml
-network:
-  multi:
-    "n1":
-        algo1:
-            param1: 1
-    "n2":
-        algo1:
-            param1: 2
-```
-- `n1` and `n2` are the network `codes` (used for multiplexing).
-- `algo1` is the name of the network algorithm.
-- `param1` is a parameter specific to `algo1`. The parameter `param1` is set to different values in each instantiation.
 
 Network algorithms have to be compiled into the daemon to be used.
 The `ls-networks` command in the CLI can be used to list the networks the daemon implements.

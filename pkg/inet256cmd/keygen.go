@@ -2,7 +2,7 @@ package inet256cmd
 
 import (
 	"crypto/rand"
-	"io/ioutil"
+	"os"
 
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/serde"
@@ -62,7 +62,7 @@ func generateKey() inet256.PrivateKey {
 }
 
 func loadPrivateKeyFromFile(p string) (inet256.PrivateKey, error) {
-	data, err := ioutil.ReadFile(p)
+	data, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}

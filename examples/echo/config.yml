@@ -1,5 +1,5 @@
 private_key_path: "./private_key.pem"
-api_addr: 127.0.0.1:2560
+api_addr: tcp://127.0.0.1:2560
 network:
   beaconnet: {}
 transports:

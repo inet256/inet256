@@ -32,7 +32,7 @@ func TestOpen(t *testing.T) {
 	})
 	eg.Go(func() error {
 		defer l.Close()
-		endpoint := "http://" + l.Addr().String() + "/"
+		endpoint := "tcp://" + l.Addr().String()
 		t.Log(endpoint)
 		c, err := NewClient(endpoint)
 		if err != nil {
@@ -76,7 +76,7 @@ func newTestService(t testing.TB, x inet256.Service) inet256.Service {
 			t.Log(err)
 		}
 	}()
-	c, err := NewClient("http://" + l.Addr().String() + "/")
+	c, err := NewClient("tcp://" + l.Addr().String() + "/")
 	require.NoError(t, err)
 	return c
 }

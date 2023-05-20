@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path"
 
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/go-chi/chi"
@@ -24,11 +26,21 @@ func (d *Daemon) runHTTPServer(ctx context.Context, endpoint string, srv *mesh25
 	if err != nil {
 		return err
 	}
-	l, err := net.Listen("tcp", u.Host)
+	if u.Scheme == "" {
+		return fmt.Errorf("endpoint is missing scheme %q", endpoint)
+	}
+	laddr := path.Join(u.Host, u.Path)
+	l, err := net.Listen(u.Scheme, laddr)
 	if err != nil {
 		return err
 	}
 	defer l.Close()
+	if u.Scheme == "unix" {
+		if err := os.Chmod(laddr, 0o666); err != nil {
+			return err
+		}
+		defer os.Remove(laddr)
+	}
 
 	mux := chi.NewMux()
 

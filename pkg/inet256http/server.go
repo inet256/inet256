@@ -3,7 +3,7 @@ package inet256http
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -48,7 +48,7 @@ func (s *Server) handleOpen(w http.ResponseWriter, r *http.Request) (hijacked bo
 	if err != nil {
 		return hijacked, err
 	}
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return hijacked, err
 	}
