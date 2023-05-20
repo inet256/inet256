@@ -43,8 +43,8 @@ func (n *loopbackSwarm[A, Pub]) LocalAddrs() []A {
 	return []A{n.localAddr}
 }
 
-func (n *loopbackSwarm[A, Pub]) MTU(ctx context.Context, x A) int {
-	return n.MaxIncomingSize()
+func (n *loopbackSwarm[A, Pub]) MTU() int {
+	return inet256.MTU
 }
 
 func (n *loopbackSwarm[A, Pub]) LookupPublicKey(ctx context.Context, addr A) (ret Pub, _ error) {
@@ -64,8 +64,4 @@ func (n *loopbackSwarm[A, Pub]) Close() error {
 
 func (n *loopbackSwarm[A, Pub]) ParseAddr(x []byte) (A, error) {
 	panic("not implemented")
-}
-
-func (n *loopbackSwarm[A, Pub]) MaxIncomingSize() int {
-	return inet256.MaxMTU
 }

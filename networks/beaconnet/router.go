@@ -115,8 +115,8 @@ func (r *Router) LookupPublicKey(ctx *routers.AboveContext, target inet256.Addr)
 	return maybe.Nothing[inet256.PublicKey]()
 }
 
-func (r *Router) MTU(ctx *routers.AboveContext, target inet256.Addr) maybe.Maybe[int] {
-	return maybe.Maybe[int]{}
+func (r *Router) MTU(below int) int {
+	return below - HeaderSize
 }
 
 func (r *Router) handleMessage(ctx *routers.BelowContext, from inet256.Addr, payload []byte) error {

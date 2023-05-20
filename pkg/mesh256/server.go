@@ -135,10 +135,6 @@ func (s *Server) LookupPublicKey(ctx context.Context, target Addr) (inet256.Publ
 	return s.mainNode.LookupPublicKey(ctx, target)
 }
 
-func (s *Server) MTU(ctx context.Context, target Addr) int {
-	return s.mainNode.MTU(ctx, target)
-}
-
 func (s *Server) FindAddr(ctx context.Context, prefix []byte, nbits int) (Addr, error) {
 	return s.mainNode.FindAddr(ctx, prefix, nbits)
 }

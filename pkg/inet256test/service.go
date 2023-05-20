@@ -37,17 +37,6 @@ func TestService(t *testing.T, sf func(testing.TB, []inet256.Service)) {
 		TestSendRecvOne(t, n1, n1)
 		TestSendRecvOne(t, n2, n2)
 	})
-	t.Run("MTU", func(t *testing.T) {
-		t.Parallel()
-		xs := make([]inet256.Service, 2)
-		sf(t, xs)
-		n1 := OpenNode(t, xs[0], 1)
-		n2 := OpenNode(t, xs[1], 2)
-		ctx, cf := context.WithTimeout(ctx, time.Second)
-		defer cf()
-		mtu := n1.MTU(ctx, n2.LocalAddr())
-		require.GreaterOrEqual(t, mtu, inet256.MinMTU)
-	})
 	t.Run("FindAddr", func(t *testing.T) {
 		t.Parallel()
 		xs := make([]inet256.Service, 2)

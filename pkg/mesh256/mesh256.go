@@ -18,10 +18,7 @@ type (
 )
 
 const (
-	TransportMTU = (1 << 16) - 1
-
-	MinMTU = inet256.MinMTU
-	MaxMTU = inet256.MaxMTU
+	TransportMTU = (1 << 17)
 )
 
 func NewPeerStore() peers.Store[TransportAddr] {

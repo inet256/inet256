@@ -18,11 +18,6 @@ func IsErrPublicKeyNotFound(err error) bool {
 	return err == ErrPublicKeyNotFound
 }
 
-func IsErrUnreachable(err error) bool {
-	target := ErrAddrUnreachable{}
-	return errors.As(err, &target)
-}
-
 func IsErrClosed(err error) bool {
 	return errors.Is(err, ErrClosed)
 }
@@ -33,4 +28,20 @@ type ErrAddrUnreachable struct {
 
 func (e ErrAddrUnreachable) Error() string {
 	return fmt.Sprintf("address is unreachable: %v", e.Addr)
+}
+
+func IsErrAddrUnreachable(err error) bool {
+	return errors.As(err, &ErrAddrUnreachable{})
+}
+
+type ErrMTUExceeded struct {
+	MessageLen int
+}
+
+func (e ErrMTUExceeded) Error() string {
+	return fmt.Sprintf("message exceeds MTU. len=%d, mtu=%d", e.MessageLen, MTU)
+}
+
+func IsErrMTUExceeded(err error) bool {
+	return errors.As(err, &ErrMTUExceeded{})
 }

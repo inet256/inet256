@@ -3,7 +3,7 @@ module github.com/inet256/inet256
 go 1.19
 
 require (
-	github.com/brendoncarroll/go-p2p v0.0.0-20230318184050-1b4145c902cf
+	github.com/brendoncarroll/go-p2p v0.0.0-20230519005220-e4b3c699f7af
 	github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4
 	github.com/brendoncarroll/stdctx v0.0.0-20230318183431-4786d63efd50
 	github.com/go-chi/chi v1.5.4

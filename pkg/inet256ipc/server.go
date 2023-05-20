@@ -145,18 +145,6 @@ func ServeNode(ctx context.Context, node inet256.Node, transport SendReceiver, o
 
 func handleAsk(ctx context.Context, node inet256.Node, msg Message, resBuf []byte) (n int, _ error) {
 	switch msg.GetType() {
-	case MT_MTU:
-		req, err := msg.MTUReq()
-		if err != nil {
-			return 0, err
-		}
-		mtu := node.MTU(ctx, req.Target)
-		if err != nil {
-			return 0, err
-		}
-		n = WriteAskMessage(resBuf, msg.GetRequestID(), MT_MTU, MTURes{
-			MTU: mtu,
-		})
 	case MT_FindAddr:
 		req, err := msg.FindAddrReq()
 		if err != nil {

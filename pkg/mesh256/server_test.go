@@ -84,8 +84,8 @@ func (n oneHop) LocalAddr() inet256.Addr {
 	return inet256.NewAddr(n.params.PrivateKey.Public())
 }
 
-func (n oneHop) MTU(ctx context.Context, target inet256.Addr) int {
-	return n.params.Swarm.MTU(ctx, target)
+func (n oneHop) MTU() int {
+	return n.params.Swarm.MTU()
 }
 
 func (n oneHop) Close() error {

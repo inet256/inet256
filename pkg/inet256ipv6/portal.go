@@ -39,7 +39,7 @@ func RunPortal(ctx context.Context, params PortalParams) error {
 	if af == nil {
 		af = AllowAll
 	}
-	dev, err := tun.CreateTUN("utun", inet256.MinMTU)
+	dev, err := tun.CreateTUN("utun", inet256.MTU)
 	if err != nil {
 		return err
 	}

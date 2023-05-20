@@ -75,8 +75,8 @@ func (s identitySwarm) LookupPublicKey(ctx context.Context, target inet256.Addr)
 	return s.Swarm.LookupPublicKey(ctx, x)
 }
 
-func (s identitySwarm) MTU(ctx context.Context, target inet256.Addr) int {
-	return s.Swarm.MTU(ctx, s.makeAddr(target))
+func (s identitySwarm) MTU() int {
+	return s.Swarm.MTU()
 }
 
 func (s identitySwarm) ParseAddr(x []byte) (ret inet256.Addr, _ error) {

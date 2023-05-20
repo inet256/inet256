@@ -5,7 +5,6 @@ import (
 
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/brendoncarroll/go-p2p/s/fragswarm"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/quicswarm"
 	"github.com/brendoncarroll/go-tai64"
@@ -33,8 +32,7 @@ type node struct {
 	secureSwarms   map[string]multiswarm.DynSecureSwarm[x509.PublicKey]
 	transportSwarm p2p.SecureSwarm[TransportAddr, x509.PublicKey]
 
-	mhSwarm   *multihoming.Swarm[TransportAddr, x509.PublicKey, inet256.ID]
-	fragSwarm p2p.SecureSwarm[Addr, x509.PublicKey]
+	mhSwarm *multihoming.Swarm[TransportAddr, x509.PublicKey, inet256.ID]
 	// network is an instance of a routing algorithm
 	network Network
 	// topSwarm is the swarm on top of the Network, it secures the application traffic
@@ -61,11 +59,10 @@ func NewNode(params NodeParams) Node {
 			return inet256.NewAddr(pub2), nil
 		},
 	})
-	fragSw := fragswarm.NewSecure[Addr, x509.PublicKey](mhSwarm, TransportMTU)
 	network := params.NewNetwork(NetworkParams{
 		Background: stdctx.Child(params.Background, "network"),
 		PrivateKey: params.PrivateKey,
-		Swarm:      swarm{fragSw},
+		Swarm:      swarm{mhSwarm},
 		Peers:      params.Peers,
 	})
 	topSwarm := wrapNetwork(params.PrivateKey, network)
@@ -74,10 +71,9 @@ func NewNode(params NodeParams) Node {
 		secureSwarms:   secureSwarms,
 		transportSwarm: transportSwarm,
 
-		mhSwarm:   mhSwarm,
-		fragSwarm: fragSw,
-		network:   network,
-		topSwarm:  topSwarm,
+		mhSwarm:  mhSwarm,
+		network:  network,
+		topSwarm: topSwarm,
 	}
 }
 
@@ -111,10 +107,6 @@ func (n *node) PublicKey() inet256.PublicKey {
 	return n.network.PublicKey()
 }
 
-func (n *node) MTU(ctx context.Context, target Addr) int {
-	return n.topSwarm.MTU(ctx, target)
-}
-
 func (n *node) TransportAddrs() []TransportAddr {
 	return n.transportSwarm.LocalAddrs()
 }
@@ -139,7 +131,6 @@ func (n *node) close() (retErr error) {
 	var el netutil.ErrList
 	el.Add(n.topSwarm.Close())
 	el.Add(n.network.Close())
-	el.Add(n.fragSwarm.Close())
 	el.Add(n.mhSwarm.Close())
 	el.Add(n.transportSwarm.Close())
 	return el.Err()

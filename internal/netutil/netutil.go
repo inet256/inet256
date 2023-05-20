@@ -16,5 +16,5 @@ func NewTellHub() TellHub {
 type Queue = swarmutil.Queue[inet256.Addr]
 
 func NewQueue(maxLen int) Queue {
-	return swarmutil.NewQueue[inet256.Addr](maxLen, inet256.MaxMTU)
+	return swarmutil.NewQueue[inet256.Addr](maxLen, inet256.MTU)
 }
