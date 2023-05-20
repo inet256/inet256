@@ -68,6 +68,7 @@ func TestSignVerify(t *testing.T) {
 		newRSA(t, 0),
 	}
 	for _, privKey := range privKeys {
+		privKey := privKey
 		t.Run(fmt.Sprintf("%T", privKey), func(t *testing.T) {
 			t.Parallel()
 			data := []byte("test data")

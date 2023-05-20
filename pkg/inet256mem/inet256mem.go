@@ -143,6 +143,6 @@ func (node *memNode) LookupPublicKey(ctx context.Context, target inet256.Addr) (
 	return nil, inet256.ErrPublicKeyNotFound
 }
 
-func (node *memNode) MTU(ctx context.Context, target inet256.Addr) int {
+func (node *memNode) MTU() int {
 	return inet256.MTU
 }

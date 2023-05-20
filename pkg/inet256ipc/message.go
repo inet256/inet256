@@ -135,14 +135,6 @@ func (m Message) FindAddrRes() (*FindAddrRes, error) {
 	return &res.Success, nil
 }
 
-func (m Message) MTUReq() (*MTUReq, error) {
-	return parseJSON[MTUReq](m[4+16:])
-}
-
-func (m Message) MTURes() (*MTURes, error) {
-	return parseJSON[MTURes](m[4+16:])
-}
-
 // WriteDataMessage places a message in the frame
 func WriteDataMessage(dst []byte, addr inet256.Addr, data []byte) int {
 	l := 4 + 32 + len(data)
@@ -221,13 +213,6 @@ type LookupPublicKeyReq struct {
 }
 type LookupPublicKeyRes struct {
 	PublicKey []byte `json:"public_key,omitempty"`
-}
-
-type MTUReq struct {
-	Target inet256.Addr `json:"target"`
-}
-type MTURes struct {
-	MTU int `json:"mtu"`
 }
 
 func copyExact(dst, src []byte) {
