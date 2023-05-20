@@ -17,12 +17,11 @@ const (
 	MT_Data      = MessageType('D'<<24 | 'A'<<16 | 'T'<<8 | 'A')
 	MT_PublicKey = MessageType('P'<<24 | 'U'<<16 | 'B'<<8 | 'K')
 	MT_FindAddr  = MessageType('F'<<24 | 'I'<<16 | 'N'<<8 | 'D')
-	MT_MTU       = MessageType('M'<<24 | 'T'<<16 | 'U'<<8 | '_')
 	MT_KeepAlive = MessageType('K'<<24 | 'E'<<16 | 'E'<<8 | 'P')
 )
 
 const (
-	MaxMessageLen = 4 + 32 + inet256.MaxMTU
+	MaxMessageLen = 4 + 32 + inet256.MTU
 	MinMessageLen = 4
 	ReqIDLen      = 16
 
@@ -42,7 +41,7 @@ func AsMessage(x []byte, isOutgoing bool) (Message, error) {
 		if len(x) < MinDataMsgLen {
 			return nil, fmt.Errorf("too short to be Data message")
 		}
-	case MT_FindAddr, MT_PublicKey, MT_MTU:
+	case MT_FindAddr, MT_PublicKey:
 		if len(x) < MinAskMsgLen {
 			return nil, fmt.Errorf("message type=%v does not contain request-id", m.GetType())
 		}
@@ -72,7 +71,7 @@ func (m Message) IsTell() bool {
 
 func (m Message) IsAsk() bool {
 	switch m.GetType() {
-	case MT_FindAddr, MT_MTU, MT_PublicKey:
+	case MT_FindAddr, MT_PublicKey:
 		return true
 	default:
 		return false

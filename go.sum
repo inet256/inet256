@@ -50,6 +50,8 @@ github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 h1:GKTyiRCL6zVf5wWaq
 github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8/go.mod h1:spo1JLcs67NmW1aVLEgtA8Yy1elc+X8y5SRW1sFW4Og=
 github.com/brendoncarroll/go-p2p v0.0.0-20230318184050-1b4145c902cf h1:wbyQKb9lNyTJWQS+nmeOCdXERLiyqReYsVtZH4E16xg=
 github.com/brendoncarroll/go-p2p v0.0.0-20230318184050-1b4145c902cf/go.mod h1:70Hr7Xv+2QTFTJ2pGjaS24HM4uNx9yS+9o9PkYa8SAE=
+github.com/brendoncarroll/go-p2p v0.0.0-20230519005220-e4b3c699f7af h1:OOvMdrl3JHaifOKB5TTGdPTVgu5NoMM4J8zSouvOhIM=
+github.com/brendoncarroll/go-p2p v0.0.0-20230519005220-e4b3c699f7af/go.mod h1:70Hr7Xv+2QTFTJ2pGjaS24HM4uNx9yS+9o9PkYa8SAE=
 github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4 h1:yw9nUqzIq1Tj0txVls6R0KQnrWXW67nZja/q0TFYWaw=
 github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4/go.mod h1:E9+Qr3YRBlU8HsajHzdoyHAm8XRqITZrtsh1gZSzu+4=
 github.com/brendoncarroll/stdctx v0.0.0-20230318183431-4786d63efd50 h1:9aw1Z/LrHJWcKv4ErGzcAcfbVqFSUqkbuLEixDwLpLk=

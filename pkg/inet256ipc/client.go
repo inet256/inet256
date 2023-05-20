@@ -132,14 +132,6 @@ func (c *NodeClient) handleMessage(ctx context.Context, x []byte) error {
 				}
 			}
 		}
-	case MT_MTU:
-		if fut := c.mtus.Get(msg.GetRequestID()); fut != nil {
-			if res, err := msg.MTURes(); err != nil {
-				fut.Fail(err)
-			} else {
-				fut.Succeed(res.MTU)
-			}
-		}
 	case MT_KeepAlive:
 	default:
 		return fmt.Errorf("not expecting type %v", mt)
@@ -155,7 +147,6 @@ func (c *NodeClient) Receive(ctx context.Context, fn inet256.ReceiveFunc) error 
 			Payload: x.Payload,
 		})
 	})
-	return nil
 }
 
 func (c *NodeClient) Send(ctx context.Context, dst inet256.Addr, data []byte) error {
@@ -181,21 +172,6 @@ func (c *NodeClient) sendRequest(ctx context.Context, reqID *[16]byte, mtype Mes
 	var buf [MaxMessageLen]byte
 	n := WriteRequest(buf[:], *reqID, mtype, req)
 	return c.transport.Send(ctx, buf[:n])
-}
-
-func (c *NodeClient) MTU(ctx context.Context, target inet256.Addr) int {
-	reqID := NewRequestID()
-	fut, _ := c.mtus.GetOrCreate(reqID)
-	defer c.mtus.Delete(reqID, fut)
-	if err := c.sendRequest(ctx, &reqID, MT_MTU, MTUReq{Target: target}); err != nil {
-		logctx.Errorln(ctx, err)
-		return inet256.MinMTU
-	}
-	mtu, err := futures.Await[int](ctx, fut)
-	if err != nil {
-		return inet256.MinMTU
-	}
-	return mtu
 }
 
 func (c *NodeClient) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {

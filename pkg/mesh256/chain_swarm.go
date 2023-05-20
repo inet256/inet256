@@ -84,26 +84,15 @@ func (n *chainSwarm[A, Pub]) Close() (retErr error) {
 	return el.Err()
 }
 
-func (n *chainSwarm[A, Pub]) MTU(ctx context.Context, x A) int {
+func (n *chainSwarm[A, Pub]) MTU() int {
 	var min int = math.MaxInt32
 	for _, sw := range n.swarms {
-		m := sw.MTU(ctx, x)
+		m := sw.MTU()
 		if m < min {
 			min = m
 		}
 	}
 	return min
-}
-
-func (n *chainSwarm[A, Pub]) MaxIncomingSize() int {
-	var max int = math.MinInt32
-	for _, sw := range n.swarms {
-		m := sw.MaxIncomingSize()
-		if m > max {
-			max = m
-		}
-	}
-	return max
 }
 
 func (n *chainSwarm[A, Pub]) ParseAddr(x []byte) (ret A, retErr error) {

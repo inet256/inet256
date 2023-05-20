@@ -134,17 +134,8 @@ func (s *Swarm[A, Pub, K]) Close() error {
 	return el.Err()
 }
 
-func (s *Swarm[A, Pub, K]) MTU(ctx context.Context, target K) int {
-	addr, err := s.selectAddr(ctx, target)
-	if err != nil {
-		// TODO: figure out what to do here
-		return 512
-	}
-	return s.dataSwarm.MTU(ctx, *addr)
-}
-
-func (s *Swarm[A, Pub, K]) MaxIncomingSize() int {
-	return s.inner.MaxIncomingSize()
+func (s *Swarm[A, Pub, K]) MTU() int {
+	return s.dataSwarm.MTU()
 }
 
 func (s *Swarm[A, Pub, K]) LookupPublicKey(ctx context.Context, target K) (ret Pub, _ error) {
@@ -153,7 +144,7 @@ func (s *Swarm[A, Pub, K]) LookupPublicKey(ctx context.Context, target K) (ret P
 	}
 	addr, err := s.selectAddr(ctx, target)
 	if err != nil {
-		if inet256.IsErrUnreachable(err) {
+		if inet256.IsErrAddrUnreachable(err) {
 			err = p2p.ErrPublicKeyNotFound
 		}
 		return ret, err

@@ -65,8 +65,7 @@ type Router interface {
 	FindAddr(ctx *AboveContext, prefix []byte, nbits int) maybe.Maybe[inet256.Addr]
 	// LookupPublicKey looks up a public key
 	LookupPublicKey(ctx *AboveContext, target inet256.Addr) maybe.Maybe[inet256.PublicKey]
-	// MTU
-	MTU(ctx *AboveContext, target inet256.Addr) maybe.Maybe[int]
+	MTU(below int) int
 }
 
 var _ mesh256.Network = &Network{}
@@ -187,8 +186,8 @@ func (n *Network) LocalAddr() inet256.Addr {
 	return n.localID
 }
 
-func (n *Network) MTU(ctx context.Context, target inet256.Addr) int {
-	return inet256.MaxMTU
+func (n *Network) MTU() int {
+	return n.router.MTU(mesh256.TransportMTU)
 }
 
 func (n *Network) PublicKey() inet256.PublicKey {

@@ -73,40 +73,36 @@ Any Nodes from previous calls to open must return errors for subsequent operatio
 ## 2.2 Node API
 Once a node has been created through a service, the methods below allow it to be used for communication with other nodes in the network.
 
-### 2.2.1 `Node.mtu(address) -> mtu`
-The implementation must provide a way to determine the maximum message size.
-The implementation must provide a way to cancel or abort this operation if it takes longer than a certain amount of time.
-This call may not error, it should instead default to some minimum MTU if there is a timeout.
-
-### 2.2.2 `Node.send(address, message)`
+### 2.2.1 `Node.send(address, message)`
 The implementation must provide a way to send messages with sizes up to and including the MTU to an address.
 If the message exceeds the MTU send must error.
+The MTU for INET256 services is 65535.
 Delivery *must* be at-most-once per message.
 
 The implementation must provide a way to cancel or abort this operation if it takes longer than a certain amount of time.
 
-### 2.2.3 `Node.receive() -> (address, message)`
+### 2.2.2 `Node.receive() -> (address, message)`
 The implementation must provide a way to recieve messages up to the MTU, and for the caller to know which address they came from.
 Delivery is best effort, but must be at most once per message.
 
 The method signature is written to show the flow of data, not to imply that the implementation must allocate memory and return it.
 Messages can be delivered through shared memory, or callbacks.
 
-### 2.2.4 `Node.findAddr(prefix) -> (address)`
+### 2.2.3 `Node.findAddr(prefix) -> (address)`
 The implementation must provide a way to find an address known to the network, which has the specified prefix.
 The implementation must provide a way to cancel or abort this operation if it takes longer than a certain amount of time.
 If an address with prefix cannot be found, an error should be returned.
 If this call errors it should be assumed that `Send` will also error, and that the network does not contain any address with the prefix.
 
-### 2.2.5 `Node.lookupPublicKey(address) -> publicKey`
+### 2.2.4 `Node.lookupPublicKey(address) -> publicKey`
 The implementation must provide a way to discover the public key which corresponds to an address.
 The implementation must provide a way to cancel or abort this operation if it takes longer than a certain amount of time.
 If a key cannot be found an error should be returned.
 
-### 2.2.6 `Node.publicKey() -> publicKey`
+### 2.2.5 `Node.publicKey() -> publicKey`
 The implementation must provide a way to derive a public key from the private key used to create the node.
 
-### 2.2.7 `Node.localAddr() -> addr`
+### 2.2.6 `Node.localAddr() -> addr`
 This should return the local address of the node.
 The address will be derived from the Node's public key (accessible with `Node.localAddr`) as described in section 1.
 

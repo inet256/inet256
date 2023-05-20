@@ -17,7 +17,7 @@ type Network interface {
 	p2p.Secure[inet256.Addr, inet256.PublicKey]
 
 	LocalAddr() inet256.Addr
-	MTU(context.Context, inet256.Addr) int
+	MTU() int
 	Close() error
 
 	FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error)
@@ -32,7 +32,7 @@ type Swarm interface {
 	p2p.Secure[inet256.Addr, inet256.PublicKey]
 
 	LocalAddr() Addr
-	MTU(ctx context.Context, addr Addr) int
+	MTU() int
 	Close() error
 }
 
@@ -102,10 +102,6 @@ type networkSwarm struct {
 
 func (s networkSwarm) LocalAddrs() []inet256.Addr {
 	return []inet256.Addr{s.Network.LocalAddr()}
-}
-
-func (s networkSwarm) MaxIncomingSize() int {
-	return inet256.MaxMTU
 }
 
 func (s networkSwarm) LookupPublicKey() {

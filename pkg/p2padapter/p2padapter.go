@@ -31,12 +31,12 @@ func (pn p2pNode) Receive(ctx context.Context, fn func(p2p.Message[inet256.Addr]
 	})
 }
 
-func (pn p2pNode) LocalAddrs() []inet256.Addr {
-	return []inet256.Addr{pn.Node.LocalAddr()}
+func (pn p2pNode) MTU() int {
+	return inet256.MTU
 }
 
-func (p2pNode) MaxIncomingSize() int {
-	return inet256.MaxMTU
+func (pn p2pNode) LocalAddrs() []inet256.Addr {
+	return []inet256.Addr{pn.Node.LocalAddr()}
 }
 
 func (p2pNode) ParseAddr(data []byte) (inet256.Addr, error) {

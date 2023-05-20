@@ -5,12 +5,10 @@ import (
 )
 
 const (
-	// MinMTU is the minimum MTU a network can provide to any address.
-	// Applications should be designed to operate correctly if they can only send messages up to this size.
-	MinMTU = 1 << 15
-	// MaxMTU is the size of largest message that a network will ever receive from any address.
+	// MTU is the size of largest message that a node will ever send or receive.
+	// If applications attempt to send a message larger than MTU, they will encounter ErrMTUExceeded
 	// Applications should be prepared to receieve this much data at a time or they may encounter io.ErrShortBuffer
-	MaxMTU = 1 << 16
+	MTU = (1 << 16) - 1
 )
 
 // Message is the essential information carried by Tell and Receive
@@ -38,9 +36,6 @@ type Node interface {
 	// The message fields, and payload must not be accessed outside fn.
 	Receive(ctx context.Context, fn ReceiveFunc) error
 
-	// MTU finds the maximum message size that can be sent to addr.
-	// If the context expires, a reasonable default (normally a significant underestimate) will be returned.
-	MTU(ctx context.Context, addr Addr) int
 	// LookupPublicKey attempts to find the public key corresponding to addr.
 	// If it can't find it, ErrPublicKeyNotFound is returned.
 	LookupPublicKey(ctx context.Context, addr Addr) (PublicKey, error)

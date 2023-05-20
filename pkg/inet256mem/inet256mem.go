@@ -144,5 +144,5 @@ func (node *memNode) LookupPublicKey(ctx context.Context, target inet256.Addr) (
 }
 
 func (node *memNode) MTU(ctx context.Context, target inet256.Addr) int {
-	return inet256.MaxMTU
+	return inet256.MTU
 }
