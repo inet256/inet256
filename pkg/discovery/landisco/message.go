@@ -1,42 +1,32 @@
 package landisco
 
 import (
-	"crypto/hmac"
-	"math/rand"
-
+	"github.com/brendoncarroll/go-tai64"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/sha3"
 )
 
 type Advertisement struct {
 	Transports []string `json:"transports"`
+	Solicit    bool     `json:"solicit"`
 }
 
-const MinMessageSize = 32 + 32
+const MinMessageSize = 12 + 16
 
 type Message []byte
 
-func NewMessage(id inet256.Addr, payload []byte) Message {
-	ciph, err := chacha20poly1305.NewX(id[:])
+func NewMessage(now tai64.TAI64N, id inet256.Addr, payload []byte) Message {
+	ciph, err := chacha20poly1305.New(id[:])
 	if err != nil {
 		panic(err)
 	}
-	nonce := [32]byte{}
-	if n, err := rand.Read(nonce[:]); err != nil || n < len(nonce) {
-		panic(err)
-	}
+	nonce := [12]byte{}
+	copy(nonce[:], now.Marshal())
 
-	preimage := [64]byte{}
-	copy(preimage[:32], id[:])
-	copy(preimage[32:], nonce[:])
-	sum := sha3.Sum256(preimage[:])
-
-	m := make(Message, MinMessageSize)
-	m.setNonce(nonce[:])
-	m.setMAC(sum[:])
-	m = ciph.Seal(m, nonce[:ciph.NonceSize()], payload, nil)
+	m := make(Message, 0)
+	m = append(m, nonce[:]...)
+	m = ciph.Seal(m, nonce[:], payload, nil)
 
 	return m
 }
@@ -48,58 +38,23 @@ func ParseMessage(x []byte) (Message, error) {
 	return Message(x), nil
 }
 
-func (m Message) GetMAC() [32]byte {
-	return copy32(m[:32])
+func (m Message) GetTAI64N() (tai64.TAI64N, error) {
+	return tai64.ParseN(m[0:12])
 }
 
-func (m Message) setMAC(x []byte) {
-	if len(x) < 32 {
-		panic("set mac with len < 32")
-	}
-	copy(m[:32], x)
-}
-
-func (m Message) GetNonce() [32]byte {
-	return copy32(m[32:64])
-}
-
-func (m Message) setNonce(x []byte) {
-	if len(x) < 32 {
-		panic("set nonce with len < 32")
-	}
-	copy(m[32:64], x)
-}
-
-func (m Message) GetCiphertext() []byte {
-	return m[64:]
-}
-
-func copy32(x []byte) [32]byte {
-	y := [32]byte{}
-	copy(y[:], x)
-	return y
-}
-
-func UnpackMessage(m Message, ids []inet256.Addr) (int, []byte, error) {
-	mac := m.GetMAC()
-	nonce := m.GetNonce()
-	preimage := [64]byte{}
-	copy(preimage[32:], nonce[:])
+func (m Message) Open(ids []inet256.Addr) (int, []byte, error) {
+	nonce := m[0:12]
+	ctext := m[12:]
 	for i, id := range ids {
-		copy(preimage[:32], id[:])
-		sum := sha3.Sum256(preimage[:])
-		// I don't know where we would ever leak this timing information, but whatever.
-		if hmac.Equal(sum[:], mac[:]) {
-			ciph, err := chacha20poly1305.NewX(id[:])
-			if err != nil {
-				panic(err)
-			}
-			ptext, err := ciph.Open(nil, nonce[:ciph.NonceSize()], m.GetCiphertext(), nil)
-			if err != nil {
-				return -1, nil, err
-			}
-			return i, ptext, nil
+		ciph, err := chacha20poly1305.New(id[:])
+		if err != nil {
+			panic(err)
 		}
+		ptext, err := ciph.Open(nil, nonce, ctext, nil)
+		if err != nil {
+			continue
+		}
+		return i, ptext, nil
 	}
 	return -1, nil, errors.Errorf("no provided peer sent this message")
 }

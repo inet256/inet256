@@ -3,85 +3,144 @@ package landisco
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
+	"net/netip"
+	"strconv"
 	"time"
 
+	"github.com/brendoncarroll/go-p2p/s/multiswarm"
+	"github.com/brendoncarroll/go-tai64"
+	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/inet256/inet256/pkg/discovery"
+	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/inet256/inet256/pkg/serde"
+	"go.uber.org/zap"
+	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 )
 
-const multicastAddr = "[ff05::c]:25501"
+const (
+	IPv6MulticastAddr = "[ff02::256]"
+	MulticastPort     = 25632
+)
 
-type service struct {
-	addr     *net.UDPAddr
-	announce chan struct{}
+// udp6MulticastAddr is the address of the multicast group
+var udp6MulticastAddr = net.UDPAddrFromAddrPort(netip.MustParseAddrPort(IPv6MulticastAddr + ":" + strconv.Itoa(MulticastPort)))
+
+type Service struct {
+	ifaces []string
+	conns  []*net.UDPConn
 }
 
-func New() discovery.Service {
-	gaddr, err := net.ResolveUDPAddr("udp6", multicastAddr)
-	if err != nil {
-		panic(err)
+func New(ifaces []string) (*Service, error) {
+	if len(ifaces) < 1 {
+		return nil, errors.New("must provide at least one interface by name")
 	}
-	return &service{
-		addr:     gaddr,
-		announce: make(chan struct{}),
+	var conns []*net.UDPConn
+	for _, name := range ifaces {
+		iface, err := net.InterfaceByName(name)
+		if err != nil {
+			return nil, err
+		}
+		// conn, err := net.ListenMulticastUDP("udp6", iface, udp6MulticastAddr)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		conn, err := net.ListenUDP("udp6", udp6MulticastAddr)
+		if err != nil {
+			return nil, err
+		}
+		ipc := ipv6.NewPacketConn(conn)
+		if err := ipc.SetMulticastLoopback(true); err != nil {
+			return nil, err
+		}
+		if err := ipc.JoinGroup(iface, udp6MulticastAddr); err != nil {
+			return nil, err
+		}
+		conns = append(conns, conn)
 	}
+	return &Service{ifaces: ifaces, conns: conns}, nil
 }
 
-func (s *service) Run(ctx context.Context, params discovery.Params) error {
-	conn, err := net.ListenMulticastUDP("udp6", nil, s.addr)
+func (s *Service) Announce(ctx context.Context, id inet256.Addr, addrs []multiswarm.Addr) error {
+	var addrStrs []string
+	for _, addr := range addrs {
+		addrStrs = append(addrStrs, addr.String())
+	}
+	return s.announce(ctx, id, addrStrs)
+}
+
+func (s *Service) announce(ctx context.Context, id inet256.Addr, addrs []string) error {
+	data, err := json.Marshal(Advertisement{
+		Transports: addrs,
+	})
 	if err != nil {
 		return err
 	}
-	params.Logger.Info("listening on", s.addr)
+	msg := NewMessage(tai64.Now(), id, data)
+	var retErr error
+	for _, conn := range s.conns {
+		if _, err := conn.WriteTo(msg, udp6MulticastAddr); err != nil {
+			retErr = errors.Join(retErr, err)
+		}
+	}
+	return retErr
+}
+
+func (s *Service) Close() (retErr error) {
+	for _, conn := range s.conns {
+		err := conn.Close()
+		retErr = errors.Join(retErr, err)
+	}
+	return retErr
+}
+
+func (s *Service) String() string {
+	return fmt.Sprintf("LANDisco{%v}", s.ifaces)
+}
+
+func (s *Service) RunAddrDiscovery(ctx context.Context, params discovery.AddrDiscoveryParams) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return s.announceLoop(ctx, params, conn)
+		return s.announceLoop(ctx, params)
 	})
-	eg.Go(func() error {
-		return s.readLoop(ctx, params, conn)
-	})
+	for _, conn := range s.conns {
+		conn := conn
+		eg.Go(func() error {
+			return s.readLoop(ctx, params, conn)
+		})
+	}
 	return eg.Wait()
 }
 
-func (s *service) announceLoop(ctx context.Context, params discovery.Params, conn *net.UDPConn) error {
+func (s *Service) announceLoop(ctx context.Context, params discovery.AddrDiscoveryParams) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
-		adv := Advertisement{
-			Transports: serde.MarshalAddrs(params.GetLocalAddrs()),
-		}
-		data, err := json.Marshal(adv)
-		if err != nil {
-			panic(err)
-		}
-		msg := NewMessage(params.LocalID, data)
-		if _, err := conn.Write(msg); err != nil {
+		if err := s.Announce(ctx, params.LocalID, params.GetLocalAddrs()); err != nil {
 			return err
 		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-		case <-s.announce:
 		}
 	}
 }
 
-func (s *service) forceAnnounce() {
-	s.announce <- struct{}{}
-}
-
-func (s *service) readLoop(ctx context.Context, params discovery.Params, conn *net.UDPConn) error {
+func (s *Service) readLoop(ctx context.Context, params discovery.AddrDiscoveryParams, conn *net.UDPConn) error {
 	buf := make([]byte, 1<<16)
 	for {
-		n, err := conn.Read(buf[:])
+		n, sender, err := conn.ReadFrom(buf[:])
 		if err != nil {
 			return err
 		}
-		if err := s.handleMessage(params, buf[:n]); err != nil {
-			params.Logger.WithError(err).Error("lan discovery while handling message")
+		_, err = s.handleMessage(params, buf[:n])
+		if err != nil {
+			logctx.Warn(ctx, "while handling message", zap.Error(err), zap.Any("src", sender), zap.Int("len", n))
 		}
 		select {
 		case <-ctx.Done():
@@ -91,24 +150,38 @@ func (s *service) readLoop(ctx context.Context, params discovery.Params, conn *n
 	}
 }
 
-func (s *service) handleMessage(params discovery.Params, buf []byte) error {
+func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte) (bool, error) {
 	msg, err := ParseMessage(buf)
 	if err != nil {
-		return err
+		return false, err
 	}
-	peers := params.AddressBook.ListPeers()
-	i, data, err := UnpackMessage(msg, peers)
+	ps := params.AddressBook.List()
+	i, data, err := msg.Open(ps)
 	if err != nil {
-		return err
+		return false, err
 	}
 	adv := Advertisement{}
 	if err := json.Unmarshal(data, &adv); err != nil {
-		return err
+		return false, err
 	}
 	addrs, err := serde.ParseAddrs(params.AddrParser, adv.Transports)
 	if err != nil {
-		return err
+		return false, err
 	}
-	params.AddressBook.SetAddrs(peers[i], addrs)
-	return nil
+	peers.SetAddrs[discovery.TransportAddr](params.AddressBook, ps[i], addrs)
+	return adv.Solicit, nil
+}
+
+func isLocalAddress(x net.IP) (bool, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false, err
+	}
+	for _, addr := range addrs {
+		ipnet := addr.(*net.IPNet)
+		if ipnet.Contains(x) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
