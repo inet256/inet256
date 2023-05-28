@@ -65,21 +65,21 @@ func TestService(t *testing.T) {
 	t.Log(ds2)
 
 	eg.Go(func() error {
-		return ds1.RunAddrDiscovery(ctx2, discovery.AddrDiscoveryParams{
+		return ds1.Run(ctx2, discovery.Params{
 			LocalID:       id1,
 			GetLocalAddrs: getLocalAddrs,
 
-			AddressBook: ps1,
-			AddrParser:  parser,
+			Peers:      ps1,
+			AddrParser: parser,
 		})
 	})
 	eg.Go(func() error {
-		return ds2.RunAddrDiscovery(ctx2, discovery.AddrDiscoveryParams{
+		return ds2.Run(ctx2, discovery.Params{
 			LocalID:       id2,
 			GetLocalAddrs: getLocalAddrs,
 
-			AddressBook: ps2,
-			AddrParser:  parser,
+			Peers:      ps2,
+			AddrParser: parser,
 		})
 	})
 	ctx, cf = context.WithTimeout(ctx, 10*time.Second)

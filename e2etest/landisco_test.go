@@ -42,7 +42,7 @@ func TestLocalDiscovery(t *testing.T) {
 
 	ctx := context.Background()
 	for i := range sides {
-		sides[0].d.DoWithServer(ctx, func(s *mesh256.Server) error {
+		sides[i].d.DoWithServer(ctx, func(s *mesh256.Server) error {
 			for j := range sides {
 				if i == j {
 					continue

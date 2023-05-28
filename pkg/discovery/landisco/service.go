@@ -28,8 +28,10 @@ const (
 var udp6MulticastAddr = net.UDPAddr{IP: net.IPv6linklocalallnodes, Port: MulticastPort}
 
 type Service struct {
-	ifaces []string
-	conns  []*net.UDPConn
+	ifaces         []string
+	announcePeriod time.Duration
+
+	conns []*net.UDPConn
 }
 
 // newUDPMulticast returns a UDP conn configured for multicast on the interface
@@ -71,7 +73,12 @@ func New(ifaces []string) (*Service, error) {
 		}
 		conns = append(conns, conn)
 	}
-	return &Service{ifaces: ifaces, conns: conns}, nil
+	return &Service{
+		ifaces:         ifaces,
+		announcePeriod: time.Second,
+
+		conns: conns,
+	}, nil
 }
 
 func (s *Service) Announce(ctx context.Context, id inet256.Addr, addrs []multiswarm.Addr) error {
@@ -111,8 +118,13 @@ func (s *Service) String() string {
 	return fmt.Sprintf("LANDisco{%v}", s.ifaces)
 }
 
-func (s *Service) RunAddrDiscovery(ctx context.Context, params discovery.AddrDiscoveryParams) error {
+func (s *Service) Run(ctx context.Context, params discovery.Params) error {
 	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		<-ctx.Done()
+		logctx.Infof(ctx, "closing landisco")
+		return s.Close()
+	})
 	eg.Go(func() error {
 		return s.announceLoop(ctx, params)
 	})
@@ -125,8 +137,8 @@ func (s *Service) RunAddrDiscovery(ctx context.Context, params discovery.AddrDis
 	return eg.Wait()
 }
 
-func (s *Service) announceLoop(ctx context.Context, params discovery.AddrDiscoveryParams) error {
-	ticker := time.NewTicker(10 * time.Second)
+func (s *Service) announceLoop(ctx context.Context, params discovery.Params) error {
+	ticker := time.NewTicker(s.announcePeriod)
 	defer ticker.Stop()
 	for {
 		if err := s.Announce(ctx, params.LocalID, params.GetLocalAddrs()); err != nil {
@@ -140,7 +152,7 @@ func (s *Service) announceLoop(ctx context.Context, params discovery.AddrDiscove
 	}
 }
 
-func (s *Service) readLoop(ctx context.Context, params discovery.AddrDiscoveryParams, conn *net.UDPConn) error {
+func (s *Service) readLoop(ctx context.Context, params discovery.Params, conn *net.UDPConn) error {
 	buf := make([]byte, 1<<16)
 	for {
 		n, sender, err := conn.ReadFrom(buf[:])
@@ -159,7 +171,7 @@ func (s *Service) readLoop(ctx context.Context, params discovery.AddrDiscoveryPa
 	}
 }
 
-func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte) (bool, error) {
+func (s *Service) handleMessage(params discovery.Params, buf []byte) (bool, error) {
 	msg, err := ParseMessage(buf)
 	if err != nil {
 		return false, err
@@ -168,7 +180,7 @@ func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte
 	if _, _, err := msg.Open([]inet256.ID{params.LocalID}); err == nil {
 		return false, nil
 	}
-	ps := params.AddressBook.List()
+	ps := params.Peers.List()
 	i, data, err := msg.Open(ps)
 	if err != nil {
 		return false, err
@@ -181,6 +193,6 @@ func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte
 	if err != nil {
 		return false, err
 	}
-	peers.SetAddrs[discovery.TransportAddr](params.AddressBook, ps[i], addrs)
+	peers.SetAddrs[discovery.TransportAddr](params.Peers, ps[i], addrs)
 	return adv.Solicit, nil
 }

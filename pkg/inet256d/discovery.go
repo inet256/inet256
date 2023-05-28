@@ -12,7 +12,7 @@ import (
 	"github.com/inet256/inet256/pkg/mesh256"
 )
 
-const defaultPollingPeriod = 30 * time.Second
+const defaultPollingPeriod = 16 * time.Second
 
 func (d *Daemon) runDiscovery(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[mesh256.TransportAddr]) {
 	autopeering := false

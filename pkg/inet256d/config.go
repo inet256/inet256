@@ -19,6 +19,7 @@ import (
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
+	"github.com/inet256/inet256/pkg/discovery/landisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
@@ -159,7 +160,7 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Local != nil:
-		return nil, errors.New("landisco not supported")
+		return landisco.New(spec.Local.Interfaces)
 	case spec.Central != nil:
 		period := spec.Central.Period
 		if period == 0 {
