@@ -45,8 +45,8 @@ func (c *Client) Announce(ctx context.Context, privKey inet256.PrivateKey, endpo
 	return err
 }
 
-func (c *Client) Find(ctx context.Context, target inet256.Addr) ([]string, error) {
-	res, err := c.client.Find(ctx, &internal.FindReq{
+func (c *Client) Lookup(ctx context.Context, target inet256.Addr) ([]string, error) {
+	res, err := c.client.Lookup(ctx, &internal.LookupReq{
 		Target: target[:],
 	})
 	switch {

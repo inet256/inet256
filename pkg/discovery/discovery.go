@@ -9,40 +9,58 @@ import (
 
 	"github.com/inet256/inet256/internal/retry"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 )
 
 type (
 	TransportAddr = multiswarm.Addr
 	AddrParser    = p2p.AddrParser[TransportAddr]
+	AddrSource    = func() []TransportAddr
 )
 
+// AddressBook is allows storing addresses for a Peer
 type AddressBook interface {
-	SetAddrs(x inet256.Addr, addrs []TransportAddr)
-	ListPeers() []inet256.Addr
+	peers.Updater[TransportAddr]
+	List() []inet256.Addr
 }
 
 type Params struct {
+	AutoPeering bool
+
 	// Announcing
 	PrivateKey    inet256.PrivateKey
 	LocalID       inet256.Addr
 	GetLocalAddrs func() []TransportAddr
 
 	// Finding
-	AddressBook AddressBook
-	AddrParser  p2p.AddrParser[TransportAddr]
+	Peers      peers.Store[TransportAddr]
+	AddrParser p2p.AddrParser[TransportAddr]
 }
 
+// AddrService find transport addresses for known peers
 type Service interface {
 	Run(ctx context.Context, params Params) error
 }
 
 func RunForever(ctx context.Context, srv Service, params Params) {
-	logctx.Infoln(ctx, "starting discovery service")
+	logctx.Infoln(ctx, "starting address discovery service")
 	retry.Retry(ctx, func() error {
 		return srv.Run(ctx, params)
 	}, retry.WithPredicate(func(err error) bool {
-		logctx.Errorln(ctx, "error in discovery service", err)
+		logctx.Errorln(ctx, "error in address discovery service", err)
 		return true
 	}))
-	logctx.Infoln(ctx, "stopped discovery service")
+	logctx.Infoln(ctx, "stopped address discovery service")
 }
+
+func DisableAddRemove[T p2p.Addr](x peers.Store[T]) peers.Store[T] {
+	return fixedStore[T]{x}
+}
+
+type fixedStore[T p2p.Addr] struct {
+	peers.Store[T]
+}
+
+func (s fixedStore[T]) Add(x inet256.Addr) {}
+
+func (s fixedStore[T]) Remove(x inet256.Addr) {}

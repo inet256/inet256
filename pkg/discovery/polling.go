@@ -8,23 +8,24 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/inet256/inet256/pkg/serde"
 )
 
-type FindFunc = func(ctx context.Context, x inet256.Addr) ([]string, error)
+type LookupFunc = func(ctx context.Context, x inet256.Addr) ([]string, error)
 
 type AnnounceFunc = func(ctx context.Context, privateKey inet256.PrivateKey, addrs []string, ttl time.Duration) error
 
 type PollingDiscovery struct {
 	Period   time.Duration
 	Announce AnnounceFunc
-	Find     FindFunc
+	Lookup   LookupFunc
 }
 
 func (s *PollingDiscovery) Run(ctx context.Context, params Params) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return s.findLoop(ctx, params)
+		return s.lookupLoop(ctx, params)
 	})
 	eg.Go(func() error {
 		return s.announceLoop(ctx, params)
@@ -32,10 +33,10 @@ func (s *PollingDiscovery) Run(ctx context.Context, params Params) error {
 	return eg.Wait()
 }
 
-func (s *PollingDiscovery) findLoop(ctx context.Context, params Params) error {
+func (s *PollingDiscovery) lookupLoop(ctx context.Context, params Params) error {
 	return s.poll(ctx, func() error {
-		for _, target := range params.AddressBook.ListPeers() {
-			addrStrs, err := s.Find(ctx, target)
+		for _, target := range params.Peers.List() {
+			addrStrs, err := s.Lookup(ctx, target)
 			if err != nil {
 				return err
 			}
@@ -43,7 +44,7 @@ func (s *PollingDiscovery) findLoop(ctx context.Context, params Params) error {
 			if err != nil {
 				return err
 			}
-			params.AddressBook.SetAddrs(target, addrs)
+			peers.SetAddrs[TransportAddr](params.Peers, target, addrs)
 		}
 		return nil
 	})

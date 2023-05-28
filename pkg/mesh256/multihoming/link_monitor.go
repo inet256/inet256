@@ -96,9 +96,10 @@ func (lm *linkMonitor[A, Pub, K]) heartbeat(ctx context.Context) error {
 	now := tai64.Now()
 	data := now.Marshal()
 	eg := errgroup.Group{}
-	for _, id := range lm.peers.ListPeers() {
+	for _, id := range lm.peers.List() {
 		id := id
-		for _, addr := range lm.peers.ListAddrs(id) {
+		info, _ := lm.peers.Get(id)
+		for _, addr := range info.Addrs {
 			addr := addr
 			eg.Go(func() error {
 				return lm.x.Tell(ctx, addr, p2p.IOVec{data})
@@ -126,7 +127,7 @@ func (lm *linkMonitor[A, Pub, K]) Mark(k K, a A, t tai64.TAI64N) {
 
 func (lm *linkMonitor[A, Pub, K]) PickAddr(ctx context.Context, k K) (*A, error) {
 	if !lm.peers.Contains(k) {
-		logctx.Errorln(ctx, "peers in store:", lm.peers.ListPeers())
+		logctx.Errorln(ctx, "peers in store:", lm.peers.List())
 		return nil, errors.Errorf("cannot pick address for peer not in store %v", k)
 	}
 	lm.mu.RLock()
@@ -152,7 +153,8 @@ func (lm *linkMonitor[A, Pub, K]) PickAddr(ctx context.Context, k K) (*A, error)
 		}
 	}
 	// pick a random address from the store.
-	addrs := lm.peers.ListAddrs(k)
+	info, _ := lm.peers.Get(k)
+	addrs := info.Addrs
 	if len(addrs) == 0 {
 		return nil, fmt.Errorf("no good addresses for %v", k)
 	}

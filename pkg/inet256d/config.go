@@ -1,7 +1,8 @@
 package inet256d
 
 import (
-	"io/ioutil"
+	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -14,12 +15,13 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 
+	"github.com/inet256/inet256/internal/slices2"
 	"github.com/inet256/inet256/networks/beaconnet"
-	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
+	"github.com/inet256/inet256/pkg/peers"
 	"github.com/inet256/inet256/pkg/serde"
 )
 
@@ -44,26 +46,19 @@ type UDPTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
-	Cell    *CellDiscoverySpec    `yaml:"cell,omitempty"`
+	AutoPeering bool `yaml:"autopeering"`
+
 	Local   *LocalDiscoverySpec   `yaml:"local,omitempty"`
 	Central *CentralDiscoverySpec `yaml:"central,omitempty"`
 }
 
-type CellDiscoverySpec struct {
-	Token  string        `yaml:"token"`
-	Period time.Duration `yaml:"period,omitempty"`
-}
-
 type LocalDiscoverySpec struct {
-	MulticastAddr string `yaml:"multicast_addr"`
+	Interfaces []string `yaml:"interfaces"`
 }
 
 type CentralDiscoverySpec struct {
 	Endpoint string        `yaml:"endpoint"`
 	Period   time.Duration `yaml:"period,omitempty"`
-}
-
-type AutoPeeringSpec struct {
 }
 
 type Config struct {
@@ -73,8 +68,7 @@ type Config struct {
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
-	Discovery   []DiscoverySpec   `yaml:"discovery"`
-	AutoPeering []AutoPeeringSpec `yaml:"autopeering"`
+	Discovery []DiscoverySpec `yaml:"discovery"`
 }
 
 func (c Config) GetAPIAddr() string {
@@ -90,7 +84,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	if strings.HasPrefix(c.PrivateKeyPath, "./") {
 		keyPath = filepath.Join(filepath.Dir(configPath), c.PrivateKeyPath)
 	}
-	keyPEMData, err := ioutil.ReadFile(keyPath)
+	keyPEMData, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -109,14 +103,14 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	}
 	// peers
 	addrSchema := mesh256.NewAddrSchema(swarms)
-	peers := mesh256.NewPeerStore()
+	ps := mesh256.NewPeerStore()
 	for _, pspec := range c.Peers {
 		addrs, err := serde.ParseAddrs(addrSchema.ParseAddr, pspec.Addrs)
 		if err != nil {
 			return nil, err
 		}
-		peers.Add(pspec.ID)
-		peers.SetAddrs(pspec.ID, addrs)
+		ps.Add(pspec.ID)
+		peers.SetAddrs[multiswarm.Addr](ps, pspec.ID, addrs)
 	}
 	// network
 	networkFactory, err := networkFactoryFromSpec(c.Network)
@@ -126,20 +120,11 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 	// discovery
 	dscSrvs := []discovery.Service{}
 	for _, spec := range c.Discovery {
-		dscSrv, err := makeDiscoveryService(spec, addrSchema)
+		dscSrv, err := makeDiscovery(spec, addrSchema)
 		if err != nil {
 			return nil, err
 		}
 		dscSrvs = append(dscSrvs, dscSrv)
-	}
-	// autopeering
-	apSrvs := []autopeering.Service{}
-	for _, spec := range c.AutoPeering {
-		apSrv, err := makeAutoPeeringService(spec, addrSchema)
-		if err != nil {
-			return nil, err
-		}
-		apSrvs = append(apSrvs, apSrv)
 	}
 
 	params := &Params{
@@ -147,10 +132,9 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			PrivateKey: privateKey,
 			Swarms:     swarms,
 			NewNetwork: networkFactory,
-			Peers:      peers,
+			Peers:      ps,
 		},
-		DiscoveryServices:   dscSrvs,
-		AutoPeeringServices: apSrvs,
+		Discovery:           dscSrvs,
 		APIAddr:             c.APIEndpoint,
 		TransportAddrParser: addrSchema.ParseAddr,
 	}
@@ -172,10 +156,10 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 	}
 }
 
-func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
+func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Local != nil:
-		return nil, errors.New("local discovery not yet supported")
+		return nil, errors.New("landisco not supported")
 	case spec.Central != nil:
 		period := spec.Central.Period
 		if period == 0 {
@@ -199,13 +183,6 @@ func makeDiscoveryService(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) 
 	}
 }
 
-func makeAutoPeeringService(spec AutoPeeringSpec, addrSchema multiswarm.AddrSchema) (autopeering.Service, error) {
-	switch {
-	default:
-		return nil, errors.Errorf("empty autopeering spec")
-	}
-}
-
 func DefaultConfig() Config {
 	return Config{
 		PrivateKeyPath: "./private_key.pem",
@@ -226,7 +203,7 @@ func DefaultNetwork() NetworkSpec {
 }
 
 func LoadConfig(p string) (*Config, error) {
-	data, err := ioutil.ReadFile(p)
+	data, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +219,7 @@ func SaveConfig(config Config, p string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(p, data, 0o644)
+	return os.WriteFile(p, data, 0o644)
 }
 
 func ListNetworks() (ret []string) {
@@ -267,4 +244,12 @@ func networkFactoryFromSpec(spec NetworkSpec) (mesh256.NetworkFactory, error) {
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}
+}
+
+func InterfaceNames() ([]string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	return slices2.Map(ifaces, func(x net.Interface) string { return x.Name }), nil
 }

@@ -6,11 +6,10 @@ import (
 	"github.com/brendoncarroll/go-p2p"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/autopeering"
 	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 )
@@ -20,8 +19,7 @@ type PeerStore = peers.Store[TransportAddr]
 
 type Params struct {
 	MainNodeParams      mesh256.Params
-	DiscoveryServices   []discovery.Service
-	AutoPeeringServices []autopeering.Service
+	Discovery           []discovery.Service
 	APIAddr             string
 	TransportAddrParser p2p.AddrParser[TransportAddr]
 }
@@ -44,14 +42,13 @@ func New(p Params) *Daemon {
 // Logs are written to the slog.Logger in the context.
 func (d *Daemon) Run(ctx context.Context) error {
 	promReg := prometheus.NewRegistry()
-	promReg.Register(prometheus.NewGoCollector())
+	promReg.Register(collectors.NewGoCollector())
 
 	nodeParams := d.params.MainNodeParams
 	nodeParams.Background = ctx
-	localID := inet256.NewAddr(nodeParams.PrivateKey.Public())
 
 	// discovery
-	dscSrvs := d.params.DiscoveryServices
+	dscSrvs := d.params.Discovery
 	dscPeerStores := make([]PeerStore, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
@@ -59,16 +56,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 		copyPeers(dscPeerStores[i], d.params.MainNodeParams.Peers)
 	}
 
-	// auto-peering
-	apSrvs := d.params.AutoPeeringServices
-	apPeerStores := make([]PeerStore, len(apSrvs))
-	for i := range apSrvs {
-		apPeerStores[i] = mesh256.NewPeerStore()
-	}
-
 	peerStores := []PeerStore{d.params.MainNodeParams.Peers}
 	peerStores = append(peerStores, dscPeerStores...)
-	peerStores = append(peerStores, apPeerStores...)
 
 	// server
 	nodeParams.Peers = peers.ChainStore[TransportAddr](peerStores)
@@ -87,11 +76,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runHTTPServer(ctx, d.params.APIAddr, s, promReg)
 	})
 	eg.Go(func() error {
-		d.runDiscoveryServices(ctx, d.params.MainNodeParams.PrivateKey, d.params.DiscoveryServices, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
-		return nil
-	})
-	eg.Go(func() error {
-		d.runAutoPeeringServices(ctx, localID, d.params.AutoPeeringServices, apPeerStores, adaptTransportAddrs(s.TransportAddrs))
+		d.runDiscovery(ctx, d.params.MainNodeParams.PrivateKey, d.params.Discovery, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
 		return nil
 	})
 	return eg.Wait()
@@ -107,7 +92,7 @@ func (d *Daemon) DoWithServer(ctx context.Context, cb func(s *mesh256.Server) er
 }
 
 func copyPeers(dst, src peers.Store[mesh256.TransportAddr]) {
-	for _, id := range src.ListPeers() {
+	for _, id := range src.List() {
 		dst.Add(id)
 	}
 }

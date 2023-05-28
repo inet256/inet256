@@ -65,7 +65,7 @@ func NewTestServers(t testing.TB, nf NetworkFactory, xs []inet256.Service) {
 				continue
 			}
 			stores[i].Add(getMainAddr(srvs[j]))
-			stores[i].SetAddrs(getMainAddr(srvs[j]), getTransportAddrs(srvs[j]))
+			peers.SetAddrs[multiswarm.Addr](stores[i], getMainAddr(srvs[j]), getTransportAddrs(srvs[j]))
 		}
 	}
 	t.Cleanup(func() {

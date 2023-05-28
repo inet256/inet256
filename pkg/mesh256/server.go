@@ -95,9 +95,9 @@ func (s *Server) Open(ctx context.Context, privateKey inet256.PrivateKey, opts .
 
 	ps := peers.NewStore[TransportAddr]()
 	ps.Add(s.mainID)
-	ps.SetAddrs(s.mainID, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
+	peers.SetAddrs[TransportAddr](ps, s.mainID, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: s.mainMemSwarm.LocalAddrs()[0]}})
 	s.mainMemPeers.Add(id)
-	s.mainMemPeers.SetAddrs(id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
+	peers.SetAddrs[TransportAddr](s.mainMemPeers, id, []multiswarm.Addr{{Scheme: nameMemSwarm, Addr: swarm.LocalAddrs()[0]}})
 
 	n := NewNode(NodeParams{
 		Background: stdctx.Child(s.params.Background, id.Base64String()),
@@ -150,7 +150,7 @@ func (s *Server) TransportAddrs(ctx context.Context) ([]multiswarm.Addr, error) 
 func (s *Server) PeerStatus(ctx context.Context) ([]PeerStatus, error) {
 	var ret []PeerStatus
 	mainNode := s.mainNode
-	for _, id := range s.params.Peers.ListPeers() {
+	for _, id := range s.params.Peers.List() {
 		lastSeen := mainNode.LastSeen(id)
 		ret = append(ret, PeerStatus{
 			Addr:       id,

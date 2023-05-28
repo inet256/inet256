@@ -11,7 +11,7 @@ import (
 func NewService(client *Client, period time.Duration) discovery.Service {
 	return &discovery.PollingDiscovery{
 		Period:   period,
-		Find:     client.Find,
+		Lookup:   client.Lookup,
 		Announce: client.Announce,
 	}
 }

@@ -116,7 +116,7 @@ func (n *node) LastSeen(id inet256.Addr) map[string]tai64.TAI64N {
 }
 
 func (n *node) ListOneHop() []Addr {
-	return n.params.Peers.ListPeers()
+	return n.params.Peers.List()
 }
 
 func (n *node) Close() (retErr error) {

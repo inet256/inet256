@@ -226,7 +226,7 @@ func (r *Router) broadcast(send routers.SendFunc, exclude inet256.Addr, mtype ui
 	hdr.SetSrc(r.localID)
 	hdr.SetDst(broadcastAddr)
 	hdr.SetType(mtype)
-	for _, peerID := range r.peers.ListPeers() {
+	for _, peerID := range r.peers.List() {
 		if peerID == exclude {
 			continue
 		}

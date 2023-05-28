@@ -14,16 +14,22 @@ import (
 
 const defaultPollingPeriod = 30 * time.Second
 
-func (d *Daemon) runDiscoveryServices(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[mesh256.TransportAddr]) {
+func (d *Daemon) runDiscovery(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[mesh256.TransportAddr]) {
+	autopeering := false
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]
+		if !autopeering {
+			ps[i] = discovery.DisableAddRemove(ps[i])
+		}
 		params := discovery.Params{
+			AutoPeering:   autopeering,
 			PrivateKey:    privateKey,
 			LocalID:       inet256.NewAddr(privateKey.Public()),
 			GetLocalAddrs: localAddrs,
-			AddressBook:   ps[i],
-			AddrParser:    addrParser,
+
+			Peers:      ps[i],
+			AddrParser: addrParser,
 		}
 		eg.Go(func() error {
 			discovery.RunForever(ctx, disc, params)

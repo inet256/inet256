@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DiscoveryClient interface {
-	Find(ctx context.Context, in *FindReq, opts ...grpc.CallOption) (*FindRes, error)
+	Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*LookupRes, error)
 	Announce(ctx context.Context, in *AnnounceReq, opts ...grpc.CallOption) (*AnnounceRes, error)
 }
 
@@ -34,9 +34,9 @@ func NewDiscoveryClient(cc grpc.ClientConnInterface) DiscoveryClient {
 	return &discoveryClient{cc}
 }
 
-func (c *discoveryClient) Find(ctx context.Context, in *FindReq, opts ...grpc.CallOption) (*FindRes, error) {
-	out := new(FindRes)
-	err := c.cc.Invoke(ctx, "/Discovery/Find", in, out, opts...)
+func (c *discoveryClient) Lookup(ctx context.Context, in *LookupReq, opts ...grpc.CallOption) (*LookupRes, error) {
+	out := new(LookupRes)
+	err := c.cc.Invoke(ctx, "/Discovery/Lookup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (c *discoveryClient) Announce(ctx context.Context, in *AnnounceReq, opts ..
 // All implementations must embed UnimplementedDiscoveryServer
 // for forward compatibility
 type DiscoveryServer interface {
-	Find(context.Context, *FindReq) (*FindRes, error)
+	Lookup(context.Context, *LookupReq) (*LookupRes, error)
 	Announce(context.Context, *AnnounceReq) (*AnnounceRes, error)
 	mustEmbedUnimplementedDiscoveryServer()
 }
@@ -65,8 +65,8 @@ type DiscoveryServer interface {
 type UnimplementedDiscoveryServer struct {
 }
 
-func (UnimplementedDiscoveryServer) Find(context.Context, *FindReq) (*FindRes, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Find not implemented")
+func (UnimplementedDiscoveryServer) Lookup(context.Context, *LookupReq) (*LookupRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Lookup not implemented")
 }
 func (UnimplementedDiscoveryServer) Announce(context.Context, *AnnounceReq) (*AnnounceRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Announce not implemented")
@@ -84,20 +84,20 @@ func RegisterDiscoveryServer(s grpc.ServiceRegistrar, srv DiscoveryServer) {
 	s.RegisterService(&Discovery_ServiceDesc, srv)
 }
 
-func _Discovery_Find_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FindReq)
+func _Discovery_Lookup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LookupReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DiscoveryServer).Find(ctx, in)
+		return srv.(DiscoveryServer).Lookup(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Discovery/Find",
+		FullMethod: "/Discovery/Lookup",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DiscoveryServer).Find(ctx, req.(*FindReq))
+		return srv.(DiscoveryServer).Lookup(ctx, req.(*LookupReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -128,8 +128,8 @@ var Discovery_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*DiscoveryServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Find",
-			Handler:    _Discovery_Find_Handler,
+			MethodName: "Lookup",
+			Handler:    _Discovery_Lookup_Handler,
 		},
 		{
 			MethodName: "Announce",

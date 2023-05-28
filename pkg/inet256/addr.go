@@ -101,3 +101,8 @@ func ParseAddrBase64(data []byte) (Addr, error) {
 	err := addr.UnmarshalText(data)
 	return addr, err
 }
+
+func Sum256(data []byte) (ret [32]byte) {
+	sha3.ShakeSum256(ret[:], data)
+	return ret
+}
