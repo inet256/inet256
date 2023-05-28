@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func NewService(client *Client, period time.Duration) discovery.Service {
+func NewService(client *Client, period time.Duration) discovery.AddrService {
 	return &discovery.PollingDiscovery{
 		Period:   period,
 		Lookup:   client.Lookup,

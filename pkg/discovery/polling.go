@@ -22,7 +22,7 @@ type PollingDiscovery struct {
 	Lookup   LookupFunc
 }
 
-func (s *PollingDiscovery) Run(ctx context.Context, params Params) error {
+func (s *PollingDiscovery) RunAddrDiscovery(ctx context.Context, params AddrDiscoveryParams) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return s.lookupLoop(ctx, params)
@@ -50,7 +50,7 @@ func (s *PollingDiscovery) lookupLoop(ctx context.Context, params Params) error 
 	})
 }
 
-func (s *PollingDiscovery) announceLoop(ctx context.Context, params Params) error {
+func (s *PollingDiscovery) announceLoop(ctx context.Context, params AddrDiscoveryParams) error {
 	return s.poll(ctx, func() error {
 		return s.Announce(ctx, params.PrivateKey, serde.MarshalAddrs(params.GetLocalAddrs()), s.Period*3/2)
 	})
