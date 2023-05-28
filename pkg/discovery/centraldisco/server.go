@@ -88,7 +88,7 @@ func (s *Server) Announce(ctx context.Context, req *internal.AnnounceReq) (*inte
 	return &internal.AnnounceRes{}, nil
 }
 
-func (s *Server) Find(ctx context.Context, req *internal.FindReq) (*internal.FindRes, error) {
+func (s *Server) Lookup(ctx context.Context, req *internal.LookupReq) (*internal.LookupRes, error) {
 	if len(req.GetTarget()) < len(inet256.Addr{}) {
 		return nil, status.Errorf(codes.InvalidArgument, "target too short to be INET256 address")
 	}
@@ -101,7 +101,7 @@ func (s *Server) Find(ctx context.Context, req *internal.FindReq) (*internal.Fin
 	if err != nil {
 		panic(err)
 	}
-	return &internal.FindRes{
+	return &internal.LookupRes{
 		PublicKey: x.PublicKey,
 		Announce:  announceBytes,
 		Sig:       x.Sig,

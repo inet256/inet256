@@ -12,6 +12,7 @@ import (
 
 	"github.com/inet256/inet256/internal/netutil"
 	"github.com/inet256/inet256/pkg/inet256"
+	"github.com/inet256/inet256/pkg/peers"
 )
 
 const (
@@ -21,8 +22,8 @@ const (
 
 type PeerStore[K comparable, A p2p.Addr] interface {
 	Contains(k K) bool
-	ListPeers() []K
-	ListAddrs(k K) []A
+	Get(k K) (peers.Info[A], bool)
+	List() []K
 }
 
 // Swarm manages a underlying swarm where many addresses A map to fewer Ks

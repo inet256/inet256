@@ -92,7 +92,7 @@ func SetupNetworks(t testing.TB, adjList p2ptest.AdjList, nf NetworkFactory) []N
 			peerID := inet256.NewAddr(netSwarms[j].PublicKey())
 			addr := swarms[j].LocalAddrs()[0]
 			peerStores[i].Add(peerID)
-			peerStores[i].SetAddrs(peerID, []memswarm.Addr{addr})
+			peers.SetAddrs[memswarm.Addr](peerStores[i], peerID, []memswarm.Addr{addr})
 		}
 	}
 	nets := make([]Network, N)

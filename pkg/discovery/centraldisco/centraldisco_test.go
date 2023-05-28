@@ -47,11 +47,12 @@ func TestClientServer(t *testing.T) {
 	err = c2.Announce(ctx, pk2, []string{"udp://127.0.0.1:1235"}, time.Hour)
 	require.NoError(t, err)
 	// find
-	endpoints, err := c1.Find(ctx, inet256.NewAddr(pk1.Public()))
+	endpoints, err := c1.Lookup(ctx, inet256.NewAddr(pk1.Public()))
 	require.NoError(t, err)
 	require.Len(t, endpoints, 1)
-	endpoints, err = c2.Find(ctx, inet256.NewAddr(pk2.Public()))
+	endpoints, err = c2.Lookup(ctx, inet256.NewAddr(pk2.Public()))
 	require.NoError(t, err)
+	require.Len(t, endpoints, 1)
 
 	gs.Stop()
 	require.NoError(t, eg.Wait())

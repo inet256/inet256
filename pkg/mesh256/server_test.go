@@ -101,7 +101,7 @@ func (n oneHop) PublicKey() inet256.PublicKey {
 }
 
 func (n oneHop) FindAddr(ctx context.Context, prefix []byte, nbits int) (inet256.Addr, error) {
-	for _, id := range n.params.Peers.ListPeers() {
+	for _, id := range n.params.Peers.List() {
 		if inet256.HasPrefix(id[:], prefix, nbits) {
 			return inet256.Addr(id), nil
 		}
