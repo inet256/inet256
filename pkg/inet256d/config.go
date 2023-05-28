@@ -134,7 +134,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			NewNetwork: networkFactory,
 			Peers:      ps,
 		},
-		AddrDiscovery:       dscSrvs,
+		Discovery:           dscSrvs,
 		APIAddr:             c.APIEndpoint,
 		TransportAddrParser: addrSchema.ParseAddr,
 	}

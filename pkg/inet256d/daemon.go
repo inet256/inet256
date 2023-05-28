@@ -19,7 +19,7 @@ type PeerStore = peers.Store[TransportAddr]
 
 type Params struct {
 	MainNodeParams      mesh256.Params
-	AddrDiscovery       []discovery.Service
+	Discovery           []discovery.Service
 	APIAddr             string
 	TransportAddrParser p2p.AddrParser[TransportAddr]
 }
@@ -48,7 +48,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	nodeParams.Background = ctx
 
 	// discovery
-	dscSrvs := d.params.AddrDiscovery
+	dscSrvs := d.params.Discovery
 	dscPeerStores := make([]PeerStore, len(dscSrvs))
 	for i := range dscSrvs {
 		// initialize and copy peers, since discovery services don't add peers.
@@ -76,7 +76,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runHTTPServer(ctx, d.params.APIAddr, s, promReg)
 	})
 	eg.Go(func() error {
-		d.runDiscovery(ctx, d.params.MainNodeParams.PrivateKey, d.params.AddrDiscovery, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
+		d.runDiscovery(ctx, d.params.MainNodeParams.PrivateKey, d.params.Discovery, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
 		return nil
 	})
 	return eg.Wait()
