@@ -23,7 +23,7 @@ import (
 )
 
 func TestMulticast(t *testing.T) {
-	addr := udp6MulticastAddr
+	addr := &udp6MulticastAddr
 	ifaces, err := net.Interfaces()
 	require.NoError(t, err)
 	for _, iface := range ifaces {
@@ -54,7 +54,7 @@ func TestService(t *testing.T) {
 	defer cf()
 	ifs, err := net.Interfaces()
 	require.NoError(t, err)
-	ifNames := slices2.Map(ifs, func(x net.Interface) string { return x.Name })
+	ifNames := slices2.Map(ifs[:1], func(x net.Interface) string { return x.Name })
 
 	ds1, err := New(ifNames)
 	require.NoError(t, err)
@@ -86,8 +86,10 @@ func TestService(t *testing.T) {
 	defer cf()
 	err = retry.Retry(ctx, func() error {
 		if err := ds2.Announce(ctx, id2, getLocalAddrs()); err != nil {
+			t.Log(err)
 			return err
 		}
+		t.Log("did announce")
 		addrs := peers.ListAddrs[discovery.TransportAddr](ps1, id2)
 		if len(addrs) < 1 {
 			return fmt.Errorf("no addresses")

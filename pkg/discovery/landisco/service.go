@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/netip"
-	"strconv"
 	"time"
 
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
@@ -23,16 +21,42 @@ import (
 )
 
 const (
-	IPv6MulticastAddr = "[ff02::256]"
-	MulticastPort     = 25632
+	MulticastPort = 25632
 )
 
 // udp6MulticastAddr is the address of the multicast group
-var udp6MulticastAddr = net.UDPAddrFromAddrPort(netip.MustParseAddrPort(IPv6MulticastAddr + ":" + strconv.Itoa(MulticastPort)))
+var udp6MulticastAddr = net.UDPAddr{IP: net.IPv6linklocalallnodes, Port: MulticastPort}
 
 type Service struct {
 	ifaces []string
 	conns  []*net.UDPConn
+}
+
+// newUDPMulticast returns a UDP conn configured for multicast on the interface
+func newUDPMulticast(ifName string) (*net.UDPConn, error) {
+	iface, err := net.InterfaceByName(ifName)
+	if err != nil {
+		return nil, err
+	}
+	// conn, err := net.ListenMulticastUDP("udp6", iface, udp6MulticastAddr)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	conn, err := net.ListenUDP("udp6", &udp6MulticastAddr)
+	if err != nil {
+		return nil, err
+	}
+	ipc := ipv6.NewPacketConn(conn)
+	if err := ipc.SetMulticastLoopback(true); err != nil {
+		return nil, err
+	}
+	// if err := ipc.SetMulticastInterface(iface); err != nil {
+	// 	return nil, err
+	// }
+	if err := ipc.JoinGroup(iface, &udp6MulticastAddr); err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 func New(ifaces []string) (*Service, error) {
@@ -41,23 +65,8 @@ func New(ifaces []string) (*Service, error) {
 	}
 	var conns []*net.UDPConn
 	for _, name := range ifaces {
-		iface, err := net.InterfaceByName(name)
+		conn, err := newUDPMulticast(name)
 		if err != nil {
-			return nil, err
-		}
-		// conn, err := net.ListenMulticastUDP("udp6", iface, udp6MulticastAddr)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		conn, err := net.ListenUDP("udp6", udp6MulticastAddr)
-		if err != nil {
-			return nil, err
-		}
-		ipc := ipv6.NewPacketConn(conn)
-		if err := ipc.SetMulticastLoopback(true); err != nil {
-			return nil, err
-		}
-		if err := ipc.JoinGroup(iface, udp6MulticastAddr); err != nil {
 			return nil, err
 		}
 		conns = append(conns, conn)
@@ -83,7 +92,7 @@ func (s *Service) announce(ctx context.Context, id inet256.Addr, addrs []string)
 	msg := NewMessage(tai64.Now(), id, data)
 	var retErr error
 	for _, conn := range s.conns {
-		if _, err := conn.WriteTo(msg, udp6MulticastAddr); err != nil {
+		if _, err := conn.WriteTo(msg, &udp6MulticastAddr); err != nil {
 			retErr = errors.Join(retErr, err)
 		}
 	}
@@ -155,6 +164,10 @@ func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte
 	if err != nil {
 		return false, err
 	}
+	// ignore self messages
+	if _, _, err := msg.Open([]inet256.ID{params.LocalID}); err == nil {
+		return false, nil
+	}
 	ps := params.AddressBook.List()
 	i, data, err := msg.Open(ps)
 	if err != nil {
@@ -170,18 +183,4 @@ func (s *Service) handleMessage(params discovery.AddrDiscoveryParams, buf []byte
 	}
 	peers.SetAddrs[discovery.TransportAddr](params.AddressBook, ps[i], addrs)
 	return adv.Solicit, nil
-}
-
-func isLocalAddress(x net.IP) (bool, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return false, err
-	}
-	for _, addr := range addrs {
-		ipnet := addr.(*net.IPNet)
-		if ipnet.Contains(x) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
