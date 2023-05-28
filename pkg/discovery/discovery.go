@@ -24,42 +24,28 @@ type AddressBook interface {
 	List() []inet256.Addr
 }
 
-type AddrDiscoveryParams struct {
+type Params struct {
+	AutoPeering bool
+
 	// Announcing
 	PrivateKey    inet256.PrivateKey
 	LocalID       inet256.Addr
 	GetLocalAddrs func() []TransportAddr
 
 	// Finding
-	AddressBook AddressBook
-	AddrParser  p2p.AddrParser[TransportAddr]
+	Peers      peers.Store[TransportAddr]
+	AddrParser p2p.AddrParser[TransportAddr]
 }
 
 // AddrService find transport addresses for known peers
-type AddrService interface {
-	RunAddrDiscovery(ctx context.Context, params AddrDiscoveryParams) error
+type Service interface {
+	Run(ctx context.Context, params Params) error
 }
 
-type PeerDiscoveryParams struct {
-	// Outbound
-	PrivateKey    inet256.PrivateKey
-	LocalID       inet256.Addr
-	GetLocalAddrs func() []TransportAddr
-
-	// Inbound
-	PeerStore peers.Store[TransportAddr]
-	ParseAddr func([]byte) (TransportAddr, error)
-}
-
-// PeerService finds new peers and addresses
-type PeerService interface {
-	RunPeerDiscovery(ctx context.Context, params PeerDiscoveryParams) error
-}
-
-func RunForever(ctx context.Context, srv AddrService, params AddrDiscoveryParams) {
+func RunForever(ctx context.Context, srv Service, params Params) {
 	logctx.Infoln(ctx, "starting address discovery service")
 	retry.Retry(ctx, func() error {
-		return srv.RunAddrDiscovery(ctx, params)
+		return srv.Run(ctx, params)
 	}, retry.WithPredicate(func(err error) bool {
 		logctx.Errorln(ctx, "error in address discovery service", err)
 		return true
@@ -67,13 +53,14 @@ func RunForever(ctx context.Context, srv AddrService, params AddrDiscoveryParams
 	logctx.Infoln(ctx, "stopped address discovery service")
 }
 
-func RunPeerDiscovery(ctx context.Context, srv PeerService, params PeerDiscoveryParams) {
-	logctx.Infoln(ctx, "starting peer discovery service")
-	retry.Retry(ctx, func() error {
-		return srv.RunPeerDiscovery(ctx, params)
-	}, retry.WithPredicate(func(err error) bool {
-		logctx.Errorln(ctx, "error in discovery service", err)
-		return true
-	}))
-	logctx.Infoln(ctx, "stopped peer discovery service")
+func DisableAddRemove[T p2p.Addr](x peers.Store[T]) peers.Store[T] {
+	return fixedStore[T]{x}
 }
+
+type fixedStore[T p2p.Addr] struct {
+	peers.Store[T]
+}
+
+func (s fixedStore[T]) Add(x inet256.Addr) {}
+
+func (s fixedStore[T]) Remove(x inet256.Addr) {}

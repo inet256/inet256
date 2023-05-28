@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
 )
@@ -20,8 +19,7 @@ type PeerStore = peers.Store[TransportAddr]
 
 type Params struct {
 	MainNodeParams      mesh256.Params
-	AddrDiscovery       []discovery.AddrService
-	PeerDiscovery       []discovery.PeerService
+	AddrDiscovery       []discovery.Service
 	APIAddr             string
 	TransportAddrParser p2p.AddrParser[TransportAddr]
 }
@@ -48,7 +46,6 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	nodeParams := d.params.MainNodeParams
 	nodeParams.Background = ctx
-	localID := inet256.NewAddr(nodeParams.PrivateKey.Public())
 
 	// discovery
 	dscSrvs := d.params.AddrDiscovery
@@ -59,16 +56,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 		copyPeers(dscPeerStores[i], d.params.MainNodeParams.Peers)
 	}
 
-	// auto-peering
-	apSrvs := d.params.PeerDiscovery
-	apPeerStores := make([]PeerStore, len(apSrvs))
-	for i := range apSrvs {
-		apPeerStores[i] = mesh256.NewPeerStore()
-	}
-
 	peerStores := []PeerStore{d.params.MainNodeParams.Peers}
 	peerStores = append(peerStores, dscPeerStores...)
-	peerStores = append(peerStores, apPeerStores...)
 
 	// server
 	nodeParams.Peers = peers.ChainStore[TransportAddr](peerStores)
@@ -87,11 +76,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return d.runHTTPServer(ctx, d.params.APIAddr, s, promReg)
 	})
 	eg.Go(func() error {
-		d.runAddrDiscovery(ctx, d.params.MainNodeParams.PrivateKey, d.params.AddrDiscovery, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
-		return nil
-	})
-	eg.Go(func() error {
-		d.runPeerDiscovery(ctx, localID, d.params.PeerDiscovery, apPeerStores, adaptTransportAddrs(s.TransportAddrs))
+		d.runDiscovery(ctx, d.params.MainNodeParams.PrivateKey, d.params.AddrDiscovery, adaptTransportAddrs(s.TransportAddrs), dscPeerStores, d.params.TransportAddrParser)
 		return nil
 	})
 	return eg.Wait()

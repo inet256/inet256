@@ -1,6 +1,7 @@
 package inet256d
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 
+	"github.com/inet256/inet256/internal/slices2"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
@@ -44,14 +46,10 @@ type UDPTransportSpec string
 type EthernetTransportSpec string
 
 type DiscoverySpec struct {
-	Cell    *CellDiscoverySpec    `yaml:"cell,omitempty"`
+	AutoPeering bool `yaml:"autopeering"`
+
 	Local   *LocalDiscoverySpec   `yaml:"local,omitempty"`
 	Central *CentralDiscoverySpec `yaml:"central,omitempty"`
-}
-
-type CellDiscoverySpec struct {
-	Token  string        `yaml:"token"`
-	Period time.Duration `yaml:"period,omitempty"`
 }
 
 type LocalDiscoverySpec struct {
@@ -63,9 +61,6 @@ type CentralDiscoverySpec struct {
 	Period   time.Duration `yaml:"period,omitempty"`
 }
 
-type AutoPeeringSpec struct {
-}
-
 type Config struct {
 	PrivateKeyPath string          `yaml:"private_key_path"`
 	APIEndpoint    string          `yaml:"api_endpoint"`
@@ -73,8 +68,7 @@ type Config struct {
 	Transports     []TransportSpec `yaml:"transports"`
 	Peers          []PeerSpec      `yaml:"peers"`
 
-	Discovery   []DiscoverySpec   `yaml:"discovery"`
-	AutoPeering []AutoPeeringSpec `yaml:"autopeering"`
+	Discovery []DiscoverySpec `yaml:"discovery"`
 }
 
 func (c Config) GetAPIAddr() string {
@@ -124,22 +118,13 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		return nil, err
 	}
 	// discovery
-	dscSrvs := []discovery.AddrService{}
+	dscSrvs := []discovery.Service{}
 	for _, spec := range c.Discovery {
-		dscSrv, err := makeAddrDiscovery(spec, addrSchema)
+		dscSrv, err := makeDiscovery(spec, addrSchema)
 		if err != nil {
 			return nil, err
 		}
 		dscSrvs = append(dscSrvs, dscSrv)
-	}
-	// autopeering
-	apSrvs := []discovery.PeerService{}
-	for _, spec := range c.AutoPeering {
-		apSrv, err := makePeerDiscovery(spec, addrSchema)
-		if err != nil {
-			return nil, err
-		}
-		apSrvs = append(apSrvs, apSrv)
 	}
 
 	params := &Params{
@@ -150,7 +135,6 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 			Peers:      ps,
 		},
 		AddrDiscovery:       dscSrvs,
-		PeerDiscovery:       apSrvs,
 		APIAddr:             c.APIEndpoint,
 		TransportAddrParser: addrSchema.ParseAddr,
 	}
@@ -172,10 +156,10 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 	}
 }
 
-func makeAddrDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.AddrService, error) {
+func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Local != nil:
-		return nil, errors.New("local discovery not yet supported")
+		return nil, errors.New("landisco not supported")
 	case spec.Central != nil:
 		period := spec.Central.Period
 		if period == 0 {
@@ -196,13 +180,6 @@ func makeAddrDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (di
 		return centraldisco.NewService(client, period), nil
 	default:
 		return nil, errors.Errorf("empty discovery spec")
-	}
-}
-
-func makePeerDiscovery(spec AutoPeeringSpec, addrSchema multiswarm.AddrSchema) (discovery.PeerService, error) {
-	switch {
-	default:
-		return nil, errors.Errorf("empty autopeering spec")
 	}
 }
 
@@ -267,4 +244,12 @@ func networkFactoryFromSpec(spec NetworkSpec) (mesh256.NetworkFactory, error) {
 	default:
 		return nil, errors.Errorf("empty network spec")
 	}
+}
+
+func InterfaceNames() ([]string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	return slices2.Map(ifaces, func(x net.Interface) string { return x.Name }), nil
 }

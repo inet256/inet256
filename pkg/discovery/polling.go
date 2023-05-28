@@ -22,7 +22,7 @@ type PollingDiscovery struct {
 	Lookup   LookupFunc
 }
 
-func (s *PollingDiscovery) RunAddrDiscovery(ctx context.Context, params AddrDiscoveryParams) error {
+func (s *PollingDiscovery) Run(ctx context.Context, params Params) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return s.lookupLoop(ctx, params)
@@ -33,9 +33,9 @@ func (s *PollingDiscovery) RunAddrDiscovery(ctx context.Context, params AddrDisc
 	return eg.Wait()
 }
 
-func (s *PollingDiscovery) lookupLoop(ctx context.Context, params AddrDiscoveryParams) error {
+func (s *PollingDiscovery) lookupLoop(ctx context.Context, params Params) error {
 	return s.poll(ctx, func() error {
-		for _, target := range params.AddressBook.List() {
+		for _, target := range params.Peers.List() {
 			addrStrs, err := s.Lookup(ctx, target)
 			if err != nil {
 				return err
@@ -44,13 +44,13 @@ func (s *PollingDiscovery) lookupLoop(ctx context.Context, params AddrDiscoveryP
 			if err != nil {
 				return err
 			}
-			peers.SetAddrs[TransportAddr](params.AddressBook, target, addrs)
+			peers.SetAddrs[TransportAddr](params.Peers, target, addrs)
 		}
 		return nil
 	})
 }
 
-func (s *PollingDiscovery) announceLoop(ctx context.Context, params AddrDiscoveryParams) error {
+func (s *PollingDiscovery) announceLoop(ctx context.Context, params Params) error {
 	return s.poll(ctx, func() error {
 		return s.Announce(ctx, params.PrivateKey, serde.MarshalAddrs(params.GetLocalAddrs()), s.Period*3/2)
 	})
