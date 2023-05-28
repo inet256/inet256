@@ -1,10 +1,7 @@
 package inet256d
 
 import (
-<<<<<<< HEAD
 	"net"
-=======
->>>>>>> c3b77fb (consolidate autopeering and discovery)
 	"os"
 	"path/filepath"
 	"reflect"
@@ -121,7 +118,7 @@ func MakeParams(configPath string, c Config) (*Params, error) {
 		return nil, err
 	}
 	// discovery
-	dscSrvs := []discovery.AddrService{}
+	dscSrvs := []discovery.Service{}
 	for _, spec := range c.Discovery {
 		dscSrv, err := makeDiscovery(spec, addrSchema)
 		if err != nil {
