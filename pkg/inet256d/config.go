@@ -19,6 +19,7 @@ import (
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
+	"github.com/inet256/inet256/pkg/discovery/landisco"
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/inet256/inet256/pkg/peers"
@@ -53,12 +54,30 @@ type DiscoverySpec struct {
 }
 
 type LocalDiscoverySpec struct {
-	Interfaces []string `yaml:"interfaces"`
+	Interfaces     []string      `yaml:"interfaces"`
+	AnnouncePeriod time.Duration `yaml:"announce_period,omitempty"`
+}
+
+func (s LocalDiscoverySpec) GetAnnouncePeriod() time.Duration {
+	const DefaultAnnouncePeriod = 15 * time.Second
+	if s.AnnouncePeriod > 0 {
+		return s.AnnouncePeriod
+
+	}
+	return DefaultAnnouncePeriod
 }
 
 type CentralDiscoverySpec struct {
 	Endpoint string        `yaml:"endpoint"`
 	Period   time.Duration `yaml:"period,omitempty"`
+}
+
+func (s *CentralDiscoverySpec) GetPeriod() time.Duration {
+	const DefaultPeriod = 15 * time.Second
+	if s.Period > 0 {
+		return s.Period
+	}
+	return DefaultPeriod
 }
 
 type Config struct {
@@ -159,12 +178,8 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Local != nil:
-		return nil, errors.New("landisco not supported")
+		return landisco.New(spec.Local.Interfaces, spec.Local.GetAnnouncePeriod())
 	case spec.Central != nil:
-		period := spec.Central.Period
-		if period == 0 {
-			period = defaultPollingPeriod
-		}
 		endpoint := spec.Central.Endpoint
 		var opts []grpc.DialOption
 		if strings.HasPrefix(endpoint, "http://") {
@@ -177,7 +192,7 @@ func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discov
 			return nil, err
 		}
 		client := centraldisco.NewClient(gc)
-		return centraldisco.NewService(client, period), nil
+		return centraldisco.NewService(client, spec.Central.GetPeriod()), nil
 	default:
 		return nil, errors.Errorf("empty discovery spec")
 	}
