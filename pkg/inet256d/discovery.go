@@ -19,7 +19,7 @@ func (d *Daemon) runDiscovery(ctx context.Context, privateKey inet256.PrivateKey
 	eg := errgroup.Group{}
 	for i := range ds {
 		disc := ds[i]
-		if autopeering {
+		if !autopeering {
 			ps[i] = discovery.DisableAddRemove(ps[i])
 		}
 		params := discovery.Params{
