@@ -56,10 +56,10 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	ifNames := slices2.Map(ifs[:1], func(x net.Interface) string { return x.Name })
 
-	ds1, err := New(ifNames)
+	ds1, err := New(ifNames, time.Second)
 	require.NoError(t, err)
 	t.Log(ds1)
-	ds2, err := New(ifNames)
+	ds2, err := New(ifNames, time.Second)
 	require.NoError(t, err)
 	eg, ctx2 := errgroup.WithContext(ctx)
 	t.Log(ds2)

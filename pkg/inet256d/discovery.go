@@ -2,7 +2,6 @@ package inet256d
 
 import (
 	"context"
-	"time"
 
 	"github.com/brendoncarroll/go-p2p"
 	"golang.org/x/sync/errgroup"
@@ -11,8 +10,6 @@ import (
 	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/inet256/inet256/pkg/mesh256"
 )
-
-const defaultPollingPeriod = 16 * time.Second
 
 func (d *Daemon) runDiscovery(ctx context.Context, privateKey inet256.PrivateKey, ds []discovery.Service, localAddrs func() []TransportAddr, ps []PeerStore, addrParser p2p.AddrParser[mesh256.TransportAddr]) {
 	autopeering := false

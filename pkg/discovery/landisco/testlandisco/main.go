@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/inet256/inet256/pkg/discovery/landisco"
@@ -10,8 +11,12 @@ import (
 )
 
 func main() {
+	args := os.Args[1:]
+	if len(args) < 1 {
+		log.Fatalf("must provide interface name")
+	}
 	ctx := context.Background()
-	s, err := landisco.New([]string{"ens192"})
+	s, err := landisco.New([]string{args[0]}, time.Second)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,6 +26,8 @@ func main() {
 			log.Println(err)
 		}
 		select {
+		case <-ctx.Done():
+			log.Fatal(ctx.Err())
 		case <-ticker.C:
 		}
 	}

@@ -61,7 +61,10 @@ func newUDPMulticast(ifName string) (*net.UDPConn, error) {
 	return conn, nil
 }
 
-func New(ifaces []string) (*Service, error) {
+func New(ifaces []string, announcePeriod time.Duration) (*Service, error) {
+	if announcePeriod <= 0 {
+		return nil, fmt.Errorf("invalid announcePeriod %v", announcePeriod)
+	}
 	if len(ifaces) < 1 {
 		return nil, errors.New("must provide at least one interface by name")
 	}
@@ -75,7 +78,7 @@ func New(ifaces []string) (*Service, error) {
 	}
 	return &Service{
 		ifaces:         ifaces,
-		announcePeriod: time.Second,
+		announcePeriod: announcePeriod,
 
 		conns: conns,
 	}, nil

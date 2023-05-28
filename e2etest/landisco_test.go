@@ -20,7 +20,8 @@ func TestLocalDiscovery(t *testing.T) {
 		sides[i] = newSide(t, i)
 		sides[i].addDiscovery(t, inet256d.DiscoverySpec{
 			Local: &inet256d.LocalDiscoverySpec{
-				Interfaces: ifaces,
+				Interfaces:     ifaces,
+				AnnouncePeriod: time.Second,
 			},
 		})
 	}
