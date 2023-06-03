@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/brendoncarroll/go-exp/futures"
 	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/futures"
 	"github.com/brendoncarroll/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 

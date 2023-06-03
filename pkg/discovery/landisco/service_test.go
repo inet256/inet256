@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/brendoncarroll/go-exp/slices2"
 	"github.com/inet256/inet256/internal/retry"
-	"github.com/inet256/inet256/internal/slices2"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/inet256test"
 	"github.com/inet256/inet256/pkg/mesh256"

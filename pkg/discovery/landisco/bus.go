@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/brendoncarroll/go-exp/slices2"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-tai64"
 	"github.com/brendoncarroll/stdctx/logctx"
@@ -16,7 +17,6 @@ import (
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/internal/slices2"
 	"github.com/inet256/inet256/pkg/inet256"
 )
 

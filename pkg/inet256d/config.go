@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/brendoncarroll/go-exp/slices2"
 	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 
-	"github.com/inet256/inet256/internal/slices2"
 	"github.com/inet256/inet256/networks/beaconnet"
 	"github.com/inet256/inet256/pkg/discovery"
 	"github.com/inet256/inet256/pkg/discovery/centraldisco"
