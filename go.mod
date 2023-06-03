@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/brendoncarroll/go-p2p v0.0.0-20230519005220-e4b3c699f7af
 	github.com/brendoncarroll/go-tai64 v0.0.0-20220726191612-c9e9c0704db4
-	github.com/brendoncarroll/stdctx v0.0.0-20230318183431-4786d63efd50
+	github.com/brendoncarroll/stdctx v0.0.0-20230325181752-a8a6ba46e3c1
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.2
 	github.com/inet256/go-utp v0.0.0-20230117000540-718d56e713a8

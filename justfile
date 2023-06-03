@@ -5,17 +5,24 @@ clean:
 protobuf:
 	cd ./pkg/discovery/centraldisco/internal && ./build.sh
 
-install:
-	go install ./cmd/inet256
+# install-unix builds a binary and copies it to /usr/local/bin
+install-unix: build
+	cp ./out/inet256 /usr/local/bin/inet256
 
 install-systemd:
 	cp etc/systemd/* /etc/systemd/system/
 	systemctl daemon-reload
 
-build: protobuf
+# builds inet256 for the local platform
+build:
+	./etc/build_go_binary.sh ./out/inet256 ./cmd/inet256
+
+# build-release builds all binaries for a release
+build-release: protobuf
 	GOOS=darwin GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_darwin_amd64_$(TAG) ./cmd/inet256
-	GOOS=linux GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_linux_amd64_$(TAG) ./cmd/inet256
-	GOOS=windows GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_windows_amd64_$(TAG) ./cmd/inet256
+	GOOS=darwin GOARCH=arm64 ./etc/build_go_binary.sh out/inet256_darwin_arm64_$(TAG) ./cmd/inet256
+	GOOS=linux  GOARCH=amd64 ./etc/build_go_binary.sh out/inet256_linux_amd64_$(TAG) ./cmd/inet256
+	GOOS=linux  GOARCH=arm64 ./etc/build_go_binary.sh out/inet256_linux_arm64_$(TAG) ./cmd/inet256
 
 test: protobuf
 	go test --race ./internal/...

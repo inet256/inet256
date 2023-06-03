@@ -54,7 +54,8 @@ type DiscoverySpec struct {
 }
 
 type LocalDiscoverySpec struct {
-	Interfaces     []string      `yaml:"interfaces"`
+	Interfaces []string `yaml:"interfaces"`
+
 	AnnouncePeriod time.Duration `yaml:"announce_period,omitempty"`
 }
 
@@ -178,7 +179,10 @@ func makeTransport(spec TransportSpec, privKey inet256.PrivateKey) (multiswarm.D
 func makeDiscovery(spec DiscoverySpec, addrSchema multiswarm.AddrSchema) (discovery.Service, error) {
 	switch {
 	case spec.Local != nil:
-		return landisco.New(spec.Local.Interfaces, spec.Local.GetAnnouncePeriod())
+		return &landisco.Service{
+			Interfaces:     spec.Local.Interfaces,
+			AnnouncePeriod: spec.Local.GetAnnouncePeriod(),
+		}, nil
 	case spec.Central != nil:
 		endpoint := spec.Central.Endpoint
 		var opts []grpc.DialOption

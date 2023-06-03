@@ -56,14 +56,10 @@ func TestService(t *testing.T) {
 	require.NoError(t, err)
 	ifNames := slices2.Map(ifs[:1], func(x net.Interface) string { return x.Name })
 
-	ds1, err := New(ifNames, time.Second)
-	require.NoError(t, err)
-	t.Log(ds1)
-	ds2, err := New(ifNames, time.Second)
-	require.NoError(t, err)
-	eg, ctx2 := errgroup.WithContext(ctx)
-	t.Log(ds2)
+	ds1 := Service{ifNames, 250 * time.Millisecond}
+	ds2 := Service{ifNames, 250 * time.Millisecond}
 
+	eg, ctx2 := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return ds1.Run(ctx2, discovery.Params{
 			LocalID:       id1,
@@ -82,14 +78,9 @@ func TestService(t *testing.T) {
 			AddrParser: parser,
 		})
 	})
-	ctx, cf = context.WithTimeout(ctx, 10*time.Second)
-	defer cf()
+	ctx, cf2 := context.WithTimeout(ctx, 10*time.Second)
+	defer cf2()
 	err = retry.Retry(ctx, func() error {
-		if err := ds2.Announce(ctx, id2, getLocalAddrs()); err != nil {
-			t.Log(err)
-			return err
-		}
-		t.Log("did announce")
 		addrs := peers.ListAddrs[discovery.TransportAddr](ps1, id2)
 		if len(addrs) < 1 {
 			return fmt.Errorf("no addresses")
@@ -98,6 +89,8 @@ func TestService(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+	cf()
+	eg.Wait()
 }
 
 func parser(x []byte) (multiswarm.Addr, error) {

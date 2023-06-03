@@ -94,12 +94,29 @@ Different forks of the project may ship with different networks.
 A list of discovery service specs.
 Discovery services allow the daemon to find transport addresses for a given INET256 peer.  This makes peering over the internet easier.
 
+Discovery services *do not* create connections to unknown peers, unless `autopeering: true` is set.
+If not set in the DiscoverySpec autopeering defaults to `false`.
+Not all discovery services support suggesting peers.
+All discovery services can find transport addresses of known peers.
+A discovery service continuously attempts to find transport addresses for all of the peers specified in the configuration.
+
+### Central
 In the example below a central discovery server is configured to announce and find peers.
+
 ```yaml
 discovery:
 - central:
-    endpoint: "123.234.132.231:8000"
+    endpoint: "123.234.132.231:8000" 
+  autopeering: false
 ```
 
-Discovery services *do not* create connections to unknown peers.
-A discovery service continuously attempts to find transport addresses for all of the peers specified in the configuration.
+### Local
+Local discovery uses multicast on the local network to find known peers.
+
+```yaml
+discovery:
+- local:
+    interfaces: ["eth0"]
+    announce_period: "15s"
+  autopeering: true
+```
