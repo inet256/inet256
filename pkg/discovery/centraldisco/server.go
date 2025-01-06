@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-tai64"
 	"github.com/golang/protobuf/proto"
+	"go.brendoncarroll.net/tai64"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/discovery"
+	"go.inet256.org/inet256/pkg/discovery/centraldisco/internal"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 type peerState struct {

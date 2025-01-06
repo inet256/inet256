@@ -4,9 +4,9 @@ import (
 	mrand "math/rand"
 	"testing"
 
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/tai64"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func TestMessage(t *testing.T) {

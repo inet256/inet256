@@ -1,8 +1,8 @@
 package peers
 
 import (
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/p2p"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 type Addr = inet256.Addr

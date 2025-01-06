@@ -3,8 +3,8 @@ package inet256cmd
 import (
 	"fmt"
 
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/spf13/cobra"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func NewPingCmd(newNode NodeFactory) *cobra.Command {

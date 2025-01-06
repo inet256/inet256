@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/mesh256"
 )
 
 type StatusRes struct {

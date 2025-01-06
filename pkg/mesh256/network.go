@@ -3,9 +3,9 @@ package mesh256
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/f/x509"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // Network is an instantiated network routing algorithm

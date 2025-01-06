@@ -4,8 +4,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/p2p"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 type TellFunc = func(ctx context.Context, dst inet256.Addr, m p2p.IOVec) error

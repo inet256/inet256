@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 	"golang.zx2c4.com/wireguard/tun"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 const (

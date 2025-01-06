@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func MakeStreamFrontend(protocol string, node inet256.Node) (StreamEndpoint, error) {

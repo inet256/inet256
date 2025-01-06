@@ -7,17 +7,17 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/brendoncarroll/go-exp/futures"
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/exp/futures"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.brendoncarroll.net/tai64"
 
-	"github.com/inet256/inet256/internal/netutil"
-	"github.com/inet256/inet256/internal/retry"
-	"github.com/inet256/inet256/pkg/bitstr"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/maybe"
-	"github.com/inet256/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/internal/netutil"
+	"go.inet256.org/inet256/internal/retry"
+	"go.inet256.org/inet256/pkg/bitstr"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/maybe"
+	"go.inet256.org/inet256/pkg/mesh256"
 )
 
 type SendFunc = func(inet256.Addr, p2p.IOVec)

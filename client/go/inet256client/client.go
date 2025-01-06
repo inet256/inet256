@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256http"
-	"github.com/inet256/inet256/pkg/inet256mem"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256http"
+	"go.inet256.org/inet256/pkg/inet256mem"
 )
 
 const DefaultAPIEndpoint = "unix:///run/inet256.sock"

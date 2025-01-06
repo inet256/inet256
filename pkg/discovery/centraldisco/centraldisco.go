@@ -3,8 +3,8 @@ package centraldisco
 import (
 	"time"
 
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
+	"go.inet256.org/inet256/pkg/discovery"
+	"go.inet256.org/inet256/pkg/discovery/centraldisco/internal"
 	"google.golang.org/grpc"
 )
 

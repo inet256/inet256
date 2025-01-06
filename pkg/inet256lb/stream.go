@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/stdctx/logctx"
 )
 
 // StreamEndpoint represents a source of stream based connections (implementing net.Conn) to a set of remote hosts.

@@ -1,12 +1,12 @@
 package inet256cmd
 
 import (
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"gopkg.in/yaml.v3"
 
-	"github.com/inet256/inet256/pkg/inet256d"
+	"go.inet256.org/inet256/pkg/inet256d"
 )
 
 func newDaemonCmd() *cobra.Command {

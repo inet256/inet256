@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/maybe"
-	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/inet256/inet256/pkg/mesh256/routers"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/maybe"
+	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/mesh256/routers"
 )
 
 type Router struct {

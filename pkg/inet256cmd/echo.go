@@ -1,10 +1,10 @@
 package inet256cmd
 
 import (
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func NewEchoCmd(newNode NodeFactory) *cobra.Command {

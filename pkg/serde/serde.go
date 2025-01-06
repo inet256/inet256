@@ -5,10 +5,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/p2p"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func MarshalPrivateKey(privKey inet256.PrivateKey) []byte {

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/inet256/inet256/pkg/bitstr"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/bitstr"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 var netPrefix netip.Prefix = netip.MustParsePrefix("0200::/7")

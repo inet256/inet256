@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
-	"github.com/inet256/inet256/pkg/serde"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/peers"
+	"go.inet256.org/inet256/pkg/serde"
 )
 
 type LookupFunc = func(ctx context.Context, x inet256.Addr) ([]string, error)

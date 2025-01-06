@@ -4,8 +4,8 @@ package p2padapter
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/p2p"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // SwarmFromNode converts an inet256.Node to a p2p.SecureSwarm[inet256.Addr, inet256.PublicKey]

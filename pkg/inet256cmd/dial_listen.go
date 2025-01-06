@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256lb"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256lb"
 )
 
 func NewDialCmd(newNode func(ctx context.Context, privateKey inet256.PrivateKey) (inet256.Node, error)) *cobra.Command {

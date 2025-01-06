@@ -3,12 +3,12 @@ package inet256cmd
 import (
 	"net"
 
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"google.golang.org/grpc"
 
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco"
+	"go.inet256.org/inet256/pkg/discovery"
+	"go.inet256.org/inet256/pkg/discovery/centraldisco"
 )
 
 func newCentralDiscoveryCmd() *cobra.Command {

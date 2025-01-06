@@ -6,7 +6,7 @@ import (
 
 	"github.com/inet256/go-utp"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // NewUTPFrontend creates a new StreamEndpoint listening for UTP connections on a node.

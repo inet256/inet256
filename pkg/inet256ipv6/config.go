@@ -3,8 +3,8 @@ package inet256ipv6
 import (
 	"bytes"
 
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // ParseWhitelist creates an AllowFunc which allows only the addresses listed in x.

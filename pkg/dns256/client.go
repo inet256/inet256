@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"encoding/json"
 
-	"github.com/brendoncarroll/go-exp/futures"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/exp/futures"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // Client manages creating Requests and awaiting Responses.

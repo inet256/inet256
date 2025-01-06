@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/brendoncarroll/go-p2p/s/p2pkeswarm"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/f/x509"
+	"go.brendoncarroll.net/p2p/s/p2pkeswarm"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // identitySwarm turns p2pkeswarm.Addr[inet256.Addr] into inet256.Addr

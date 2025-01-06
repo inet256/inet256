@@ -1,10 +1,10 @@
 package inet256cmd
 
 import (
-	"github.com/inet256/inet256/networks/beaconnet"
-	"github.com/inet256/inet256/pkg/inet256d"
-	"github.com/inet256/inet256/pkg/mesh256"
 	"github.com/spf13/cobra"
+	"go.inet256.org/inet256/networks/beaconnet"
+	"go.inet256.org/inet256/pkg/inet256d"
+	"go.inet256.org/inet256/pkg/mesh256"
 )
 
 func newIslandCmd() *cobra.Command {

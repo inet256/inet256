@@ -5,18 +5,18 @@ import (
 	"math"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/f/x509"
+	"go.brendoncarroll.net/p2p/s/memswarm"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"go.uber.org/zap"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256test"
-	"github.com/inet256/inet256/pkg/mesh256/multihoming"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/mesh256/multihoming"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 func NewTestServer(t testing.TB, nf NetworkFactory) *Server {

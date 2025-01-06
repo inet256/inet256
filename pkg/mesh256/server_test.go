@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256test"
-	"github.com/inet256/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/mesh256"
 )
 
 func TestServerLoopback(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // Handler modifies res in response to req and returns true if a message should be sent in response.

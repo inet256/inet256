@@ -12,13 +12,13 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/brendoncarroll/go-p2p/s/swarmutil/retry"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/p2p/s/swarmutil/retry"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/exp/slices"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256ipc"
-	"github.com/inet256/inet256/pkg/serde"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256ipc"
+	"go.inet256.org/inet256/pkg/serde"
 )
 
 var _ inet256.Service = &Client{}

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/p2ptest"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p/p2ptest"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 var ctx = context.Background()

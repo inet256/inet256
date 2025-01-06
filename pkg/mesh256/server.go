@@ -4,18 +4,18 @@ import (
 	"context"
 	"sync"
 
-	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/go-p2p/s/vswarm"
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/brendoncarroll/stdctx"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/p2p/f/x509"
+	"go.brendoncarroll.net/p2p/s/memswarm"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
+	"go.brendoncarroll.net/p2p/s/vswarm"
+	"go.brendoncarroll.net/stdctx"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.brendoncarroll.net/tai64"
 	"golang.org/x/exp/maps"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 const nameMemSwarm = "memory"

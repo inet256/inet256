@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/discovery/centraldisco/internal"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256test"
 )
 
 func TestClientServer(t *testing.T) {

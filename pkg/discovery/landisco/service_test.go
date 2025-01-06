@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/go-p2p/s/udpswarm"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
+	"go.brendoncarroll.net/p2p/s/udpswarm"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/brendoncarroll/go-exp/slices2"
-	"github.com/inet256/inet256/internal/retry"
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/inet256test"
-	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.brendoncarroll.net/exp/slices2"
+	"go.inet256.org/inet256/internal/retry"
+	"go.inet256.org/inet256/pkg/discovery"
+	"go.inet256.org/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 func TestMulticast(t *testing.T) {

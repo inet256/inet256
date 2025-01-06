@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p/s/swarmutil/retry"
+	"go.brendoncarroll.net/p2p/s/swarmutil/retry"
 )
 
 type RetryOption = retry.RetryOption

@@ -6,9 +6,9 @@ import (
 	"math"
 	"time"
 
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/discovery/centraldisco/internal"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/tai64"
+	"go.inet256.org/inet256/pkg/discovery/centraldisco/internal"
+	"go.inet256.org/inet256/pkg/inet256"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

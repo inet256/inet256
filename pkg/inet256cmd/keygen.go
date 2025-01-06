@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"os"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/serde"
 )
 
 func NewKeygenCmd() *cobra.Command {

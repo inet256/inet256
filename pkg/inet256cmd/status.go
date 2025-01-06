@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/inet256/inet256/pkg/inet256d"
+	"go.inet256.org/inet256/pkg/inet256d"
 )
 
 func newStatusCmd(newClient func() (inet256d.AdminClient, error)) *cobra.Command {

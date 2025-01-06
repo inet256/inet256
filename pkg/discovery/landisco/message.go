@@ -1,9 +1,9 @@
 package landisco
 
 import (
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/tai64"
+	"go.inet256.org/inet256/pkg/inet256"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 

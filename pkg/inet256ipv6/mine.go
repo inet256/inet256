@@ -6,11 +6,11 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	"github.com/brendoncarroll/go-p2p/p/kademlia"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/p2p/p/kademlia"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 const (

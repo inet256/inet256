@@ -4,11 +4,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p/p/kademlia"
-	"github.com/inet256/inet256/pkg/bitstr"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p/p/kademlia"
+	"go.inet256.org/inet256/pkg/bitstr"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func TestCompress(t *testing.T) {

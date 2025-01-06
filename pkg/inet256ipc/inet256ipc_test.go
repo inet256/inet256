@@ -6,9 +6,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256mem"
-	"github.com/inet256/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256mem"
+	"go.inet256.org/inet256/pkg/inet256test"
 )
 
 var ctx = context.Background()

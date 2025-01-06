@@ -8,7 +8,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/brendoncarroll/go-p2p"
+	"go.brendoncarroll.net/p2p"
 )
 
 const maxFrameLen = MaxMessageLen + 4

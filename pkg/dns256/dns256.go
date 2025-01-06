@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/netip"
 
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/tai64"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 // RequestID is a random ID assigned to a request.

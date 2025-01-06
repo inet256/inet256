@@ -3,14 +3,14 @@ package inet256cmd
 import (
 	"context"
 
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/spf13/cobra"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"go.uber.org/zap"
 
-	"github.com/inet256/inet256/client/go/inet256client"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256d"
-	"github.com/inet256/inet256/pkg/inet256ipv6"
+	"go.inet256.org/inet256/client/go/inet256client"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256d"
+	"go.inet256.org/inet256/pkg/inet256ipv6"
 )
 
 const defaultAPIAddr = inet256d.DefaultAPIEndpoint

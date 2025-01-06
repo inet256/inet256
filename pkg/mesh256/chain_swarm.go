@@ -5,10 +5,10 @@ import (
 	"errors"
 	"math"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/swarmutil"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/s/swarmutil"
 
-	"github.com/inet256/inet256/internal/netutil"
+	"go.inet256.org/inet256/internal/netutil"
 )
 
 type chainSwarm[A p2p.Addr, Pub any] struct {

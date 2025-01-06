@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256ipc"
-	"github.com/inet256/inet256/pkg/rcsrv"
-	"github.com/inet256/inet256/pkg/serde"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256ipc"
+	"go.inet256.org/inet256/pkg/rcsrv"
+	"go.inet256.org/inet256/pkg/serde"
 )
 
 type Server struct {

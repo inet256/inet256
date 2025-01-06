@@ -3,13 +3,13 @@ package discovery
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
+	"go.brendoncarroll.net/stdctx/logctx"
 
-	"github.com/inet256/inet256/internal/retry"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/internal/retry"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 type (

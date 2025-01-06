@@ -10,14 +10,14 @@ import (
 	"os"
 	"path"
 
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/exp/slices"
 
-	"github.com/inet256/inet256/pkg/inet256http"
-	"github.com/inet256/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/inet256http"
+	"go.inet256.org/inet256/pkg/mesh256"
 )
 
 // runHTTPServer starts a listener at endpoint, and serves an HTTP API server backed by srv.

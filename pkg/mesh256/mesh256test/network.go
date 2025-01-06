@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/f/x509"
-	"github.com/brendoncarroll/go-p2p/p2ptest"
-	"github.com/brendoncarroll/go-p2p/s/memswarm"
-	"github.com/brendoncarroll/go-p2p/s/vswarm"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/f/x509"
+	"go.brendoncarroll.net/p2p/p2ptest"
+	"go.brendoncarroll.net/p2p/s/memswarm"
+	"go.brendoncarroll.net/p2p/s/vswarm"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256test"
-	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256test"
+	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 type (

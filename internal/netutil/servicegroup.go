@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 )
 

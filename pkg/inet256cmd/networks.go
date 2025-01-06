@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"fmt"
 
-	"github.com/inet256/inet256/pkg/inet256d"
 	"github.com/spf13/cobra"
+	"go.inet256.org/inet256/pkg/inet256d"
 )
 
 func newNetworksCmd() *cobra.Command {

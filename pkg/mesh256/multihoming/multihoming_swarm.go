@@ -3,16 +3,16 @@ package multihoming
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-p2p/p/p2pmux"
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/brendoncarroll/stdctx"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/p2p/p/p2pmux"
+	"go.brendoncarroll.net/stdctx"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.brendoncarroll.net/tai64"
 
-	"github.com/inet256/inet256/internal/netutil"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/internal/netutil"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 const (

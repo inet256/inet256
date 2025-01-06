@@ -7,10 +7,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/inet256/inet256/client/go_client/inet256client"
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/inet256mem"
 	kcp "github.com/xtaci/kcp-go/v5"
+	"go.inet256.org/inet256/client/go_client/inet256client"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256mem"
 	"golang.org/x/sync/errgroup"
 )
 

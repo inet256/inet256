@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/inet256/inet256/pkg/discovery/landisco"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.brendoncarroll.net/tai64"
+	"go.inet256.org/inet256/pkg/discovery/landisco"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func main() {

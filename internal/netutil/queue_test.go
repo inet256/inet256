@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/stretchr/testify/require"
+	"go.brendoncarroll.net/p2p"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 func TestQueue(t *testing.T) {

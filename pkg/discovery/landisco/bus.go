@@ -9,15 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-exp/slices2"
-	"github.com/brendoncarroll/go-p2p/s/multiswarm"
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/exp/slices2"
+	"go.brendoncarroll.net/p2p/s/multiswarm"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.brendoncarroll.net/tai64"
 	"go.uber.org/zap"
 	"golang.org/x/net/ipv6"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 const (

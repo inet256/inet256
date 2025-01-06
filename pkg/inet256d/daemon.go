@@ -3,15 +3,15 @@ package inet256d
 import (
 	"context"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/pkg/discovery"
-	"github.com/inet256/inet256/pkg/mesh256"
-	"github.com/inet256/inet256/pkg/peers"
+	"go.inet256.org/inet256/pkg/discovery"
+	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/pkg/peers"
 )
 
 type TransportAddr = mesh256.TransportAddr

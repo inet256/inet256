@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/go-tai64"
-	"github.com/brendoncarroll/stdctx/logctx"
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.brendoncarroll.net/tai64"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/internal/netutil"
+	"go.inet256.org/inet256/internal/netutil"
 )
 
 const expireAfter = 30 * time.Second

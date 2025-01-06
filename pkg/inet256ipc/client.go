@@ -6,13 +6,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/brendoncarroll/go-exp/futures"
-	"github.com/brendoncarroll/go-p2p"
-	"github.com/brendoncarroll/stdctx/logctx"
+	"go.brendoncarroll.net/exp/futures"
+	"go.brendoncarroll.net/p2p"
+	"go.brendoncarroll.net/stdctx/logctx"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/inet256/inet256/internal/netutil"
-	"github.com/inet256/inet256/pkg/inet256"
+	"go.inet256.org/inet256/internal/netutil"
+	"go.inet256.org/inet256/pkg/inet256"
 )
 
 type clientConfig struct{}

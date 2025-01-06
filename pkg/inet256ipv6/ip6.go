@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/inet256/inet256/pkg/inet256"
-	"github.com/inet256/inet256/pkg/serde"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/pkg/serde"
 )
 
 func NewIP6PortalCmd(newNode func(context.Context, inet256.PrivateKey) (inet256.Node, error)) *cobra.Command {

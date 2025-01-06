@@ -3,9 +3,9 @@ package inet256cmd
 import (
 	"bufio"
 
-	"github.com/brendoncarroll/stdctx/logctx"
-	"github.com/inet256/inet256/pkg/inet256"
 	"github.com/spf13/cobra"
+	"go.brendoncarroll.net/stdctx/logctx"
+	"go.inet256.org/inet256/pkg/inet256"
 	"golang.org/x/sync/errgroup"
 )
 
