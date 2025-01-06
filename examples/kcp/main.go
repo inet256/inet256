@@ -7,11 +7,12 @@ import (
 	"os"
 	"strconv"
 
+	"golang.org/x/sync/errgroup"
+
 	kcp "github.com/xtaci/kcp-go/v5"
-	"go.inet256.org/inet256/client/go_client/inet256client"
+	"go.inet256.org/inet256/client/go/inet256client"
 	"go.inet256.org/inet256/pkg/inet256"
 	"go.inet256.org/inet256/pkg/inet256mem"
-	"golang.org/x/sync/errgroup"
 )
 
 // ListenKCP uses node to listen for KCP connections.
