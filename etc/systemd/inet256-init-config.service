@@ -5,5 +5,4 @@ Requires=local-fs.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c "mkdir -p /etc/inet256 && inet256 create-config >> /etc/inet256/config.yml && inet256 keygen >> /etc/inet256/private_key.pem && chmod 640 /etc/inet256/* "
-
+ExecStart=/bin/bash -c "mkdir -p /etc/inet256 && inet256 create-config >> /etc/inet256/config.yml && inet256 keygen >> /etc/inet256/private_key.inet256 && chmod 640 /etc/inet256/* "

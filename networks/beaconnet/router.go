@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.brendoncarroll.net/exp/maybe"
 	"go.brendoncarroll.net/p2p"
 	"go.brendoncarroll.net/stdctx/logctx"
 
-	"go.inet256.org/inet256/pkg/inet256"
-	"go.inet256.org/inet256/pkg/maybe"
-	"go.inet256.org/inet256/pkg/mesh256"
-	"go.inet256.org/inet256/pkg/mesh256/routers"
+	"go.inet256.org/inet256/src/inet256"
+	"go.inet256.org/inet256/src/mesh256"
+	"go.inet256.org/inet256/src/mesh256/routers"
 )
 
 type Router struct {
+	pki                        inet256.PKI
 	privateKey                 inet256.PrivateKey
 	peers                      mesh256.PeerSet
 	localID                    inet256.Addr
@@ -31,6 +32,7 @@ type Router struct {
 
 func NewRouter() routers.Router {
 	return &Router{
+		pki:          inet256.DefaultPKI,
 		peerStateTTL: defaultPeerStateTTL,
 		beaconPeriod: defaultBeaconPeriod,
 
@@ -43,8 +45,8 @@ func (r *Router) Reset(p routers.RouterParams) {
 	defer r.mu.Unlock()
 	r.privateKey = p.PrivateKey
 	r.peers = p.Peers
-	r.localID = inet256.NewAddr(p.PrivateKey.Public())
-	r.ourBeacon = newBeacon(p.PrivateKey, p.Now)
+	r.localID = inet256.NewID(p.PrivateKey.Public().(inet256.PublicKey))
+	r.ourBeacon = newBeacon(&r.pki, p.PrivateKey, p.Now)
 
 	for k := range r.peerStates {
 		delete(r.peerStates, k)
@@ -78,7 +80,7 @@ func (r *Router) Heartbeat(ctx *routers.AboveContext, now time.Time) {
 		r.lastCleanup = now
 	}
 	if now.Sub(r.lastBeacon) >= r.beaconPeriod {
-		b := newBeacon(r.privateKey, now)
+		b := newBeacon(&r.pki, r.privateKey, now)
 		r.mu.Lock()
 		r.ourBeacon = b
 		r.mu.Unlock()
@@ -140,7 +142,7 @@ func (r *Router) handleMessage(ctx *routers.BelowContext, from inet256.Addr, pay
 
 // handleBeacon handles updating the network state when a Beacon is received
 func (r *Router) handleBeacon(ctx *routers.BelowContext, prev inet256.Addr, hdr Header, b Beacon) error {
-	pubKey, err := verifyBeacon(b)
+	pubKey, err := verifyBeacon(&r.pki, b)
 	if err != nil {
 		return err
 	}
@@ -165,7 +167,7 @@ func (r *Router) handleBeacon(ctx *routers.BelowContext, prev inet256.Addr, hdr 
 		body := jsonMarshal(ourBeacon)
 		r.send(ctx.Send, prev, hdr.GetSrc(), TypeBeacon, p2p.IOVec{body})
 	}
-	addr := inet256.NewAddr(pubKey)
+	addr := inet256.NewID(pubKey)
 	ctx.OnAddr(addr)
 	ctx.OnPublicKey(addr, pubKey)
 	return nil
@@ -195,7 +197,7 @@ func (r *Router) handleData(ctx *routers.BelowContext, prev inet256.Addr, hdr He
 }
 
 func (r *Router) updatePeerState(next inet256.Addr, pubKey inet256.PublicKey, counter uint64) (updated, created bool) {
-	peer := inet256.NewAddr(pubKey)
+	peer := inet256.NewID(pubKey)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	ps, exists := r.peerStates[peer]

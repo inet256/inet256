@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"go.inet256.org/inet256/pkg/inet256cmd"
+	"go.inet256.org/inet256/src/inet256cmd"
 )
 
 func main() {

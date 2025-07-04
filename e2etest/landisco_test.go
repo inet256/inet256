@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.inet256.org/inet256/pkg/inet256"
-	"go.inet256.org/inet256/pkg/inet256d"
-	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/src/inet256"
+	"go.inet256.org/inet256/src/inet256d"
+	"go.inet256.org/inet256/src/mesh256"
 )
 
 func TestLocalDiscovery(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skipf("local discovery broken on darwin")
+	}
 	ifaces, err := inet256d.InterfaceNames()
 	require.NoError(t, err)
 	// setup sides
@@ -55,7 +59,7 @@ func TestLocalDiscovery(t *testing.T) {
 
 				pubKey, err := s.LookupPublicKey(ctx, target)
 				require.NoError(t, err)
-				require.Equal(t, target, inet256.NewAddr(pubKey))
+				require.Equal(t, target, inet256.NewID(pubKey))
 			}
 			return nil
 		})

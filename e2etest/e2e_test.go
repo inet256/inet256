@@ -10,13 +10,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"go.inet256.org/inet256/client/go/inet256client"
-	"go.inet256.org/inet256/pkg/inet256"
-	"go.inet256.org/inet256/pkg/inet256d"
-	"go.inet256.org/inet256/pkg/inet256http"
-	"go.inet256.org/inet256/pkg/inet256test"
-	"go.inet256.org/inet256/pkg/mesh256"
-	"go.inet256.org/inet256/pkg/serde"
+	inet256client "go.inet256.org/inet256/client/go"
+	"go.inet256.org/inet256/src/inet256"
+	"go.inet256.org/inet256/src/inet256d"
+	"go.inet256.org/inet256/src/inet256http"
+	"go.inet256.org/inet256/src/inet256tests"
+	"go.inet256.org/inet256/src/mesh256"
 )
 
 var ctx = context.Background()
@@ -41,10 +40,10 @@ func Test2Node(t *testing.T) {
 		c := sides[i].newClient(t).(*inet256http.Client)
 		require.NoError(t, c.Ping(ctx))
 	}
-	n1 := sides[0].newNode(t, inet256test.NewPrivateKey(t, 101))
-	n2 := sides[1].newNode(t, inet256test.NewPrivateKey(t, 102))
-	inet256test.TestSendRecvOne(t, n1, n2)
-	inet256test.TestSendRecvOne(t, n2, n1)
+	n1 := sides[0].newNode(t, inet256tests.NewPrivateKey(t, 101))
+	n2 := sides[1].newNode(t, inet256tests.NewPrivateKey(t, 102))
+	inet256tests.TestSendRecvOne(t, n1, n2)
+	inet256tests.TestSendRecvOne(t, n2, n1)
 }
 
 type side struct {
@@ -59,11 +58,11 @@ type side struct {
 
 func newSide(t testing.TB, i int) *side {
 	dir := t.TempDir()
-	privateKey := inet256test.NewPrivateKey(t, i)
+	privateKey := inet256tests.NewPrivateKey(t, i)
 	transportPort := 32000 + i
 
 	config := inet256d.DefaultConfig()
-	config.PrivateKeyPath = "./private_key.pem"
+	config.PrivateKeyPath = "./private_key.inet256"
 	config.APIEndpoint = fmt.Sprintf("unix://%s/inet256-%d.sock", dir, i)
 	config.Transports = []inet256d.TransportSpec{
 		newUDPTransportSpec("127.0.0.1:" + strconv.Itoa(transportPort)),
@@ -71,8 +70,8 @@ func newSide(t testing.TB, i int) *side {
 	configPath := filepath.Join(dir, "config.yaml")
 	require.NoError(t, inet256d.SaveConfig(config, configPath))
 
-	keyPath := filepath.Join(dir, "private_key.pem")
-	data, err := serde.MarshalPrivateKeyPEM(privateKey)
+	keyPath := filepath.Join(dir, "private_key.inet256")
+	data, err := inet256.DefaultPKI.MarshalPrivateKey(nil, privateKey)
 	require.NoError(t, err)
 	err = os.WriteFile(keyPath, data, 0o644)
 	require.NoError(t, err)
@@ -123,7 +122,7 @@ func (s *side) transportAddrs() []string {
 }
 
 func (s *side) localAddr() inet256.Addr {
-	return inet256.NewAddr(s.privateKey.Public())
+	return inet256.NewID(s.privateKey.Public().(inet256.PublicKey))
 }
 
 func (s *side) newClient(t testing.TB) inet256.Service {

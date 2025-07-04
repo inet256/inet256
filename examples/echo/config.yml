@@ -1,4 +1,4 @@
-private_key_path: "./private_key.pem"
+private_key_path: "./private_key.inet256"
 api_addr: tcp://127.0.0.1:2560
 network:
   beaconnet: {}

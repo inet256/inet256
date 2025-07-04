@@ -1,24 +1,21 @@
 # INET256 Specification
 
-INET256 is a standardized networking API, and cryptographic address scheme.
+INET256 is a standardized networking API, PKI, and cryptographic address scheme.
 
 - It *does not* prescribe protocols, wire formats, or routing algorithms.
 - It *does* define an address scheme.
 - It *does* define API methods.
-
-This document serves primarily to document the spec.  More reasoning can be found in the [proposal](./00_Proposal.md)
 
 ## 1 Addresses
 INET256 addresses are 256 bits dervied from serializing, then hashing a public signing key.
 
 **TLDR:**
 ```
-    addr = SHAKE256( PKIX_Serialize( public_key ) ) 
+    addr = SHAKE256( Serialize( public_key ) )
 ```
 
 ### 1.1 Public Signing Keys
 The signing algorithms supported are:
-- `RSA`
 - `Ed25519`
 
 New signing algorithms can be added or removed over time.
@@ -28,16 +25,16 @@ The tradeoffs and migration process are the same as TLS.
 Importantly, the hash-of-key design allows public keys to be much larger than a hash, as will be the case with post-quantum cryptography, while retaining fixed sized addresses.
 
 ### 1.2 Serialization
-Keys are serialized using the `PKIX` serialization format, which is what TLS uses to send keys over the wire.
-
-It is the serialization format used in `x509` certificates defined [here](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1)
+Keys are serialized using a simple serialization format, inspired by SSH.
+Keys are prepended with a length-prefixed string, called the type tag, which indicates which algorithm the key is for.
+In the SSH protocol this is 4 bytes, which means tags can be billions of bytes in length; not a legitimate use case.
+In INET256 this is 2 bytes, which means that a tag can be at most 2^16-1 bytes.
 
 ```
-SubjectPublicKeyInfo  ::=  SEQUENCE  {
-        algorithm            AlgorithmIdentifier,
-        subjectPublicKey     BIT STRING  }
+| Type Tag Length (16 bits)              |
+| Type Tag (variable length base on tag) |
+| Key Data                               |
 ```
-Roughly it is an algorithm identifier and then the raw bytes for the key, which will also have a standard serialization.
 
 ### 1.3 Hashing
 Keys are hashed by taking the serialized format and feeding it to `SHAKE256 XOF` then reading 256 bits of output.
@@ -140,10 +137,11 @@ The **INET256 Signature Scheme** solves this problem.
 
 **TLDR**
 ```
-sig = Sign( private_key, CSHAKE256( "", purpose, input ) )
+sigCtx = CSHAKE256("", purpose)
+sig = Sign( private_key, CSHAKE256( "", sigCtx, input ) )
 ```
 
-CSHAKE is customized with a purpose string i.e. if the purpose was `mypurpose` the parameters to CSHAKE would be `N=""` and `C=mypurpose`.
+CSHAKE is customized with a purpose string.
 The input to CSHAKE is the bytes of the message to be signed.
 Signatures are performed on 512 bits of output from CSHAKE.
 The signature algorithm used is set by the public key.

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.inet256.org/inet256/pkg/discovery"
-	"go.inet256.org/inet256/pkg/discovery/centraldisco"
-	"go.inet256.org/inet256/pkg/inet256"
-	"go.inet256.org/inet256/pkg/inet256d"
-	"go.inet256.org/inet256/pkg/mesh256"
+	"go.inet256.org/inet256/src/discovery"
+	"go.inet256.org/inet256/src/discovery/centraldisco"
+	"go.inet256.org/inet256/src/inet256"
+	"go.inet256.org/inet256/src/inet256d"
+	"go.inet256.org/inet256/src/mesh256"
 	"google.golang.org/grpc"
 )
 
@@ -64,7 +64,7 @@ func TestCentralDiscovery(t *testing.T) {
 
 				pubKey, err := s.LookupPublicKey(ctx, target)
 				require.NoError(t, err)
-				require.Equal(t, target, inet256.NewAddr(pubKey))
+				require.Equal(t, target, inet256.NewID(pubKey))
 			}
 			return nil
 		})
