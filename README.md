@@ -54,7 +54,7 @@ Then create the configuration files
 ```shell
 $ mkdir myconfig
 $ inet256 create-config > myconfig/config.yml
-$ inet256 keygen > myconfig/private_key.pem
+$ inet256 keygen > myconfig/private_key
 ```
 
 Finally, run docker container.
@@ -75,7 +75,7 @@ Networks can be selected in the configuration file.
 We are eager to add other protocols.
 Check out `networks/beaconnet` for an example of simple routing protocol. It's a good place to start.
 
-## Utilities/Applications 
+## Utilities/Applications
 This project provides tools for using INET256 networks, some of which are not yet implemented
 
 - [x] IPv6 Portal (TUN Device). Similar to CJDNS and Yggdrasil.
@@ -87,7 +87,7 @@ This project provides tools for using INET256 networks, some of which are not ye
 ## Code Tour
 - `pkg/inet256` API definitions.  Mostly things required by the spec.
 
-- `pkg/mesh256` The reference implementation of an INET256 Service. 
+- `pkg/mesh256` The reference implementation of an INET256 Service.
 
 - `pkg/inet256d` The daemon that manages setting up transports, autopeering, discovery, the actual INET256 service, and the HTTP API.
 

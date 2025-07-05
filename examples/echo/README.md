@@ -1,7 +1,7 @@
 # Echo Example
 
 A config has already been provided with `inet256 create-config --api_endpoint=tcp://127.0.0.1:2560 > config.yml`.
-Generate your own key with `inet256 keygen > private_key.pem`
+Generate your own key with `inet256 keygen > private_key.inet256`
 
 Now run the daemon, let that sit in one terminal.
 ```
@@ -45,4 +45,3 @@ INFO[0044] echoed 5 bytes from uMd_IBiw5_XD2hcE4r3u4MDrB-SNB2VgrejfkffoL-c
 INFO[0050] echoed 11 bytes from uMd_IBiw5_XD2hcE4r3u4MDrB-SNB2VgrejfkffoL-c
 INFO[0062] echoed 26 bytes from uMd_IBiw5_XD2hcE4r3u4MDrB-SNB2VgrejfkffoL-c
 ```
-

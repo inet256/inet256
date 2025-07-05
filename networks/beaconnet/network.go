@@ -3,8 +3,8 @@ package beaconnet
 import (
 	"time"
 
-	"go.inet256.org/inet256/pkg/mesh256"
-	"go.inet256.org/inet256/pkg/mesh256/routers"
+	"go.inet256.org/inet256/src/mesh256"
+	"go.inet256.org/inet256/src/mesh256/routers"
 )
 
 const (

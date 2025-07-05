@@ -1,10 +1,11 @@
 module go.inet256.org/inet256
 
-go 1.22
+go 1.22.0
 
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
+	github.com/cloudflare/circl v1.6.1
 	github.com/go-chi/chi v1.5.4
 	github.com/golang/protobuf v1.5.4
 	github.com/inet256/go-utp v0.0.0-20230117000540-718d56e713a8

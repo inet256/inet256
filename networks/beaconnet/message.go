@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go.inet256.org/inet256/pkg/inet256"
+	"go.inet256.org/inet256/src/inet256"
 )
 
 const (
@@ -51,7 +51,7 @@ func (h *Header) SetType(x uint8) {
 }
 
 func (h *Header) GetSrc() inet256.Addr {
-	return inet256.AddrFromBytes(h[srcStart:srcEnd])
+	return inet256.IDFromBytes(h[srcStart:srcEnd])
 }
 
 func (h *Header) SetSrc(x inet256.Addr) {
@@ -59,7 +59,7 @@ func (h *Header) SetSrc(x inet256.Addr) {
 }
 
 func (h *Header) GetDst() inet256.Addr {
-	return inet256.AddrFromBytes(h[dstStart:dstEnd])
+	return inet256.IDFromBytes(h[dstStart:dstEnd])
 }
 
 func (h *Header) SetDst(x inet256.Addr) {
@@ -70,7 +70,7 @@ func (h *Header) String() string {
 	return fmt.Sprintf("Header{%v, %v -> %v}", h.GetType(), h.GetSrc(), h.GetDst())
 }
 
-const sigPurpose = "inet256/beaconnet/beacon"
+var sigPurpose = inet256.SigCtxString("inet256/beaconnet/beacon")
 
 type Beacon struct {
 	PublicKey []byte `json:"public_key"`
@@ -78,27 +78,27 @@ type Beacon struct {
 	Sig       []byte `json:"sig"`
 }
 
-func newBeacon(privateKey inet256.PrivateKey, now time.Time) *Beacon {
+func newBeacon(pki *inet256.PKI, privateKey inet256.PrivateKey, now time.Time) *Beacon {
 	now = now.UTC()
 	counter := uint64(now.UnixNano())
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], counter)
-	sig := inet256.Sign(nil, privateKey, sigPurpose, counterBytes[:])
+	sig := pki.Sign(&sigPurpose, privateKey, counterBytes[:], nil)
 	return &Beacon{
-		PublicKey: inet256.MarshalPublicKey(nil, privateKey.Public()),
+		PublicKey: inet256.MarshalPublicKey(nil, privateKey.Public().(inet256.PublicKey)),
 		Counter:   counter,
 		Sig:       sig,
 	}
 }
 
-func verifyBeacon(b Beacon) (inet256.PublicKey, error) {
+func verifyBeacon(pki *inet256.PKI, b Beacon) (inet256.PublicKey, error) {
 	pubKey, err := inet256.ParsePublicKey(b.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 	counterBytes := [8]byte{}
 	binary.BigEndian.PutUint64(counterBytes[:], b.Counter)
-	if !inet256.Verify(pubKey, sigPurpose, counterBytes[:], b.Sig) {
+	if !pki.Verify(&sigPurpose, pubKey, counterBytes[:], b.Sig) {
 		return nil, errors.New("verifyBeacon: invalid signature")
 	}
 	return pubKey, nil
