@@ -81,6 +81,26 @@ type PKI struct {
 	Schemes map[string]sign.Scheme
 }
 
+// MaxPublicKeySize returns the maximum size of a serialized
+// public key used by any scheme in this PKI.
+func (pki *PKI) MaxPublicKeySize() (ret int) {
+	for name, sch := range pki.Schemes {
+		// 2 bytes for the tag length + the schema name
+		size := sch.PublicKeySize() + len(name) + 2
+		ret = max(ret, size)
+	}
+	return ret
+}
+
+// MaxSigSize returns the maximum size of a signature
+// produced with schems in this PKI
+func (pki *PKI) MaxSigSize() (ret int) {
+	for _, sch := range pki.Schemes {
+		ret = max(ret, sch.SignatureSize())
+	}
+	return ret
+}
+
 func (pki *PKI) GenerateKey() (PublicKey, PrivateKey, error) {
 	sch := pki.Schemes[pki.Default]
 	if sch == nil {
