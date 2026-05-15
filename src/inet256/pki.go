@@ -175,6 +175,10 @@ func (pki *PKI) MarshalPrivateKey(out []byte, privateKey PrivateKey) ([]byte, er
 
 // Sign appends a signature to out (which may be nil) and returns it.
 func (pki *PKI) Sign(sigCtx *SigCtx, privateKey PrivateKey, msg []byte, out []byte) []byte {
+	return Sign(sigCtx, privateKey, msg, out)
+}
+
+func Sign(sigCtx *SigCtx, privateKey PrivateKey, msg []byte, out []byte) []byte {
 	if sigCtx == nil {
 		panic("sigCtx cannot be nil")
 	}
@@ -187,6 +191,10 @@ func (pki *PKI) Sign(sigCtx *SigCtx, privateKey PrivateKey, msg []byte, out []by
 }
 
 func (pki *PKI) Verify(sigCtx *SigCtx, pubKey PublicKey, msg []byte, sig []byte) bool {
+	return Verify(sigCtx, pubKey, msg, sig)
+}
+
+func Verify(sigCtx *SigCtx, pubKey PublicKey, msg []byte, sig []byte) bool {
 	if sigCtx == nil {
 		panic("sigCtx cannot be nil")
 	}
